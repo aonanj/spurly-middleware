@@ -1,0 +1,58 @@
+# =========================
+# macOS system files
+# =========================
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+*.swp
+
+# =========================
+# VS Code files
+# =========================
+.vscode/
+*.code-workspace
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.env
+*.venv
+env/
+venv/
+Pipfile.lock
+poetry.lock
+
+# =========================
+# Swift / Xcode (if applicable)
+# =========================
+DerivedData/
+*.xcworkspace
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcsettings/
+*.xcodeproj/xcshareddata/
+*.xcuserstate
+*.swiftpm
+.build/
+Package.resolved
+
+# =========================
+# Git backup / conflict
+# =========================
+*.orig
+*.rej
+
+# =========================
+# Local logs / caches
+# =========================
+*.log
+.cache/

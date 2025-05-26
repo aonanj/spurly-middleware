@@ -1,0 +1,25 @@
+﻿### Instructionsbanterbanter
+Please generate four SPURs suggested for Party A to say to Party B based on 
+the context below. There should be one spur that reflects each of the 
+following 4 tones:
+
+1. Sincere (friendly, emotionally open, upbeat)
+2. Warm (lighthearted, kind, playful)
+3. Cool (carefree, casual, cool and calm)
+4. Banter (humorous, joking, good-natured teasing)
+
+Avoid repeating the original messages. Each spur should feel distinct in tone 
+and language, with the tone and language being reflective of the context. 
+Each message should be sound as though it naturally came from Party A, given 
+the context below regarding Party A and what is known about Party B. 
+
+Respond in JSON with this format:
+{{
+  "sincere": "...",
+  "warm": "...",
+  "cool": "...",
+  "banter": "..."
+}}
+### Context
+
+
