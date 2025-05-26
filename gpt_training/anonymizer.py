@@ -12,8 +12,7 @@ logger = get_logger(__name__)
 
 def anonymize_conversation(original_conversation: Conversation) -> str:
 	"""
-	Replaces speaker labels with generic gender-based labels when available,
-	or falls back to 'Person A' and 'Person B' for user and connection respectively.
+	Replaces speaker labels with generic labels 'Person A' and 'Person B' for user and connection respectively.
 	Maintains message order and speaker attribution.
 
 	Args:
@@ -34,28 +33,16 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
 		
 		user_id = conversation_dict.get("user_id", "")
 		user_profile = get_user_profile(user_id)
-		user_gender = user_profile.gender or ""
 
 		connection_id = original_conversation.connection_id or ""
 		connection_profile = None
-		connection_gender = ""
-		if connection_id:
-			connection_profile = get_connection_profile(user_id, connection_id)
-			connection_gender = connection_profile.gender if connection_profile else ""
-		
+				
 		if not all("text" in message and "speaker" in message for message in conversation_messages):
 			logger.error("Invalid conversation format. Keys 'text' and 'speaker' expected.")
 			raise ValueError("Invalid conversation format. Keys 'text' and 'speaker' expected.")
-		
-		if not isinstance(user_gender, str) or user_gender == "":
-			user_label = "Person A"
-		else:
-			user_label = f"(1) {user_gender.capitalize()} Speaker"
 
-		if connection_gender == "" or not isinstance(connection_gender, str):
-			connection_label = "Person B"
-		else:
-			connection_label = f"(2) {connection_gender.capitalize()} Speaker"
+		user_label = "Person A"
+		connection_label = "Person B"
 
 		anonymized_messages = []
 		for message in conversation_messages:

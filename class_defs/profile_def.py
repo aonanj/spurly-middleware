@@ -4,15 +4,7 @@ Defines base and derived dataclasses for handling user and connection profiles.
 BaseProfile:
     name: Optional[str] - Optional name of the profile owner.
     age: [int] - age of the profile owner; must be >= 18.
-    gender: Optional[str] - Optional gender of the profile owner.
-    pronouns: Optional[str] - Optional preferred pronouns.
-    school: Optional[str] - Optional school associated with the profile.
-    job: Optional[str] - Optional occupation or job title.
-    drinking: Optional[str] - Optional drinking habits or preferences.
-    ethnicity: Optional[str] - Optional ethnicity of the profile owner.
-    hometown: Optional[str] - Optional hometown or place of origin.
-    greenlights: Optional[List[str]] - Optional list of likes, interests, or signals.
-    redlights: Optional[List[str]] - Optional list of dislikes or signals.
+    context_info: Optional[str] - Optional context information about the profile owner.
     personality_traits: Optional[List[str]] - Optional list of personality traits.
     
     to_dict returns a BaseProfile object formatted as a python dictionary.
@@ -40,20 +32,7 @@ from typing import Optional, List, Dict, Any
 class BaseProfile:
     name: Optional[str] = None
     age: Optional[int] = None
-    gender: Optional[str] = None
-    pronouns: Optional[str] = None
-    school: Optional[str] = None
-    job: Optional[str] = None
-    drinking: Optional[str] = None
-    ethnicity: Optional[str] = None
-    current_city: Optional[str] = None
-    hometown: Optional[str] = None
-    looking_for: Optional[str] = None
-    greenlights: Optional[List[str]] = field(default_factory=list)
-    redlights: Optional[List[str]] = field(default_factory=list)
-
-    
-    personality_traits: Optional[List[str]] = field(default_factory=list)
+    context_info: Optional[str] = None
 
     def to_dict(self):
         # Ensure default_factory lists are included even if empty

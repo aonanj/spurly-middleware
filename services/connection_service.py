@@ -106,17 +106,15 @@ def format_connection_profile(connection_profile: ConnectionProfile) -> str:
         display_key = key.replace('_', ' ').capitalize()
         if isinstance(value, list):
             if value: 
-                if key == "greenlights": display_key = "Greenlight Topics"
-                elif key == "redlights": display_key = "Redlight Topics"
-                elif key == "personality_traits":
-                    display_key = "Personality Traits (from images)"
+                if key == "personality_traits":
+                    display_key = "Personality Traits"
                     lines.append(f"{display_key}:")
                     for trait_item in value: # Value is now List[Dict[str, Any]]
                         trait_name = trait_item.get('trait', 'Unknown trait')
                         confidence = trait_item.get('confidence', 'N/A')
                         lines.append(f"  - {trait_name} (Confidence: {confidence:.2f})")
                     continue # Skip default list formatting for this key
-                elif key == "profile_text_content": display_key = "Profile Bio Snippets"
+                elif key == "profile_text_content": display_key = "Profile Content"
                 # profile_image_urls was removed
                 
                 if key == "profile_text_content": # specific formatting for these lists

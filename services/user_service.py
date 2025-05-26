@@ -39,11 +39,6 @@ def format_user_profile(profile: UserProfile) -> str:
             continue
 
         if isinstance(value, list):
-            if value:
-                label = "Greenlight Topics" if key == "greenlights" else (
-                        "Redlight Topics" if key == "redlights" else key.capitalize())
-                lines.append(f"{label}: {', '.join(value)}")
-        else:
             lines.append(f"{key.capitalize()}: {value}")
     default_log_level = current_app.config['DEFAULT_LOG_LEVEL']      
     logger.log(default_log_level, "Formatting user profile as text for UX/UI use.")

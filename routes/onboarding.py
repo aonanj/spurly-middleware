@@ -31,7 +31,7 @@ def onboarding(): # Removed type hint for simplicity during debug
              return jsonify({"error": "Missing age in request data"}), 400 # More specific error
 
         age = data.get("age")
-        if not isinstance(age, int) or not (18 <= age <= 99):
+        if not isinstance(age, int) or not (18 <= age):
                 # err_point = __package__ or __name__ # Not defined, use module name
                 logger.error("[routes.onboarding] Error: Invalid age provided: %s", age)
                 # Return 400 for bad request data, not 401 (unauthorized)
@@ -57,10 +57,7 @@ def onboarding(): # Removed type hint for simplicity during debug
         optional_fields = [f.name for f in fields(BaseProfile)] + \
                           [f.name for f in fields(UserProfile) if f.name not in ['user_id', 'selected_spurs']] # Get all optional field names
         for field_name in optional_fields:
-             # Map request keys (e.g., greenlight_topics) to profile keys (e.g., greenlights)
              request_key = field_name
-             if field_name == "greenlights": request_key = "greenlights"
-             if field_name == "redlights": request_key = "redlights"
 
              if request_key in data:
                   profile_data_dict[field_name] = data[request_key]
