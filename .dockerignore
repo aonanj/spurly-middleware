@@ -53,9 +53,16 @@ Package.resolved
 *.rej
 .gitignore
 
-# =========================
-# Local logs / caches
-# =========================
+# ==============================
+# Local logs / caches / configs
+# ==============================
 *.log
 .cache/
 spurly-trigger.json
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.secrets/
+

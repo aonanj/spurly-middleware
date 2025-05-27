@@ -52,10 +52,17 @@ Package.resolved
 *.orig
 *.rej
 
-# =========================
-# Local logs / caches
-# =========================
+# ==============================
+# Local logs / caches / configs
+# ==============================
 *.log
 .cache/
 spurly-trigger.json
 .dockerignore
+
+# =========================
+# Environment Variables
+# =========================
+.env
+.secrets/
+
