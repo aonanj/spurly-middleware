@@ -36,15 +36,13 @@ steps:
       '--concurrency', '80'
     ]
 
-
 # Service account configuration
 serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:
   logging: 'CLOUD_LOGGING_ONLY'
-  machineType: 'E2_STANDARD_2'
-  substitution_option: 'ALLOW_LOOSE'
+  substitutionOption: 'ALLOW_LOOSE'
 
 # Timeout for the entire build
 timeout: '1200s'
