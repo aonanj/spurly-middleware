@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 spurs_bp = Blueprint("spurs", __name__)
 
-@spurs_bp.route("/", methods=["GET"])
+@spurs_bp.route("/get-spurs", methods=["GET"])
 @require_auth
 def fetch_saved_spurs_bp():
     user_id = g.user['user_id']
@@ -44,7 +44,7 @@ def fetch_saved_spurs_bp():
     result = get_saved_spurs(user_id, filters)
     return jsonify(result)
 
-@spurs_bp.route("/", methods=["POST"])
+@spurs_bp.route("/save-spur", methods=["POST"])
 @require_auth
 def save_spur_bp():
     data = request.get_json()
@@ -58,25 +58,37 @@ def save_spur_bp():
     return jsonify(result)
 
 
-@spurs_bp.route("/<spur_id>", methods=["DELETE"])
+@spurs_bp.route("/delete-spur", methods=["DELETE"])
 @require_auth
-def delete_saved_spurs_bp(spur_id):
+def delete_saved_spurs_bp():
     user_id = g.user['user_id']
+
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
-
+    
+    data = request.get_json()
+    spur_id = data.get("spur_id")
+    if not spur_id:
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error: spur_id is required"}), 400
     result = delete_saved_spur(user_id, spur_id)
     return jsonify(result)
 
-@spurs_bp.route("/<spur_id>", methods=["GET"])
+@spurs_bp.route("/get-spur", methods=["GET"])
 @require_auth
-def get_spur_bp(spur_id):
+def get_spur_bp():
     user_id = g.user['user_id']
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"{err_point} - Error:"}), 400
+    spur_id = request.args.get("spur_id")
+    if not spur_id:
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return jsonify({'error': f"[{err_point}] - Error: spur_id is required"}), 400
     result = get_spur(spur_id)
     return jsonify(result)

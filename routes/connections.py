@@ -1,4 +1,6 @@
 from flask import Blueprint, request, jsonify, g, current_app
+import logging
+from typing import List, Dict, Any
 from infrastructure.auth import require_auth
 # from infrastructure.id_generator import get_null_connection_id # Not directly used in create/update logic now
 from infrastructure.logger import get_logger
@@ -15,8 +17,12 @@ from services.connection_service import (
      save_connection_profile # Re-added for the /save route
 )
 # storage_service imports for validation constants
-from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, _allowed_profile_image_file 
-from utils.extract_profile_snippet import extract_profile_snippet
+from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, _allowed_profile_image_file
+from services.classifiers import classify_image 
+from utils.ocr_utils import perform_ocr_on_screenshot as perform_ocr
+from utils.trait_manager import infer_personality_traits_from_openai_vision
+from PIL import Image
+import io
 
 logger = get_logger(__name__)
 
@@ -79,45 +85,40 @@ def create_connection():
     
     # Process connectionProfileContent (OCR Images)
     profile_content_texts = []
-    connection_profile_content_files_fs = request.files.getlist('connectionProfileContent')
-    for file_fs in connection_profile_content_files_fs:
-        if file_fs and file_fs.filename:
-            original_filename = file_fs.filename
-            if not _allowed_content_image_file(original_filename):
-                logger.warning(f"User {user_id} skipped invalid content file type in create: {original_filename}")
-                continue 
-            image_bytes = file_fs.read(); file_fs.seek(0)
-            if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES:
-                logger.warning(f"User {user_id} skipped content file in create (size issue): {original_filename}")
-                continue
-            try:
-                extracted_text = extract_profile_snippet(image_bytes=image_bytes)
-                if extracted_text: profile_content_texts.append(extracted_text)
-            except Exception as e:
-                logger.error(f"Error processing content file {original_filename} for create (user {user_id}): {e}", exc_info=True)
+    image_byte_list = request.files.getlist('profileContentImageBytes')
+    for image_bytes in image_byte_list:
+        image_classification = classify_image(image_bytes)
+        if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES or image_classification != "profile_content":
+            logger.warning(f"User {user_id} skipped content file in create (size issue)")
+            continue
+        try:
+            extracted_text = perform_ocr(image_bytes=image_bytes)
+            if extracted_text: profile_content_texts.append(extracted_text)
+        except Exception as e:
+            logger.error(f"Error processing content file {original_filename} for create (user {user_id}): {e}", exc_info=True)
 
     # Process connectionProfilePics (for OpenAI Trait Inference)
-    profile_pics_to_process_for_traits = []
-    connection_profile_pics_fs = request.files.getlist('connectionProfilePics')
-    for file_fs in connection_profile_pics_fs:
-        if file_fs and file_fs.filename:
-            original_filename = file_fs.filename
-            if not _allowed_profile_image_file(original_filename): 
-                logger.warning(f"User {user_id} skipped invalid profile pic type in create: {original_filename}")
-                continue
-            image_bytes = file_fs.read(); file_fs.seek(0)
-            if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES: 
-                logger.warning(f"User {user_id} skipped profile pic in create (size issue): {original_filename}")
-                continue
-            profile_pics_to_process_for_traits.append({
-                "bytes": image_bytes, "filename": original_filename, "content_type": file_fs.content_type
-            })
+    personality_traits: List[Dict[str, Any]] = []
+    image_byte_list = request.files.getlist('connectionPicsImageBytes')
+    for image_bytes in image_byte_list:
+        image_classification = classify_image(image_bytes)
+        if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES or image_classification != "profile_pic":
+            logger.warning(f"User {user_id} skipped profile pic in create (size issue)")
+            continue
+        image_dict = {
+            "bytes": image_bytes,
+            "content_type": Image.open(io.BytesIO(image_bytes)).format.lower()
+        }
+        single_image_trait_list = infer_personality_traits_from_openai_vision(image_dict)
+        personality_traits.append({
+            "trait": single_image_trait_list[0]["trait"], "confidence": single_image_trait_list[0]["confidence"]
+        })
             
     # Call service: removed 'images' and 'links' args for old trait system
     result = create_connection_profile(
         data=form_data, 
         profile_text_content_list=profile_content_texts,
-        profile_pics_raw_files=profile_pics_to_process_for_traits 
+        personality_traits_list=personality_traits
     )
     return jsonify(result)
 
@@ -147,43 +148,50 @@ def update_connection():
                     logger.warning(f"User {user_id} skipped invalid content file type for update: {original_filename}")
                     continue
                 image_bytes = file_fs.read(); file_fs.seek(0)
-                if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES:
+                image_classification = classify_image(image_bytes)
+                if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES or image_classification != "profile_content":
                     logger.warning(f"User {user_id} skipped content file for update (size issue): {original_filename}")
                     continue
                 try:
-                    extracted_text = extract_profile_snippet(image_bytes=image_bytes)
+                    extracted_text = perform_ocr(image_bytes=image_bytes)
                     if extracted_text: profile_content_texts_update.append(extracted_text)
                 except Exception as e:
                     logger.error(f"Error processing content file {original_filename} for update (user {user_id}): {e}", exc_info=True)
 
     # Process connectionProfilePics (for OpenAI Trait Inference) if provided for update
-    profile_pics_to_process_for_traits_update = None 
-    if 'connectionProfilePics' in request.files: # Check if field was sent
-        profile_pics_to_process_for_traits_update = []
-        connection_profile_pics_fs = request.files.getlist('connectionProfilePics')
-        for file_fs in connection_profile_pics_fs:
-            if file_fs and file_fs.filename:
-                original_filename = file_fs.filename
-                if not _allowed_profile_image_file(original_filename):
-                    logger.warning(f"User {user_id} skipped invalid profile pic type for update: {original_filename}")
-                    continue
-                image_bytes = file_fs.read(); file_fs.seek(0)
-                if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
-                    logger.warning(f"User {user_id} skipped profile pic for update (size issue): {original_filename}")
-                    continue
-                profile_pics_to_process_for_traits_update.append({
-                    "bytes": image_bytes, "filename": original_filename, "content_type": file_fs.content_type
-                })
+    personality_traits: List[Dict[str, Any]] = []
+    connection_profile_pics_fs = request.files.getlist('connectionProfilePics')
+    for file_fs in connection_profile_pics_fs:
+        if file_fs and file_fs.filename:
+            original_filename = file_fs.filename
+            if not _allowed_profile_image_file(original_filename): 
+                logger.warning(f"User {user_id} skipped invalid profile pic type in create: {original_filename}")
+                continue
+            image_bytes = file_fs.read(); file_fs.seek(0)
+            image_classification = classify_image(image_bytes)
+            if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES or image_classification != "profile_pic":
+                logger.warning(f"User {user_id} skipped profile pic in create (size issue): {original_filename}")
+                continue
+            image_dict = {
+                "bytes": image_bytes,
+                "content_type": Image.open(io.BytesIO(image_bytes)).format.lower()
+            }
+            single_image_trait_list = infer_personality_traits_from_openai_vision(image_dict)
+            personality_traits.append({
+                "trait": single_image_trait_list[0]["trait"], "confidence": single_image_trait_list[0]["confidence"]
+            })
     
-    update_data_payload = {k: v for k, v in form_data.items() if k not in {"user_id", "connection_id"}}
+    context_block = form_data.get("context_block", "")
+    if context_block:
+        form_data["context_block"] = context_block.strip()
     
     # Call service: removed 'images' and 'links' args for old trait system
     result = update_connection_profile(
         user_id=user_id,
         connection_id=connection_id,
-        data=update_data_payload, 
+        data=context_block, 
         profile_text_content_list=profile_content_texts_update, 
-        profile_pics_raw_files=profile_pics_to_process_for_traits_update 
+        personality_traits_list=personality_traits
     )
     return jsonify(result)
 

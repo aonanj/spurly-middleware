@@ -5,7 +5,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# Keywords that might indicate a profile snippet (requires OCR text to be effective)
+# Keywords that might indicate a profile content (requires OCR text to be effective)
 PROFILE_KEYWORDS = [
     r"bio", r"about me", r"interests", r"prompt", r"profile",
     r"looking for", r"my self-summary", r"occupation", r"education"
@@ -95,13 +95,18 @@ def has_significant_text_heuristics(image_cv2_gray, image_cv2_color) -> tuple[bo
     return is_text_heavy, confidence
 
 
-def classify_image(image_cv2) -> str:
+def classify_image(image_raw_bytes) -> str:
+    buffer_bytes = np.frombuffer(image_raw_bytes, np.uint8)
+    image_cv2 = cv2.imdecode(buffer_bytes, cv2.IMREAD_COLOR)
+    if image_cv2 is None:
+        logger.error("Failed to decode image from raw bytes.")
+        return ""
     logger.info("Classifying image using enhanced heuristics...")
     height, width = image_cv2.shape[:2]
     
     if height == 0 or width == 0:
         logger.error("Invalid image dimensions for classification.")
-        return "unknown" # Or raise an error
+        return ""
 
     aspect_ratio = width / float(height)
     image_cv2_gray = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2GRAY)
@@ -112,15 +117,15 @@ def classify_image(image_cv2) -> str:
     # If confidence in text presence is very low, lean towards 'photo'
     if not is_screenshot_candidate and text_confidence < 0.3:
         logger.info("Classified as 'photo' (low text confidence).")
-        return "photo"
+        return "connection_pic"
     
     # If confidence is moderate but not high, it could be a photo with some text or a very sparse screenshot
     if not is_screenshot_candidate and text_confidence < 0.5:
          # Further check for photo-like qualities (e.g. more complex textures, less uniform regions)
          # For simplicity, we'll still lean to photo but with less certainty.
          # A more advanced check could involve texture analysis (e.g. Haralick features)
-        logger.info("Classified as 'photo' (moderate text confidence but not clearly screenshot).")
-        return "photo"
+        logger.info("Classified as 'connection_pic' (moderate text confidence but not clearly screenshot).")
+        return "connection_pic"
 
     # --- Stage 2: If it's likely a screenshot, differentiate conversation vs. profile ---
     # This stage assumes `is_screenshot_candidate` is True or text_confidence is high enough.
@@ -171,32 +176,32 @@ def classify_image(image_cv2) -> str:
              logger.info("Classified as 'conversation' (tall, keyword-based).")
              return "conversation"
         else:
-            # If it's tall but doesn't strongly look like a conversation, it might be a profile snippet or other.
+            # If it's tall but doesn't strongly look like a conversation, it might be a profile content or other.
             # Defaulting to profile for tall, texty images if not clearly conversation.
-            logger.info(f"Classified as 'profile_snippet' (tall, default from screenshot). AR: {aspect_ratio:.2f}")
-            return "profile_snippet"
+            logger.info(f"Classified as 'profile_content' (tall, default from screenshot). AR: {aspect_ratio:.2f}")
+            return "profile_content"
             
     # Wider images or those with fewer distinct message bands might be profiles
     elif aspect_ratio >= 0.75 :
         if ocr_text_available and profile_keyword_score > 0 and profile_keyword_score > conversation_keyword_score:
-            logger.info("Classified as 'profile_snippet' (keyword-based).")
-            return "profile_snippet"
+            logger.info("Classified as 'profile_content' (keyword-based).")
+            return "profile_content"
         # If fewer message bands and wider, more likely a profile or other less structured text.
         elif num_potential_message_bands < 5 and text_confidence > 0.6:
-             logger.info(f"Classified as 'profile_snippet' (wider/fewer bands, texty). AR: {aspect_ratio:.2f}, Bands: {num_potential_message_bands}")
-             return "profile_snippet"
+             logger.info(f"Classified as 'profile_content' (wider/fewer bands, texty). AR: {aspect_ratio:.2f}, Bands: {num_potential_message_bands}")
+             return "profile_content"
 
 
     # Fallback / Default based on initial text assessment:
     if is_screenshot_candidate:
         # If it seems like a screenshot but doesn't fit specific rules above,
-        # make a general guess. 'profile_snippet' might be a safer default for unrecognized screenshots.
-        logger.info("Classified as 'profile_snippet' (default for recognized screenshot).")
-        return "profile_snippet"
+        # make a general guess. 'profile_content' might be a safer default for unrecognized screenshots.
+        logger.info("Classified as 'profile_content' (default for recognized screenshot).")
+        return "profile_content"
     else:
         # If it wasn't a strong candidate for screenshot and didn't fit profile/conversation
         logger.info("Classified as 'photo' (default fallback).")
-        return "photo"
+        return "connection_pic"
 
 # Example usage (for testing purposes, if you run this file directly)
 if __name__ == '__main__':

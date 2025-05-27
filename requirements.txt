@@ -1,3 +1,4 @@
+algoliasearch
 annotated-types
 anyio
 blinker
@@ -70,3 +71,4 @@ attrs
 pytesseract
 algoliasearch
 google-cloud-vision
+scikit-learn

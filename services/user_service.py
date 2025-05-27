@@ -97,7 +97,7 @@ def save_user_profile(user_id: str, data: UserProfile) -> dict:
         })
         logger.log(current_app.config['DEFAULT_LOG_LEVEL'], "User profile successfully saved.")
         # Return a success dictionary, matching what the route might expect
-        return {"status": "user profile successfully saved"}
+        return {"success": "user profile successfully saved"}
     except Exception as e:
         logger.error("[%s] Error: %s save user profile failed", __name__, e, exc_info=True)
         # Propagate or return an error dict

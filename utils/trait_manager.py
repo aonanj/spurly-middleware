@@ -18,7 +18,6 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
     Args:
         image_files_data: A list of dictionaries, where each dictionary contains:
             "bytes": The image content in bytes.
-            "filename": The original filename (for logging).
             "content_type": The image content type (e.g., "image/jpeg").
 
     Returns:
@@ -41,11 +40,10 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
         else:
             logger.warning("Invalid image_data format. Expected a dictionary.")
             continue
-        filename = image_data.get("filename", "unknown_image")
         content_type = image_data.get("content_type", "application/octet-stream") # Default if not provided
 
         if not image_bytes:
-            logger.warning(f"Skipping trait inference for {filename} due to missing image bytes.")
+            logger.warning(f"Skipping trait inference for unknown image due to missing image bytes.")
             continue
 
         try:
@@ -61,7 +59,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                 prompt = prompt_template.join(image_prompt_appendix)
             
 
-            logger.info(f"Sending image {filename} to OpenAI for trait analysis...")
+            logger.info(f"Sending image to OpenAI for trait analysis...")
             chat_client = get_openai_client()
             resp = chat_client.chat.completions.create(
                 model=current_app.config['AI_MODEL'], 
@@ -84,17 +82,17 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                                 "confidence": float(trait_item["confidence"])
                             })
                         else:
-                            logger.warning(f"Invalid trait item format from OpenAI for {filename}: {trait_item}")
+                            logger.warning(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
                 else:
-                    logger.warning(f"Unexpected response format from OpenAI (not a list) for {filename}: {traits_from_image}")
+                    logger.warning(f"Unexpected response format from OpenAI (not a list) for unknown image: {traits_from_image}")
 
             except json.JSONDecodeError:
-                logger.error(f"Failed to parse JSON from OpenAI response for {filename}: {content}", exc_info=True)
+                logger.error(f"Failed to parse JSON from OpenAI response for unknown image: {content}", exc_info=True)
             except Exception as e:
-                logger.error(f"Error processing OpenAI response for {filename}: {e}", exc_info=True)
+                logger.error(f"Error processing OpenAI response for unknown image: {e}", exc_info=True)
 
         except Exception as e:
-            logger.error(f"Error during OpenAI trait inference for {filename}: {e}", exc_info=True)
+            logger.error(f"Error during OpenAI trait inference for unknown image: {e}", exc_info=True)
             # Continue to the next image if one fails
 
     # Remove duplicate traits, keeping the one with the highest confidence

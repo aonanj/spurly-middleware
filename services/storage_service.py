@@ -2,356 +2,626 @@ from class_defs.conversation_def import Conversation
 from datetime import datetime, timezone, timedelta
 from flask import g, current_app
 from google.cloud import firestore
-from google.cloud import storage # Added for GCS
-from gpt_training.anonymizer import anonymize_conversation
+from google.cloud import storage 
 from infrastructure.clients import db, get_algolia_client
-from infrastructure.id_generator import generate_conversation_id # Could use a generic ID generator here too
+from infrastructure.id_generator import generate_conversation_id 
 from infrastructure.logger import get_logger
-import openai
-import uuid # For generating unique filenames
-from werkzeug.utils import secure_filename # For sanitizing filenames
-
+import uuid
+from werkzeug.utils import secure_filename
+from typing import List, Dict, Optional, Any, Tuple
+from contextlib import contextmanager
+from dataclasses import dataclass
+import threading
 
 logger = get_logger(__name__)
 
-# Configuration for profile image uploads (could also be in config.py)
-MAX_PROFILE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB example
+# Configuration for profile image uploads
+MAX_PROFILE_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 ALLOWED_PROFILE_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+
+@dataclass
+class ConversationSearchParams:
+    """Encapsulates search parameters for better type safety and validation."""
+    user_id: str
+    keyword: Optional[str] = None
+    connection_id: Optional[str] = None
+    date_from: Optional[datetime] = None
+    date_to: Optional[datetime] = None
+    sort: str = "desc"
+    limit: int = 20
+    
+    def __post_init__(self):
+        """Validate and normalize parameters."""
+        if self.sort not in ["asc", "desc"]:
+            self.sort = "desc"
+        
+        if self.limit <= 0:
+            self.limit = 20
+        elif self.limit > 100:  # Prevent excessive queries
+            self.limit = 100
+            
+        # Ensure date_to includes the entire day if time is midnight
+        if self.date_to and self.date_to.time() == datetime.min.time():
+            self.date_to = self.date_to + timedelta(days=1) - timedelta(microseconds=1)
+
+
+class StorageServiceError(Exception):
+    """Base exception for storage service errors."""
+    pass
+
+
+class ConversationNotFoundError(StorageServiceError):
+    """Raised when a conversation cannot be found."""
+    pass
+
+
+class AlgoliaIndexingError(StorageServiceError):
+    """Raised when Algolia indexing fails but should not block the operation."""
+    pass
+
 
 def _allowed_profile_image_file(filename: str) -> bool:
     """Checks if the filename has an allowed extension."""
+    if not filename:
+        return False
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_PROFILE_IMAGE_EXTENSIONS
 
-def upload_profile_image(user_id: str, connection_id: str, image_bytes: bytes, original_filename: str, content_type: str) -> str:
+
+def upload_profile_image(user_id: str, connection_id: str, image_bytes: bytes, 
+                        original_filename: str, content_type: str) -> str:
     """
     Uploads a profile image to Google Cloud Storage and returns its public URL.
-
+    
     Args:
-        user_id (str): The ID of the user uploading the image.
-        connection_id (str): The ID of the connection this image is for.
-        image_bytes (bytes): The image content in bytes.
-        original_filename (str): The original filename of the uploaded image.
-        content_type (str): The content type of the image.
-
+        user_id: The ID of the user uploading the image
+        connection_id: The ID of the connection this image is for
+        image_bytes: The image content in bytes
+        original_filename: The original filename of the uploaded image
+        content_type: The content type of the image
+        
     Returns:
-        str: The public URL of the uploaded image.
-
+        The public URL of the uploaded image
+        
     Raises:
-        ValueError: If the file type or size is invalid, or bucket is not configured.
-        ConnectionError: If the upload to GCS fails.
+        ValueError: If the file type or size is invalid
+        StorageServiceError: If the upload fails
     """
+    # Validate file type
     if not _allowed_profile_image_file(original_filename):
-        logger.error(f"User {user_id} attempted to upload invalid file type for profile pic: {original_filename}")
-        raise ValueError(f"Invalid file type for profile picture: {original_filename}. Allowed: {', '.join(ALLOWED_PROFILE_IMAGE_EXTENSIONS)}")
-
-    if len(image_bytes) == 0:
-        logger.error(f"User {user_id} attempted to upload an empty profile pic: {original_filename}")
-        raise ValueError("Profile picture cannot be empty.")
-
+        logger.error(f"User {user_id} attempted to upload invalid file type: {original_filename}")
+        raise ValueError(f"Invalid file type. Allowed: {', '.join(ALLOWED_PROFILE_IMAGE_EXTENSIONS)}")
+    
+    # Validate file size
+    if not image_bytes:
+        raise ValueError("Profile picture cannot be empty")
+        
     if len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
-        logger.error(f"User {user_id} attempted to upload oversized profile pic: {original_filename}, size: {len(image_bytes)}")
-        raise ValueError(f"Profile picture size exceeds {MAX_PROFILE_IMAGE_SIZE_BYTES // (1024*1024)}MB limit.")
-
-    storage_client = storage.Client()
+        size_mb = len(image_bytes) / (1024 * 1024)
+        max_mb = MAX_PROFILE_IMAGE_SIZE_BYTES / (1024 * 1024)
+        raise ValueError(f"File size ({size_mb:.1f}MB) exceeds {max_mb}MB limit")
+    
+    # Get storage configuration
     bucket_name = current_app.config.get("GCS_PROFILE_PICS_BUCKET")
     if not bucket_name:
-        logger.critical("GCS_PROFILE_PICS_BUCKET is not configured in the application.")
-        raise ValueError("Storage bucket for profile pictures is not configured.")
-
-    bucket = storage_client.bucket(bucket_name)
+        raise StorageServiceError("Storage bucket not configured")
     
-    # Sanitize filename and make it unique
-    s_filename = secure_filename(original_filename)
-    unique_file_id = str(uuid.uuid4())
-    # Structure the path: e.g., profiles/<user_id>/<connection_id>/<uuid>-<filename>
-    gcs_filename = f"profiles/{user_id}/{connection_id}/{unique_file_id}-{s_filename}"
-    
-    blob = bucket.blob(gcs_filename)
-
     try:
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        
+        # Create unique filename
+        s_filename = secure_filename(original_filename)
+        unique_id = str(uuid.uuid4())
+        gcs_path = f"profiles/{user_id}/{connection_id}/{unique_id}-{s_filename}"
+        
+        # Upload to GCS
+        blob = bucket.blob(gcs_path)
         blob.upload_from_string(image_bytes, content_type=content_type)
-        logger.info(f"Successfully uploaded profile picture '{gcs_filename}' to GCS bucket '{bucket_name}' for user '{user_id}', connection '{connection_id}'.")
+        
+        logger.info(f"Uploaded profile picture for user={user_id}, connection={connection_id}: {gcs_path}")
         return blob.public_url
+        
     except Exception as e:
-        logger.error(f"Failed to upload profile picture '{gcs_filename}' to GCS for user '{user_id}': {e}", exc_info=True)
-        raise ConnectionError(f"Could not upload profile picture due to a storage error: {str(e)}")
+        logger.error(f"Failed to upload profile picture: {e}", exc_info=True)
+        raise StorageServiceError(f"Upload failed: {str(e)}")
 
 
-# --- Existing Conversation Methods ---
-def save_conversation(data: Conversation) -> dict:
+class ConversationStorage:
+    """Handles conversation storage operations with Firestore and Algolia."""
     
+    def __init__(self):
+        # Use threading instead of asyncio for better Flask compatibility
+        self._algolia_thread_pool = []
+        self._algolia_lock = threading.Lock()
+    
+    def _validate_conversation_data(self, conversation: Conversation) -> None:
+        """Validates conversation data before saving."""
+        if not conversation.user_id:
+            raise ValueError("Missing user_id")
+            
+        if not conversation.conversation_id:
+            raise ValueError("Missing conversation_id")
+            
+        # Ensure conversation_id has proper format
+        if conversation.conversation_id.startswith(":"):
+            conversation.conversation_id = f"{conversation.user_id}{conversation.conversation_id}"
+    
+    def _prepare_algolia_payload(self, conversation: Conversation, 
+                                  conversation_text: str) -> Dict[str, Any]:
+        """Prepares the payload for Algolia indexing."""
+        created_at = conversation.created_at
+        if isinstance(created_at, str):
+            try:
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            except ValueError:
+                created_at = datetime.now(timezone.utc)
+        elif not isinstance(created_at, datetime):
+            created_at = datetime.now(timezone.utc)
+                
+        payload = {
+            "objectID": conversation.conversation_id,
+            "user_id": conversation.user_id,
+            "text": conversation_text,
+            "created_at_timestamp": int(created_at.timestamp()),
+        }
+        
+        # Add optional fields
+        optional_fields = ["connection_id", "situation", "topic"]
+        for field in optional_fields:
+            value = getattr(conversation, field, None)
+            if value:
+                payload[field] = value
+                
+        return payload
+    
+    def _index_to_algolia_background(self, conversation: Conversation, 
+                                    conversation_text: str) -> None:
+        """Index to Algolia in a background thread."""
+        def _do_index():
+            try:
+                algolia_client = get_algolia_client()
+                if not algolia_client or not conversation_text:
+                    return
+                    
+                index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+                if not index_name:
+                    logger.warning("Algolia index name not configured")
+                    return
+                
+                payload = self._prepare_algolia_payload(conversation, conversation_text)
+                algolia_client.save_object(index_name, payload)
+                logger.info(f"Indexed conversation {conversation.conversation_id} to Algolia")
+                
+            except Exception as e:
+                logger.error(f"Failed to index to Algolia: {e}", exc_info=True)
+            finally:
+                # Clean up thread reference
+                with self._algolia_lock:
+                    if threading.current_thread() in self._algolia_thread_pool:
+                        self._algolia_thread_pool.remove(threading.current_thread())
+        
+        # Start background thread
+        thread = threading.Thread(target=_do_index, daemon=True)
+        with self._algolia_lock:
+            self._algolia_thread_pool.append(thread)
+        thread.start()
+    
+    def save_conversation(self, conversation: Conversation) -> Dict[str, str]:
+        """
+        Saves a conversation to Firestore and indexes it in Algolia.
+        
+        Args:
+            conversation: The conversation to save
+            
+        Returns:
+            Dict with success status and conversation_id
+            
+        Raises:
+            ValueError: If validation fails
+            StorageServiceError: If save operation fails
+        """
+        try:
+            # Validate data
+            self._validate_conversation_data(conversation)
+            
+            # Ensure created_at is set
+            if not conversation.created_at:
+                conversation.created_at = datetime.now(timezone.utc)
+            elif isinstance(conversation.created_at, str):
+                try:
+                    conversation.created_at = datetime.fromisoformat(
+                        conversation.created_at.replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    logger.warning(f"Invalid created_at format, using current time")
+                    conversation.created_at = datetime.now(timezone.utc)
+            
+            # Get conversation text for indexing
+            conversation_text = conversation.conversation_as_string()
+            
+            # Save to Firestore
+            doc_ref = db.collection("users").document(conversation.user_id)\
+                       .collection("conversations").document(conversation.conversation_id)
+            
+            doc_data = conversation.to_dict()
+            doc_ref.set(doc_data)
+            
+            logger.info(f"Saved conversation {conversation.conversation_id} to Firestore")
+            
+            # Index to Algolia in background thread
+            self._index_to_algolia_background(conversation, conversation_text)
+            
+            return {
+                "success": "conversation saved",
+                "conversation_id": conversation.conversation_id
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to save conversation: {e}", exc_info=True)
+            if isinstance(e, (ValueError, StorageServiceError)):
+                raise
+            raise StorageServiceError(f"Save operation failed: {e}")
+    
+    def get_conversation(self, user_id: str, conversation_id: str) -> Conversation:
+        """
+        Retrieves a conversation by ID.
+        
+        Args:
+            user_id: The user ID
+            conversation_id: The conversation ID
+            
+        Returns:
+            The conversation object
+            
+        Raises:
+            ValueError: If parameters are invalid
+            ConversationNotFoundError: If conversation doesn't exist
+        """
+        if not user_id or not conversation_id:
+            raise ValueError("Both user_id and conversation_id are required")
+            
+        try:
+            doc_ref = db.collection("users").document(user_id)\
+                       .collection("conversations").document(conversation_id)
+            doc = doc_ref.get()
+            
+            if not doc.exists:
+                raise ConversationNotFoundError(
+                    f"Conversation {conversation_id} not found for user {user_id}"
+                )
+                
+            return Conversation.from_dict(doc.to_dict())
+            
+        except Exception as e:
+            if isinstance(e, ConversationNotFoundError):
+                raise
+            logger.error(f"Failed to get conversation: {e}", exc_info=True)
+            raise StorageServiceError(f"Failed to retrieve conversation: {e}")
+    
+    def delete_conversation(self, user_id: str, conversation_id: str) -> Dict[str, str]:
+        """
+        Deletes a conversation from Firestore and Algolia.
+        
+        Args:
+            user_id: The user ID
+            conversation_id: The conversation ID
+            
+        Returns:
+            Success status
+            
+        Raises:
+            ValueError: If parameters are invalid
+            StorageServiceError: If deletion fails
+        """
+        if not user_id or not conversation_id:
+            raise ValueError("Both user_id and conversation_id are required")
+            
+        try:
+            # Delete from Firestore
+            doc_ref = db.collection("users").document(user_id)\
+                       .collection("conversations").document(conversation_id)
+            doc_ref.delete()
+            
+            logger.info(f"Deleted conversation {conversation_id} from Firestore")
+            
+            # Delete from Algolia in background
+            def _delete_from_algolia():
+                try:
+                    algolia_client = get_algolia_client()
+                    index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+                    
+                    if algolia_client and index_name:
+                        algolia_client.delete_object(
+                            index_name=index_name, 
+                            object_id=conversation_id
+                        )
+                        logger.info(f"Deleted conversation {conversation_id} from Algolia")
+                except Exception as e:
+                    logger.error(f"Failed to delete from Algolia: {e}", exc_info=True)
+            
+            thread = threading.Thread(target=_delete_from_algolia, daemon=True)
+            thread.start()
+            
+            return {"success": f"conversation_id {conversation_id} deleted"}
+            
+        except Exception as e:
+            logger.error(f"Failed to delete conversation: {e}", exc_info=True)
+            raise StorageServiceError(f"Delete operation failed: {e}")
+    
+    def search_conversations(self, params: ConversationSearchParams) -> List[Conversation]:
+        """
+        Searches for conversations using Algolia or Firestore.
+        
+        Args:
+            params: Search parameters
+            
+        Returns:
+            List of matching conversations
+        """
+        try:
+            if params.keyword:
+                return self._search_with_algolia(params)
+            else:
+                return self._search_with_firestore(params)
+                
+        except Exception as e:
+            logger.error(f"Search failed: {e}", exc_info=True)
+            return []
+    
+    def _search_with_algolia(self, params: ConversationSearchParams) -> List[Conversation]:
+        """Searches conversations using Algolia."""
+        algolia_client = get_algolia_client()
+        index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+        
+        if not algolia_client or not index_name:
+            logger.warning("Algolia not available, falling back to Firestore")
+            return self._search_with_firestore(params)
+        
+        try:
+            # Build Algolia filters
+            filters = [f"user_id:{params.user_id}"]
+            
+            if params.connection_id:
+                filters.append(f"connection_id:{params.connection_id}")
+                
+            if params.date_from:
+                filters.append(f"created_at_timestamp >= {int(params.date_from.timestamp())}")
+                
+            if params.date_to:
+                filters.append(f"created_at_timestamp <= {int(params.date_to.timestamp())}")
+            
+            # Search Algolia
+            search_params = {
+                "query": params.keyword,
+                "filters": " AND ".join(filters),
+                "hitsPerPage": params.limit * 2,  # Get extra in case some are missing
+                "attributesToRetrieve": ["objectID"]
+            }
+            
+            # Use the correct Algolia client method
+            try:
+                # Try the newer client method first
+                results = algolia_client.search(
+                    index_name,
+                    search_params
+                )
+                hits = results.get('hits', [])
+            except AttributeError:
+                # Fall back to legacy search method
+                search_request = {
+                    "indexName": index_name,
+                    "params": search_params
+                }
+                results = algolia_client.search(search_request)
+                if results and 'results' in results and len(results['results']) > 0:
+                    hits = results['results'][0].get('hits', [])
+                else:
+                    hits = []
+            
+            if not hits:
+                return []
+            
+            # Get conversation IDs
+            conversation_ids = [hit['objectID'] for hit in hits]
+            
+            if not conversation_ids:
+                return []
+            
+            # Fetch from Firestore in batches
+            conversations = self._batch_fetch_conversations(
+                params.user_id, 
+                conversation_ids,
+                params.limit
+            )
+            
+            # Maintain Algolia's relevance order
+            id_to_convo = {c.conversation_id: c for c in conversations}
+            ordered = [id_to_convo[cid] for cid in conversation_ids if cid in id_to_convo]
+            
+            return ordered[:params.limit]
+            
+        except Exception as e:
+            logger.error(f"Algolia search failed: {e}", exc_info=True)
+            return self._search_with_firestore(params)
+    
+    def _search_with_firestore(self, params: ConversationSearchParams) -> List[Conversation]:
+        """Searches conversations using Firestore."""
+        try:
+            query = db.collection("users").document(params.user_id)\
+                     .collection("conversations")
+            
+            # Apply filters
+            if params.connection_id:
+                query = query.where("connection_id", "==", params.connection_id)
+                
+            if params.date_from:
+                query = query.where("created_at", ">=", params.date_from)
+                
+            if params.date_to:
+                query = query.where("created_at", "<=", params.date_to)
+            
+            # Apply sorting
+            sort_direction = (firestore.Query.DESCENDING if params.sort == "desc" 
+                            else firestore.Query.ASCENDING)
+            query = query.order_by("created_at", direction=sort_direction)
+            
+            # Apply limit
+            query = query.limit(params.limit)
+            
+            # Execute query
+            docs = query.stream()
+            conversations = []
+            for doc in docs:
+                try:
+                    if doc.exists:
+                        conversations.append(Conversation.from_dict(doc.to_dict()))
+                except Exception as e:
+                    logger.error(f"Error parsing conversation document: {e}")
+                    continue
+            
+            # If keyword search was requested but Algolia wasn't available,
+            # do basic filtering on the results
+            if params.keyword:
+                keyword_lower = params.keyword.lower()
+                conversations = [
+                    c for c in conversations
+                    if keyword_lower in c.conversation_as_string().lower()
+                ]
+            
+            return conversations
+            
+        except Exception as e:
+            logger.error(f"Firestore search failed: {e}", exc_info=True)
+            return []
+    
+    def _batch_fetch_conversations(self, user_id: str, conversation_ids: List[str], 
+                                   limit: int) -> List[Conversation]:
+        """Fetches conversations from Firestore in batches."""
+        conversations = []
+        
+        # Firestore 'in' queries are limited to 10 items
+        for i in range(0, len(conversation_ids), 10):
+            chunk = conversation_ids[i:i + 10]
+            if not chunk:
+                continue
+                
+            try:
+                query = db.collection("users").document(user_id)\
+                         .collection("conversations")\
+                         .where("conversation_id", "in", chunk)
+                
+                docs = query.stream()
+                for doc in docs:
+                    try:
+                        if doc.exists and len(conversations) < limit:
+                            conversations.append(Conversation.from_dict(doc.to_dict()))
+                    except Exception as e:
+                        logger.error(f"Error parsing conversation in batch: {e}")
+                        continue
+                        
+                if len(conversations) >= limit:
+                    break
+            except Exception as e:
+                logger.error(f"Error in batch fetch: {e}", exc_info=True)
+                continue
+                
+        return conversations
+
+
+# Initialize global storage instance
+_storage = ConversationStorage()
+
+
+# Public API functions that maintain backward compatibility
+def save_conversation(data: Conversation) -> Dict[str, str]:
     """
     Saves a conversation with the conversation_id.
-
-    Args
-        data: the conversation data associated with the active user to be saved
-            Conversation 
-
-    Return
-        status: indicates if conversation is saved
-            str
-
+    
+    Args:
+        data: The conversation data to save
+        
+    Returns:
+        Status dict with success message and conversation_id
     """
-
-    user_id = g.user['user_id']
-    conversation_id = data.conversation_id
-    connection_id = data.connection_id
-    
-    if not user_id:
-        logger.error("Error: Failed to save conversation - missing user_id", __name__)
-        return {"error": "Missing user_ids"}
-
-    if not conversation_id:
-        conversation_id = generate_conversation_id(user_id)
-    elif conversation_id.startswith(":"):
-        conversation_id = f"{user_id}{conversation_id}"
-
-    # Prepare data for Firestore, ensuring created_at is set
-    created_time = data.created_at or datetime.now(timezone.utc)
-    # Ensure created_at is a datetime object before conversion
-    if isinstance(created_time, str):
-        try:
-            created_time = datetime.fromisoformat(created_time)
-        except ValueError:
-            logger.error(f"Invalid created_at format for {conversation_id}. Using current time.", exc_info=True)
-            created_time = datetime.now(timezone.utc)
-
-    spurs = data.spurs
-    situation = data.situation
-    topic = data.topic
-    conversation_obj = get_conversation(conversation_id) # Changed variable name
-    conversation_text = Conversation.conversation_as_string(conversation_obj) # Use the fetched object
-    
-    try:
-        doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
-        doc = doc_ref.get()
-        # if doc.exists: # This part is redundant if get_conversation already fetches it or handles non-existence
-            # conversation_obj = Conversation.from_dict(doc.to_dict())
-
-
-        doc_data = {
-            "user_id": user_id,
-            "conversation_id": conversation_id,
-            "conversation": conversation_obj.conversation if conversation_obj else [], # Ensure this is serializable
-            "connection_id": connection_id,
-            "situation": situation,
-            "topic": topic,
-            "spurs": spurs,
-            "created_at": created_time
-        }
-
-        # Anonymization should happen on the data to be saved
-        # anonymize_conversation(Conversation.from_dict(doc_data)) # This creates a new object, ensure it's used or data is modified in place
-
-        # Re-creating Conversation object for anonymization if needed, or ensure anonymize_conversation modifies dict
-        temp_convo_for_anonymization = Conversation.from_dict(doc_data)
-        anonymize_conversation(temp_convo_for_anonymization)
-        # Assuming anonymize_conversation modifies the object in place or you re-assign its .to_dict()
-        # For safety, let's assume it modifies in place or doc_data needs to be updated from temp_convo_for_anonymization
-        # This part needs careful review of anonymize_conversation's behavior.
-        # For now, assuming doc_data is what we intend to save after potential anonymization if anonymize_conversation modifies it.
-        # If anonymize_conversation works on the object, then get the dict again:
-        # anonymized_doc_data = temp_convo_for_anonymization.to_dict()
-        # doc_ref.set(anonymized_doc_data)
-        # For this refactor, I'll assume the current anonymization logic is separate and focus on the new function.
-        # The original anonymize_conversation call seemed to not use its return value.
-
-        doc_ref.set(doc_data) # Saving original or intended data
-
-        # --- Index in Algolia ---
-        algolia_client = get_algolia_client()
-        aloglia_conversations_index = current_app.config['ALGOLIA_CONVERSATIONS_INDEX']
-        if algolia_client and conversation_text: 
-            try:
-                algolia_payload = {
-                    "objectID": conversation_id,
-                    "user_id": user_id,
-                    "text": conversation_text,
-                    "created_at_timestamp": int(created_time.timestamp()),
-                    "connection_id": connection_id,
-                    "situation": situation,
-                    "topic": topic,
-                }
-                algolia_payload = {k: v for k, v in algolia_payload.items() if v is not None}
-
-                res = algolia_client.save_object(aloglia_conversations_index, algolia_payload)
-                # wait_for_task might be synchronous and slow down requests. Consider backgrounding.
-                algolia_client.wait_for_task(index_name=aloglia_conversations_index, task_id=res.task_id)
-                logger.info(f"Successfully indexed conversation {conversation_id} in Algolia.")
-            except Exception as algolia_error:
-                logger.error(f"Failed to index conversation {conversation_id} in Algolia: {algolia_error}", exc_info=True)
+    # Ensure user_id is set from global context if not in data
+    if hasattr(g, 'user') and g.user and not data.user_id:
+        data.user_id = g.user.get('user_id')
         
-        return {"status": "conversation saved", "conversation_id": conversation_id}
-    except firestore.ReadAfterWriteError as e:
-        logger.error("[%s] Error: %s Save conversation failed", __name__, e)
-        raise firestore.ReadAfterWriteError(f"Save conversation failed: {e}") from e
-    except Exception as e:
-        logger.error("[%s] Error: %s Save conversation failed", __name__, e)
-        raise ValueError(f"Save conversation failed: {e}") from e
-        
+    return _storage.save_conversation(data)
 
-def get_conversation(conversation_id: str) -> Conversation: # Return type is Conversation
+
+def get_conversation(conversation_id: str) -> Conversation:
     """
     Gets a conversation by the conversation_id.
-
-    Args
-        conversation_id: the unique id for the conversation requested
-            str
-    Return
-        conversation corresponding to the conversation_id
-            Conversation object
-
-    """
     
-    user_id = g.user['user_id']
-    
-    if not user_id or not conversation_id:
-        logger.error("Error: Failed to get conversation - missing user_id or conversation_id ", __name__)
-        # Consider raising a more specific error like ValueError or custom exception
-        raise ValueError("Missing user_id or conversation_id for get_conversation")
-
-    doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
-    doc = doc_ref.get()
-    if doc.exists:
-        return Conversation.from_dict(doc.to_dict()) # Return Conversation object
-    else:
-        logger.warning(f"No conversation exists with conversation_id {conversation_id} for user {user_id}", __name__)
-        # Depending on desired behavior, could return None or raise a NotFound error
-        raise ValueError(f"Conversation with ID {conversation_id} not found for user {user_id}.")
-
-# ... (rest of the existing conversation methods: delete_conversation, get_conversations)
-# Ensure they are compatible with Conversation object return type from get_conversation if they use it.
-
-def delete_conversation(conversation_id: str) -> dict:
-    """
-    Deletes a conversation by the conversation_id from Firestore and Algolia.
-
-    Args
-        conversation_id: the unique id for the conversation requested to be deleted
-            str
-    Return
-        status: confirmation string that conversation corresponding to the conversation_id is deleted
-            dict
-
-    """
-    user_id = g.user['user_id']
-
-    if not user_id:
-        logger.error("Error: Could not extract user_id for conversation_id '%s' for deletion", conversation_id)
-        return {"error": "User ID not available for deletion"} # More generic error
-
-    if not conversation_id:
-        logger.error("Error: Failed to delete conversation - missing conversation_id ", __name__)
-        return {"error": "Missing conversation_id"}
-
-    try:
-        # --- Delete from Firestore ---
-        db.collection("users").document(user_id).collection("conversations").document(conversation_id).delete()
-        logger.info(f"Deleted conversation {conversation_id} from Firestore for user {user_id}.")
-
-        # --- Delete from Algolia ---
-        algolia_client = get_algolia_client()
-        aloglia_conversations_index = current_app.config['ALGOLIA_CONVERSATIONS_INDEX']
-        if algolia_client:
-            try:
-                res = algolia_client.delete_object(index_name=aloglia_conversations_index, object_id=conversation_id)
-                algolia_client.wait_for_task(index_name=aloglia_conversations_index, task_id=res.task_id)
-                logger.info(f"Deleted conversation {conversation_id} from Algolia index.")
-            except Exception as algolia_error:
-                logger.error(f"Failed to delete conversation {conversation_id} from Algolia: {algolia_error}", exc_info=True)
-
-        return {"status": f"conversation_id {conversation_id} deleted"}
-
-    except Exception as e:
-         logger.error(f"Error deleting conversation {conversation_id} for user {user_id}: {e}", exc_info=True)
-         raise ValueError(f"Failed to delete conversation {conversation_id}: {e}") from e
-
-
-def get_conversations(user_id: str, filters: dict) -> list[Conversation]:
-    """
-    Searches for conversations based on filters. Uses Algolia for keyword search
-    and Firestore for retrieval and other filtering.
-
     Args:
-        user_id (str): User ID associated with the conversations.
-        filters (dict, optional): Search/sort criteria (keyword, date_from, date_to, connection_id, sort). Defaults to None.
-        limit (int, optional): Maximum number of conversations to return. Defaults to 20. (Limit not used in current code)
-
+        conversation_id: The unique id for the conversation
+        
     Returns:
-        list[Conversation]: A list of Conversation objects matching the criteria.
+        Conversation object
+        
+    Raises:
+        ConversationNotFoundError: If conversation not found
+    """
+    user_id = None
+    if hasattr(g, 'user') and g.user:
+        user_id = g.user.get('user_id')
+    
+    if not user_id:
+        raise ValueError("User not authenticated")
+        
+    return _storage.get_conversation(user_id, conversation_id)
+
+
+def delete_conversation(conversation_id: str) -> Dict[str, str]:
+    """
+    Deletes a conversation by the conversation_id.
+    
+    Args:
+        conversation_id: The unique id for the conversation
+        
+    Returns:
+        Status dict confirming deletion
+    """
+    user_id = None
+    if hasattr(g, 'user') and g.user:
+        user_id = g.user.get('user_id')
+    
+    if not user_id:
+        raise ValueError("User not authenticated")
+        
+    return _storage.delete_conversation(user_id, conversation_id)
+
+
+def get_conversations(user_id: str, filters: Optional[Dict[str, Any]] = None) -> List[Conversation]:
+    """
+    Searches for conversations based on filters.
+    
+    Args:
+        user_id: User ID associated with the conversations
+        filters: Search/sort criteria (keyword, date_from, date_to, connection_id, sort, limit)
+        
+    Returns:
+        List of Conversation objects matching the criteria
     """
     if not user_id:
-        logger.error("Error: Failed to get conversations - missing user_id", __name__)
-        return [] 
-
+        logger.error("Missing user_id for get_conversations")
+        return []
+    
+    # Convert filters dict to ConversationSearchParams
     if filters is None:
         filters = {}
-
-    keyword = filters.get("keyword")
-    algolia_client = get_algolia_client()
-    aloglia_conversations_index = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX') # Use .get for safety
-    aloglia_search_results_limit = current_app.config.get('ALGOLIA_SEARCH_RESULTS_LIMIT', 20) # Default if not set
-
-    try:
-        if keyword and algolia_client and aloglia_conversations_index:
-            logger.info(f"Performing Algolia keyword search for user '{user_id}' with keyword: '{keyword}'")
-            search_params = {"query": keyword, "filters": f"user_id:{user_id}", "hitsPerPage": aloglia_search_results_limit * 5, "attributesToRetrieve": ["objectID"]}
-            connection_id_filter = filters.get("connection_id")
-            if connection_id_filter: search_params["filters"] += f" AND connection_id:{connection_id_filter}"
-            date_filter_parts = []
-            if "date_from" in filters and isinstance(filters["date_from"], datetime): date_filter_parts.append(f"created_at_timestamp >= {int(filters['date_from'].timestamp())}")
-            if "date_to" in filters and isinstance(filters["date_to"], datetime):
-                 to_date = filters["date_to"]; 
-                 if to_date.time() == datetime.min.time(): to_date = to_date + timedelta(days=1) - timedelta(microseconds=1)
-                 date_filter_parts.append(f"created_at_timestamp <= {int(to_date.timestamp())}")
-            if date_filter_parts: search_params["filters"] += " AND " + " AND ".join(date_filter_parts)
-            
-            # Algolia search method seems to have changed in recent clients.
-            # Assuming a search method like client.search_single_index or similar.
-            # The provided code `algolia_client.search({"requests": [...]})` might be for batch search.
-            # For simplicity, let's assume a single index search that returns a response object with 'hits'.
-            # This part needs to be adapted to the actual Algolia client version being used.
-            # search_results = algolia_client.search_single_index(aloglia_conversations_index, search_params)
-            # conversation_ids = [hit['objectID'] for hit in search_results.get('hits', [])]
-
-            # Using the structure from the file, which seems to be a multi-query format
-            raw_algolia_results = algolia_client.search({"indexName": aloglia_conversations_index, "params": search_params})
-            
-            conversation_ids = []
-            if raw_algolia_results and raw_algolia_results.get('results') and raw_algolia_results['results'][0].get('hits'):
-                conversation_ids = [hit['objectID'] for hit in raw_algolia_results['results'][0]['hits']]
-
-            if not conversation_ids: logger.info(f"No Algolia hits for keyword '{keyword}', user '{user_id}'."); return []
-            logger.info(f"Found {len(conversation_ids)} potential Algolia matches. Fetching from Firestore.")
-            
-            conversation_docs = []
-            id_chunks = [conversation_ids[i:i + 10] for i in range(0, len(conversation_ids), 10)]
-            for chunk in id_chunks:
-                if not chunk: continue
-                query = db.collection("users").document(user_id).collection("conversations").where("conversation_id", "in", chunk)
-                docs = query.stream()
-                conversation_docs.extend([doc.to_dict() for doc in docs if doc.exists])
-            
-            convos_map = {convo_data['conversation_id']: Conversation.from_dict(convo_data) for convo_data in conversation_docs if convo_data}
-            ordered_convos = [convos_map[cid] for cid in conversation_ids if cid in convos_map][:aloglia_search_results_limit]
-            logger.info(f"Returning {len(ordered_convos)} conversations (Algolia)."); return ordered_convos
-        else:
-            logger.info(f"No keyword or Algolia unavailable. Firestore query for user '{user_id}'.")
-            query = db.collection("users").document(user_id).collection("conversations")
-            connection_id_filter = filters.get("connection_id")
-            if connection_id_filter: query = query.where("connection_id", "==", connection_id_filter)
-            sort_field = "created_at"; sort_order_str = filters.get("sort", "desc")
-            sort_direction = firestore.Query.DESCENDING if sort_order_str == "desc" else firestore.Query.ASCENDING
-            if "date_from" in filters and isinstance(filters["date_from"], datetime): query = query.where(sort_field, ">=", filters["date_from"])
-            if "date_to" in filters and isinstance(filters["date_to"], datetime):
-                 to_date = filters["date_to"]; 
-                 if to_date.time() == datetime.min.time(): to_date = to_date + timedelta(days=1) - timedelta(microseconds=1)
-                 query = query.where(sort_field, "<=", to_date)
-            query = query.order_by(sort_field, direction=sort_direction).limit(aloglia_search_results_limit)
-            docs = query.stream()
-            firestore_convos = [Conversation.from_dict(doc.to_dict()) for doc in docs if doc.exists]
-            logger.info(f"Returning {len(firestore_convos)} conversations (Firestore)."); return firestore_convos
-    except Exception as e:
-        logger.error(f"Error getting conversations for user {user_id}: {e}", exc_info=True)
-        return []
+        
+    params = ConversationSearchParams(
+        user_id=user_id,
+        keyword=filters.get("keyword"),
+        connection_id=filters.get("connection_id"),
+        date_from=filters.get("date_from"),
+        date_to=filters.get("date_to"),
+        sort=filters.get("sort", "desc"),
+        limit=filters.get("limit", 20)
+    )
+    
+    return _storage.search_conversations(params)

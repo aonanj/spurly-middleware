@@ -10,8 +10,7 @@ import os
 
 # Local application imports
 from .logger import get_logger # Use relative import if logger is in the same directory
-from google.cloud import firestore, vision_v1
-from google.cloud.vision_v1 import ImageAnnotatorClient, types
+from google.cloud import firestore, vision_v1, ImageAnnotatorClient, types
 # --- Global Client Variables ---
 # Initialize clients to None initially
 db = None

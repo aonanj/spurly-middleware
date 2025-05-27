@@ -6,7 +6,7 @@ from infrastructure.id_generator import generate_connection_id, get_null_connect
 from infrastructure.logger import get_logger
 from typing import List, Dict, Optional, Any
 from utils.trait_manager import (
-    infer_personality_traits_from_pics, infer_personality_traits_from_openai_vision)
+    infer_personality_traits_from_openai_vision)
 from services.storage_service import upload_profile_image # Ensure this path is correct
 
 logger = get_logger(__name__)
@@ -33,7 +33,7 @@ def create_connection_profile(
     # images: Optional[List[bytes]] = None, # This was for the old trait system from generic images
     # links: Optional[List[str]] = None,    # This is being removed
     profile_text_content_list: Optional[List[str]] = None,
-    profile_pics_raw_files: Optional[List[Dict[str, Any]]] = None 
+    personality_traits_list: Optional[List[Dict[str, Any]]] = None 
 ) -> Dict:
     user_id = g.user.get('user_id')
     if not user_id:
@@ -54,25 +54,11 @@ def create_connection_profile(
     profile_data_to_save["profile_text_content"] = profile_text_content_list if profile_text_content_list is not None else []
 
     # Personality traits from profile pictures (using OpenAI Vision)
-    inferred_photo_traits_with_scores = []
-    if profile_pics_raw_files:
-        try:
-            inferred_photo_traits_with_scores = infer_personality_traits_from_openai_vision(profile_pics_raw_files)
-        except Exception as e: # Catch errors from trait inference
-            logger.error(f"Error during OpenAI trait inference for new connection {connection_id}: {e}", exc_info=True)
-            # Decide if this error should prevent profile creation or just result in empty traits
-            # For now, we'll proceed with empty traits if inference fails.
-            inferred_photo_traits_with_scores = []
+
             
-    profile_data_to_save["personality_traits"] = _get_top_n_traits(inferred_photo_traits_with_scores, 5)
-    
-    # Ensure all fields defined in ConnectionProfile dataclass are in the dict
-    for f_info in fields(ConnectionProfile):
-        if f_info.name not in profile_data_to_save:
-            if callable(f_info.default_factory):
-                profile_data_to_save[f_info.name] = f_info.default_factory()
-            else:
-                 profile_data_to_save[f_info.name] = None # Or handle as per dataclass/db requirements
+    profile_data_to_save["personality_traits"] = _get_top_n_traits(personality_traits_list, 5)
+
+    profile_data_to_save["context_block"] = profile.context_block if profile.context_block is not None else None
 
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
@@ -139,7 +125,9 @@ def save_connection_profile(connection_profile: ConnectionProfile) -> dict:
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(connection_profile_dict)
         logger.info(f"Connection profile {connection_id} for user {user_id} saved successfully.")
-        return {"status": "connection profile saved"}
+        return {
+            "success": "connection profile successfully saved"   }
+        
     except Exception as e:
         err_point = __package__ or "connection_service" 
         logger.error("[%s] Error saving conn profile %s for user %s: %s", err_point, connection_id, user_id, e, exc_info=True)
@@ -190,7 +178,7 @@ def set_active_connection_firestore(user_id: str, connection_id: Optional[str]) 
             "connection_id": effective_connection_id
         })
         logger.info(f"Active connection set to '{effective_connection_id}' for user '{user_id}'.")
-        return {"status": "active connection set", "connection_id": effective_connection_id}
+        return {"success": "active connection set", "connection_id": effective_connection_id}
     except Exception as e:
         logger.error(f"Error setting active conn for user {user_id} to {effective_connection_id}: {e}", exc_info=True)
         return {"error": f"Cannot set active connection: {str(e)}"}
@@ -228,7 +216,7 @@ def clear_active_connection_firestore(user_id: str) -> dict:
         if "error" in result: 
             return {"error": f"Failed to clear active connection by setting to null: {result['error']}"}
         logger.info(f"Active connection cleared (set to '{null_connection_id}') for user '{user_id}'.")
-        return {"status": "active connection cleared", "connection_id": null_connection_id}
+        return {"success": "active connection cleared", "connection_id": null_connection_id}
     except Exception as e:
         err_point = __package__ or "connection_service"
         logger.error("[%s] Error clearing active conn for user %s: %s", err_point, user_id, e, exc_info=True)
@@ -268,11 +256,9 @@ def get_connection_profile(user_id: str, connection_id: str) -> Optional[Connect
 def update_connection_profile(
     user_id: str, 
     connection_id: str, 
-    data: Dict, 
-    # images: Optional[List[bytes]] = None, # Old trait system
-    # links: Optional[List[str]] = None,   # Removing link-based traits
+    data: Optional[str] = None, 
     profile_text_content_list: Optional[List[str]] = None, 
-    profile_pics_raw_files: Optional[List[Dict[str, Any]]] = None 
+    updated_personality_traits: Optional[List[Dict[str, Any]]] = None 
 ) -> Dict:
     null_suffix = current_app.config.get('NULL_CONNECTION_ID_SUFFIX', '_null')
     if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_suffix)):
@@ -289,37 +275,25 @@ def update_connection_profile(
     update_payload = {} # Build payload with only the fields to change
 
     # Update basic form data fields
-    profile_definition_fields = {f.name for f in fields(ConnectionProfile)}
-    for key, value in data.items():
-        if key in profile_definition_fields and key not in {"user_id", "connection_id", "personality_traits", "profile_text_content"}: # These are handled separately
-            if current_profile_data.get(key) != value : # Only add if changed
-                 update_payload[key] = value
+    if data is not None:
+        update_payload["context_block"] = data
+    elif data == "":
+        update_payload["context_block"] = None # Explicitly set to None if empty string
 
     # Update OCR'd text content if provided (None means no change, [] means clear)
     if profile_text_content_list is not None:
         if current_profile_data.get("profile_text_content") != profile_text_content_list:
             update_payload["profile_text_content"] = profile_text_content_list
     
-    # Handle personality traits from new profile pictures
-    if profile_pics_raw_files is not None: # If new images are provided (empty list means try to clear/re-evaluate)
-        new_photo_traits_with_scores = []
-        if profile_pics_raw_files: # If there are actual new files to process
-            try:
-                new_photo_traits_with_scores = infer_personality_traits_from_openai_vision(profile_pics_raw_files)
-            except Exception as e:
-                logger.error(f"Error during OpenAI trait inference for updating connection {connection_id}: {e}", exc_info=True)
-                # If new image processing fails, do we keep old traits or clear?
-                # For now, let's assume we don't update traits if new image processing fails.
-                # If profile_pics_raw_files was an empty list, new_photo_traits_with_scores remains [].
-
-        # Combine with existing traits (if any) is not required by user; new images replace old trait analysis.
-        # The prompt asks: "When update_connection_profile is called with new profile images, 
-        # we'll compare the confidence scores, and save the highest 5."
-        # This implies that if new images are given, the traits are *re-derived* from these new images.
-        # If no new images, old traits remain unless explicitly cleared by other means (not implemented here).
         
-        # So, traits from new images become the new set of traits.
-        update_payload["personality_traits"] = _get_top_n_traits(new_photo_traits_with_scores, 5)
+        combined_traits = current_profile_data.get("personality_traits", [])
+        if updated_personality_traits is not None:
+            combined_traits.append(updated_personality_traits)
+        
+        if combined_traits and len(combined_traits) > 5:
+            # If more than 5 traits, keep only the top 5 by confidence
+            update_payload["personality_traits"] = _get_top_n_traits(combined_traits, 5)
+
     
     # Note: The logic for comparing new traits with existing ones and merging to keep top 5
     # needs to be clarified. The current interpretation is:
@@ -334,12 +308,12 @@ def update_connection_profile(
 
     if not update_payload:
         logger.info(f"No effective update data provided for conn {connection_id}, user {user_id}.")
-        return {"status": "no changes to connection profile", "connection_id": connection_id}
+        return {"warning": "no effective update data provided for connection profile", "connection_id": connection_id}
 
     try:
         doc_ref.update(update_payload)
         logger.info(f"Conn profile {connection_id} for user {user_id} updated with keys: {list(update_payload.keys())}.")
-        return {"status": "connection profile updated", "connection_id": connection_id}
+        return {"success": "connection profile updated", "connection_id": connection_id}
     except Exception as e:
         logger.error(f"Error updating conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
         return {"error": f"Cannot update connection profile: {str(e)}"}
@@ -355,12 +329,12 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
         doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
         if not doc_ref.get().exists:
             logger.warning(f"Delete attempt: non-existent conn profile {connection_id} for user {user_id}.")
-            return {"status": "connection profile not found, no action taken", "connection_id": connection_id}
+            return {"warning": "connection profile not found, no action taken", "connection_id": connection_id}
 
         doc_ref.delete()
         logger.info(f"Conn profile {connection_id} for user {user_id} deleted successfully.")
         # TODO: Consider deleting associated images from GCS if required. This needs careful thought on cascading deletes.
-        return {"status": "connection profile deleted", "connection_id": connection_id}
+        return {"success": "connection profile deleted", "connection_id": connection_id}
     except Exception as e:
         logger.error(f"Error deleting conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
         return {"error": f"Cannot delete connection profile: {str(e)}"}

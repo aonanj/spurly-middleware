@@ -59,7 +59,7 @@ def generate():
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
     if profile_ocr_texts_from_request:
-        logger.info(f"Using {len(profile_ocr_texts_from_request)} OCR'd profile snippets.")
+        logger.info(f"Using {len(profile_ocr_texts_from_request)} OCR'd profile content.")
 
 
     spur_objs = get_spurs_for_output(

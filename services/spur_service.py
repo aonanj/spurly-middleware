@@ -5,10 +5,11 @@ from google.cloud import firestore
 from infrastructure.clients import db
 from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger
+from infrastructure.id_generator import generate_spur_id
 
 logger = get_logger(__name__)
 
-def save_spur(user_id, spur):
+def save_spur(user_id, spur: Spur):
     try:
         if not user_id:
             logger.error("Error: Missing user ID in save_spur")
@@ -19,8 +20,12 @@ def save_spur(user_id, spur):
             raise ValueError("Error: Missing user ID in save_spur")
 
         user_id = g.user['user_id']
-        spur_dict = Spur.to_dict(spur)
-        spur_id = spur_dict.get("spur_id", "")
+        spur_dict = spur.to_dict()
+        if spur_dict.get("spur_id"):
+            spur_id = spur_dict.get("spur_id")
+        else:
+            spur_id = generate_spur_id(user_id)
+
         conversation_id = spur_dict.get("conversation_id", "")
         connection_id = spur_dict.get("connection_id", "")
         situation = spur_dict.get("situation", "")
@@ -49,7 +54,7 @@ def save_spur(user_id, spur):
 
         doc_ref.set(doc_data)
         
-        return {"status": "spur saved", "spur_id": doc_ref.id}
+        return {"success": "spur saved", "spur_id": doc_ref.id}
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
@@ -110,7 +115,7 @@ def delete_saved_spur(user_id, spur_id):
     try:
         doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
         doc_ref.delete()
-        return {"status": "spur deleted"}
+        return {"success": "spur deleted"}
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

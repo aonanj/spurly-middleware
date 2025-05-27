@@ -61,7 +61,7 @@ def generate_spurs(
         situation (str): A description of the conversation's context.
         topic (str): A topic associated with the conversation.
         selected_spurs (list[str], optional): List of spur variants to generate/regenerate.
-        profile_ocr_texts (list[str], optional): List of text snippets extracted from connection's profile screenshots.
+        profile_ocr_texts (list[str], optional): List of text excerpts extracted from connection's profile screenshots.
         photo_analysis_data (list[dict], optional): List of analysis results (e.g., traits) from connection's photos.
 
     Returns:
@@ -112,8 +112,8 @@ def generate_spurs(
     # Append OCR'd profile text if available
     if profile_ocr_texts:
         context_block += "***Additional Connection Profile Info (from OCR):***\n"
-        for text_snippet in profile_ocr_texts:
-            context_block += f"- {text_snippet}\n"
+        for excerpt in profile_ocr_texts:
+            context_block += f"- {excerpt}\n"
         context_block += "\n"
 
 
