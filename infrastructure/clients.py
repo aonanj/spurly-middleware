@@ -10,7 +10,7 @@ import os
 
 # Local application imports
 from .logger import get_logger # Use relative import if logger is in the same directory
-from google.cloud import firestore, vision_v1, ImageAnnotatorClient, types
+from google.cloud import firestore, vision
 # --- Global Client Variables ---
 # Initialize clients to None initially
 db = None
@@ -72,7 +72,7 @@ def init_clients(app):
         if not vision_cred_path or not os.path.exists(vision_cred_path):
              raise FileNotFoundError(f"Vision API key file not found at: {vision_cred_path}")
         vision_creds = service_account.Credentials.from_service_account_file(vision_cred_path)
-        vision_client = vision_v1.ImageAnnotatorClient(credentials=vision_creds)
+        vision_client = vision.ImageAnnotatorClient(credentials=vision_creds)
         logger.info("Google Cloud Vision client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
