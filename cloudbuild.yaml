@@ -1,5 +1,6 @@
 options:
-  logging: CLOUD_LOGGING_ONLY
+  logging: CLOUD_LOGGING_NONE
+logsBucket: "gs://spurly-cloudbuild-logs"
 serviceAccount: 'spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 steps:
@@ -9,4 +10,4 @@ steps:
     args: ['push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware']
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
-    args: ['run', 'deploy', 'spurly-middleware', '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '--platform', 'managed', '--allow-unauthenticated']
+    args: ['run', 'deploy', 'spurly-middleware', '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '--region', 'us-west2','--platform', 'managed', '--allow-unauthenticated']
