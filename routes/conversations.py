@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, g
 from infrastructure.auth import require_auth
 from infrastructure.logger import get_logger
 from class_defs.spur_def import Spur
+from class_defs.conversation_def import Conversation
 from services.spur_service import save_spur, delete_saved_spur, get_saved_spurs
 from services.storage_service import (
     get_conversations,
@@ -63,8 +64,9 @@ def save_conversation_bp():
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point} - Invalid data format")
         return jsonify({'error': f"[{err_point}] - Invalid data format"}), 400
-
-    result = save_conversation(conversation)
+ # Ensure this import exists at the top if not already
+    conversation_obj = Conversation.from_dict(conversation)
+    result = save_conversation(conversation_obj)
     return jsonify(result)
 
 @conversations_bp.route("/get-conversations", methods=["GET"])

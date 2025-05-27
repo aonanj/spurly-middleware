@@ -214,7 +214,7 @@ def create_connection():
                 }
                 
                 # Get personality traits
-                trait_list = infer_personality_traits_from_openai_vision(image_dict)
+                trait_list = infer_personality_traits_from_openai_vision([image_dict])
                 if trait_list and len(trait_list) > 0:
                     personality_traits.append({
                         "trait": trait_list[0].get("trait", ""),
@@ -293,8 +293,8 @@ def update_connection():
                         "bytes": image_bytes,
                         "content_type": content_type
                     }
-                    
-                    trait_list = infer_personality_traits_from_openai_vision(image_dict)
+
+                    trait_list = infer_personality_traits_from_openai_vision([image_dict])
                     if trait_list and len(trait_list) > 0:
                         personality_traits.append({
                             "trait": trait_list[0].get("trait", ""),
@@ -310,9 +310,9 @@ def update_connection():
         result = update_connection_profile(
             user_id=user_id,
             connection_id=connection_id,
-            data={"context_block": context_block} if context_block else {},
+            data=context_block if context_block else None,
             profile_text_content_list=profile_content_texts,
-            personality_traits_list=personality_traits
+            updated_personality_traits=personality_traits
         )
         
         return jsonify(result)

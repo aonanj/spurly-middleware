@@ -9,6 +9,7 @@ import cv2
 from PIL import Image
 from google.cloud import vision
 from infrastructure.clients import vision_client
+from google.cloud import vision
 import io
 
 
@@ -199,7 +200,7 @@ class ConversationExtractor:
         for i, msg in enumerate(messages):
             msg.cluster_id = clustering.labels_[i]
     
-    def _analyze_message_alignment(self, messages: List[MessageBlock]) -> Dict[int, Dict[str, float]]:
+    def _analyze_message_alignment(self, messages: List[MessageBlock]) -> Dict[int, Dict[str, Any]]:
         """
         Analyze the alignment characteristics of each cluster.
         
@@ -209,7 +210,7 @@ class ConversationExtractor:
         Returns:
             Dictionary mapping cluster_id to alignment statistics
         """
-        cluster_stats = defaultdict(lambda: {
+        cluster_stats: Dict[int, Dict[str, Any]] = defaultdict(lambda: {
             'x_positions': [],
             'widths': [],
             'messages': []
@@ -223,9 +224,9 @@ class ConversationExtractor:
         
         # Calculate statistics for each cluster
         for cluster_id, stats in cluster_stats.items():
-            stats['mean_x'] = np.mean(stats['x_positions'])
-            stats['std_x'] = np.std(stats['x_positions'])
-            stats['mean_width'] = np.mean(stats['widths'])
+            stats['mean_x'] = float(np.mean(stats['x_positions']))
+            stats['std_x'] = float(np.std(stats['x_positions']))
+            stats['mean_width'] = float(np.mean(stats['widths']))
             stats['count'] = len(stats['messages'])
         
         return dict(cluster_stats)
@@ -563,7 +564,7 @@ class VisualConversationExtractor:
         # Calculate Euclidean distance
         distance = np.linalg.norm(avg1 - avg2)
         
-        return distance > threshold
+        return bool(distance > threshold)
 
 def perform_ocr_on_screenshot(screenshot_bytes: bytes) -> List[str]:
     """
@@ -591,8 +592,12 @@ def perform_ocr_on_screenshot(screenshot_bytes: bytes) -> List[str]:
     
     # First, perform initial OCR to check for text in top/bottom regions
     vision_image = vision.Image(content=content)
-    response = vision_client.text_detection(image=vision_image)
-    
+    request = vision.AnnotateImageRequest(
+        image=vision_image,
+        features=[vision.Feature(type_=vision.Feature.Type.TEXT_DETECTION)]
+    )
+    response = vision_client.annotate_image(request=request)
+
     if response.error.message:
         raise Exception(f'Error during OCR: {response.error.message}')
     
@@ -611,7 +616,11 @@ def perform_ocr_on_screenshot(screenshot_bytes: bytes) -> List[str]:
         
         # Perform OCR on cropped image
         vision_image = vision.Image(content=content)
-        response = vision_client.text_detection(image=vision_image)
+        request = vision.AnnotateImageRequest(
+            image=vision_image,
+            features=[vision.Feature(type_=vision.Feature.Type.TEXT_DETECTION)]
+        )
+        response = vision_client.annotate_image(request=request)
         
         if response.error.message:
             raise Exception(f'Error during OCR on cropped image: {response.error.message}')

@@ -56,9 +56,9 @@ def create_connection_profile(
     # Personality traits from profile pictures (using OpenAI Vision)
 
             
-    profile_data_to_save["personality_traits"] = _get_top_n_traits(personality_traits_list, 5)
+    profile_data_to_save["personality_traits"] = _get_top_n_traits(personality_traits_list or [], 5)
 
-    profile_data_to_save["context_block"] = profile.context_block if profile.context_block is not None else None
+    profile_data_to_save["context_block"] = data.get("context_block", None)
 
     try:
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)

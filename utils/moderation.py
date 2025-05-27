@@ -48,7 +48,7 @@ def moderate_topic(text: str) -> dict:
 def moderate_with_openai(text):
     try:
         response = get_openai_client().moderations.create(input=text)
-        flagged = response["results"][0]["flagged"]
+        flagged = response.results[0].flagged
         return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
     except Exception as e:
         err_point = __package__ or __name__

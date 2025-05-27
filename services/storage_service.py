@@ -154,7 +154,7 @@ class ConversationStorage:
         created_at = conversation.created_at
         if isinstance(created_at, str):
             try:
-                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                created_at = datetime.fromisoformat(str(created_at).replace("Z", "+00:00"))
             except ValueError:
                 created_at = datetime.now(timezone.utc)
         elif not isinstance(created_at, datetime):
@@ -232,7 +232,7 @@ class ConversationStorage:
             elif isinstance(conversation.created_at, str):
                 try:
                     conversation.created_at = datetime.fromisoformat(
-                        conversation.created_at.replace("Z", "+00:00")
+                        str(conversation.created_at).replace("Z", "+00:00")
                     )
                 except ValueError:
                     logger.warning(f"Invalid created_at format, using current time")
@@ -407,7 +407,7 @@ class ConversationStorage:
                     index_name,
                     search_params
                 )
-                hits = results.get('hits', [])
+                hits = getattr(results, 'hits', [])
             except AttributeError:
                 # Fall back to legacy search method
                 search_request = {
@@ -415,8 +415,8 @@ class ConversationStorage:
                     "params": search_params
                 }
                 results = algolia_client.search(search_request)
-                if results and 'results' in results and len(results['results']) > 0:
-                    hits = results['results'][0].get('hits', [])
+                if results and hasattr(results, 'results') and len(results.results) > 0:
+                    hits = getattr(results.results[0], 'hits', [])
                 else:
                     hits = []
             

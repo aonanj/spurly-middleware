@@ -42,9 +42,9 @@ def contains_expired_phrase(text: str) -> bool:
 
 def fails_regex_safety(text: str) -> bool:
     return (
-        REGEX_EMOJI_SPAM.search(text) or
-        REGEX_ASCII_ART.search(text) or
-        REGEX_CAPS_LOCK.search(text)
+        REGEX_EMOJI_SPAM.search(text) is not None or
+        REGEX_ASCII_ART.search(text) is not None or
+        REGEX_CAPS_LOCK.search(text) is not None
     )
 
 

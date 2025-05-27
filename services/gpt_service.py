@@ -78,6 +78,7 @@ def generate_spurs(
         active_connection_id = get_active_connection_firestore(user_id)
         connection_profile = get_connection_profile(user_id, active_connection_id)
 
+    conversation_obj = None
     conversation = None
     conversation_text = ""
     if conversation_id:

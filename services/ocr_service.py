@@ -1,6 +1,6 @@
-from typing import List, Dict, Optional, Tuple, Generator
+from typing import List, Dict, Optional, Tuple, Generator, Any
 from flask import jsonify
-from google.cloud import vision_v1, ImageAnnotatorClient, Image
+from google.cloud import vision
 from infrastructure.clients import vision_client
 from infrastructure.logger import get_logger
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
@@ -123,7 +123,7 @@ def prepare_image_for_ocr(image_array: np.ndarray) -> bytes:
         raise OCRProcessingError(f"Image preparation failed: {str(e)}")
 
 
-def perform_ocr(content: bytes, client: ImageAnnotatorClient) -> vision_v1.AnnotateImageResponse:
+def perform_ocr(content: bytes, client: vision.ImageAnnotatorClient) -> vision.AnnotateImageResponse:
     """
     Performs OCR on the prepared image content.
     
@@ -138,13 +138,13 @@ def perform_ocr(content: bytes, client: ImageAnnotatorClient) -> vision_v1.Annot
         OCRProcessingError: If OCR fails
     """
     try:
-        image = Image(content=content)
+        image = vision.Image(content=content)
         
         # Use annotate_image for better performance and features
         request = {
             'image': image,
             'features': [
-                {'type_': vision_v1.Feature.Type.DOCUMENT_TEXT_DETECTION},
+                {'type_': vision.Feature.Type.DOCUMENT_TEXT_DETECTION},
             ]
         }
         
@@ -238,7 +238,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
         raise OCRProcessingError(f"Unexpected error during image processing: {str(e)}")
 
 
-def process_image_batch(user_id: str, image_files: List) -> Dict[str, List[Dict]]:
+def process_image_batch(user_id: str, image_files: List) -> Dict[str, Any]:
     """
     Process multiple images in batch.
     
