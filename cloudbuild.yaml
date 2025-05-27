@@ -1,5 +1,5 @@
 options:
-  logging: CLOUD_LOGGING_NONE
+  logging: NONE
 logsBucket: "gs://spurly-cloudbuild-logs"
 serviceAccount: 'spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
