@@ -51,9 +51,11 @@ Package.resolved
 # =========================
 *.orig
 *.rej
+.gitignore
 
 # =========================
 # Local logs / caches
 # =========================
 *.log
 .cache/
+spurly-trigger.json

@@ -1,11 +1,12 @@
 options:
   logging: CLOUD_LOGGING_ONLY
+serviceAccount: 'spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/spurly-middleware', '.']
+    args: ['build', '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '.']
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/spurly-middleware']
+    args: ['push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware']
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
-    args: ['run', 'deploy', 'spurly-middleware', '--image', 'gcr.io/$PROJECT_ID/spurly-middleware', '--region', 'us-west2', '--platform', 'managed', '--allow-unauthenticated']
+    args: ['run', 'deploy', 'spurly-middleware', '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '--platform', 'managed', '--allow-unauthenticated']

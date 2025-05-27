@@ -57,3 +57,5 @@ Package.resolved
 # =========================
 *.log
 .cache/
+spurly-trigger.json
+.dockerignore
