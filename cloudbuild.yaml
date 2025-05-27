@@ -1,13 +1,55 @@
-options:
-  logging: NONE
-
-serviceAccount: 'spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
-
 steps:
+  # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '.']
+    args: [
+      'build',
+      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
+      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
+      '.'
+    ]
+
+  # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware']
+    args: [
+      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA'
+    ]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest'
+    ]
+
+  # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
-    args: ['run', 'deploy', 'spurly-middleware', '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware', '--region', 'us-west2','--platform', 'managed', '--allow-unauthenticated']
+    args: [
+      'run', 'deploy', 'spurly-middleware',
+      '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
+      '--region', 'us-west2',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--port', '8080',
+      '--memory', '512Mi',
+      '--cpu', '1',
+      '--max-instances', '10',
+      '--timeout', '300',
+      '--concurrency', '80'
+    ]
+
+
+# Service account configuration
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+
+# Build options
+options:
+  logging: 'CLOUD_LOGGING_ONLY'
+  machineType: 'E2_STANDARD_2'
+  substitution_option: 'ALLOW_LOOSE'
+
+# Timeout for the entire build
+timeout: '1200s'
+
+# Substitute variables (optional)
+substitutions:
+  _SERVICE_NAME: 'spurly-middleware'
+  _REGION: 'us-west2'
