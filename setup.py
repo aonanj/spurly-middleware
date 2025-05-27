@@ -12,13 +12,33 @@ setup(
     include_package_data=True,
     python_requires=">=3.8",
     install_requires=[
-        "Flask>=2.2",
-        "google-cloud-vision>=2.0",
-        "firebase-admin>=5.0",
-        "openai>=0.27",
-        "algoliasearch>=2.0",
-        "python-dotenv>=0.19",
-        # add any other runtime deps here…
+        # Core Framework & Web
+        "Flask>=3.1.1",  # [cite: 1]
+        "flask-cors>=6.0.0",  # [cite: 1]
+        "python-dotenv>=1.1.0",  # [cite: 1]
+        "pydantic>=2.11.5",  # [cite: 1]
+
+        # Google Cloud & Firebase
+        "firebase-admin>=6.8.0",  # [cite: 1]
+        "google-cloud-vision>=3.10.1",  # [cite: 1]
+        "google-cloud-firestore>=2.20.2",  # [cite: 1]
+        "google-cloud-storage>=3.1.0",  # [cite: 1]
+
+        # AI, Machine Learning & Data Processing
+        "openai>=1.82.0",  # [cite: 1]
+        "scikit-learn>=1.6.1",  # [cite: 1]
+        "numpy>=2.2.6",  # [cite: 1]
+        "scipy>=1.15.3",  # [cite: 1]
+
+        # Image Processing
+        "opencv-python>=4.11.0.86",  # [cite: 1]
+        "pillow>=11.2.1",  # [cite: 1]
+        "pytesseract>=0.3.13",  # [cite: 1]
+        
+        # External APIs & Utilities
+        "algoliasearch>=4.17.0",  # [cite: 1]
+        "praw>=7.8.1",  # [cite: 1]
+        "requests>=2.32.3",  # [cite: 1]
     ],
     extras_require={
         "dev": [
