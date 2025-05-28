@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g, current_app
 import logging
 from typing import List, Dict, Any, Optional
-from infrastructure.auth import require_auth
+from infrastructure.firebase_auth import require_firebase_auth
 from infrastructure.logger import get_logger
 from services.connection_service import (
     get_user_connections,
@@ -15,7 +15,6 @@ from services.connection_service import (
     save_connection_profile
 )
 from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, _allowed_profile_image_file
-from services.classifiers import classify_image 
 from utils.ocr_utils import perform_ocr_on_screenshot as perform_ocr
 from utils.trait_manager import infer_personality_traits_from_openai_vision
 from PIL import Image
@@ -126,7 +125,7 @@ def _extract_image_bytes_from_request(field_name: str) -> List[bytes]:
 
 
 @connection_bp.route("/connection/save", methods=["POST"])
-@require_auth
+@require_firebase_auth
 def save_connection():
     """Save a complete connection profile from JSON data."""
     try:
@@ -161,7 +160,7 @@ def save_connection():
 
 
 @connection_bp.route("/connection/create", methods=["POST"])
-@require_auth
+@require_firebase_auth
 def create_connection():
     """Create a new connection profile with image processing."""
     try:
@@ -238,7 +237,7 @@ def create_connection():
 
 
 @connection_bp.route("/connection/update", methods=["PATCH"])
-@require_auth
+@require_firebase_auth
 def update_connection():
     """Update an existing connection profile."""
     try:
@@ -323,7 +322,7 @@ def update_connection():
 
 
 @connection_bp.route("/connection/fetch-all", methods=["GET"])
-@require_auth
+@require_firebase_auth
 def fetch_user_connections():
     """Fetch all connections for the authenticated user."""
     try:
@@ -351,7 +350,7 @@ def fetch_user_connections():
 
 
 @connection_bp.route("/connection/set-active", methods=["POST"])
-@require_auth
+@require_firebase_auth
 def set_active_connection():
     """Set the active connection for the user."""
     try:
@@ -376,7 +375,7 @@ def set_active_connection():
 
 
 @connection_bp.route("/connection/get-active", methods=["GET"])
-@require_auth
+@require_firebase_auth
 def get_active_connection():
     """Get the active connection ID for the user."""
     try:
@@ -393,7 +392,7 @@ def get_active_connection():
 
 
 @connection_bp.route("/connection/clear-active", methods=["DELETE"])
-@require_auth
+@require_firebase_auth
 def clear_active_connection():
     """Clear the active connection for the user."""
     try:
@@ -410,7 +409,7 @@ def clear_active_connection():
 
 
 @connection_bp.route("/connection/fetch-single", methods=["GET"])
-@require_auth
+@require_firebase_auth
 def fetch_single_connection():
     """Fetch a single connection profile by ID."""
     try:
@@ -434,7 +433,7 @@ def fetch_single_connection():
 
 
 @connection_bp.route("/connection/delete", methods=["DELETE"])
-@require_auth
+@require_firebase_auth
 def delete_connection():
     """Delete a connection profile."""
     try:

@@ -13,6 +13,7 @@ from routes.ocr import ocr_bp
 from routes.onboarding import onboarding_bp
 from routes.user_management import user_management_bp
 from dotenv import load_dotenv
+from infrastructure.firebase_auth import init_firebase
 
 def create_app():
     app = Flask(__name__)
@@ -22,6 +23,7 @@ def create_app():
     def health():
         return {'status': 'healthy'}, 200
     load_dotenv()
+    init_firebase(app)
     app.config.from_object("config.Config")
     app.register_blueprint(onboarding_bp)
     app.register_blueprint(ocr_bp)

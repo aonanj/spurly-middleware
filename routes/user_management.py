@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.auth import require_auth
+from infrastructure.firebase_auth import require_firebase_auth
 from infrastructure.logger import get_logger
 from services.user_service import update_user_profile, get_user_profile, delete_user_profile
 
@@ -7,7 +7,7 @@ user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
 
 @user_management_bp.route("/user", methods=["POST"])
-@require_auth
+@require_firebase_auth
 def update_user_bp():
     try:
         data = request.get_json()
@@ -28,7 +28,7 @@ def update_user_bp():
         return jsonify({"error": f"[{err_point}] - Error"}), 401
 
 @user_management_bp.route("/user", methods=["GET"])
-@require_auth
+@require_firebase_auth
 def get_user_bp():
     try:
         user_id = g.user['user_id']
@@ -40,7 +40,7 @@ def get_user_bp():
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
 @user_management_bp.route("/user", methods=["DELETE"])
-@require_auth
+@require_firebase_auth
 def delete_user_bp():
     try:
         user_id = g.user['user_id']

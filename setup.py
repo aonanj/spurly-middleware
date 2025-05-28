@@ -23,6 +23,7 @@ setup(
         "google-cloud-vision>=3.10.1",  # [cite: 1]
         "google-cloud-firestore>=2.20.2",  # [cite: 1]
         "google-cloud-storage>=3.1.0",  # [cite: 1]
+        "firebase-auth>=1.7.0",  # [cite: 1]
 
         # AI, Machine Learning & Data Processing
         "openai>=1.82.0",  # [cite: 1]

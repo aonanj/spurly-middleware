@@ -1,6 +1,6 @@
 from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
-from infrastructure.auth import require_auth
+from infrastructure.firebase_auth import require_firebase_auth
 from infrastructure.logger import get_logger
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
@@ -10,7 +10,7 @@ generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)
 
 @generate_bp.route("/generate", methods=["POST"])
-@require_auth
+@require_firebase_auth
 @validate_profile
 @enrich_context
 @sanitize_topic

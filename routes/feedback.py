@@ -1,13 +1,13 @@
 from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
 from gpt_training.anonymizer import anonymize_spur
-from infrastructure.auth import require_auth
+from infrastructure.firebase_auth import require_firebase_auth
 from services.spur_service import save_spur
 
 feedback_bp = Blueprint("feedback", __name__)
 
 @feedback_bp.route("/feedback", methods=["POST"])
-@require_auth
+@require_firebase_auth
 def feedback():
     data = request.get_json()
     
