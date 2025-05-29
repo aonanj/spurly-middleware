@@ -2,7 +2,7 @@ from class_defs.conversation_def import Conversation
 from class_defs.spur_def import Spur
 from datetime import datetime, timezone
 from flask import current_app, jsonify
-from infrastructure.clients import db
+from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
 from infrastructure.logger import get_logger
 from services.connection_service import get_connection_profile
@@ -104,6 +104,7 @@ def save_anonymized_conversation(anonymized_conversation: Conversation):
 	anonymized_conversation_id = anonymized_conversation_dict.get("conversation_id", generate_anonymous_conversation_id(None))
 	
 	try:
+		db = get_firestore_db()
 		training_ref = db.collection("training").document("conversations").collection("batch").document(anonymized_conversation_id)
 		
 		training_ref.set(anonymized_conversation_dict)
@@ -175,6 +176,7 @@ def save_anonymized_spur(anonymized_spur: Spur, is_quality_spur) -> str:
 	anonymized_spur_dict = anonymized_spur.to_dict()
 	anonymized_spur_id = anonymized_spur_dict.get("spur_id", generate_anonymous_spur_id(None))
 	try:
+		db = get_firestore_db()
 		if is_quality_spur:
 			training_ref = db.collection("training").document("quality_spurs").collection("batch").document(anonymized_spur_id)
 			training_ref.set(anonymized_spur_dict)
@@ -182,8 +184,7 @@ def save_anonymized_spur(anonymized_spur: Spur, is_quality_spur) -> str:
 			training_ref = db.collection("training").document("bad_spurs").collection("batch").document(anonymized_spur_id)
 			training_ref.set(anonymized_spur_dict)
 
-		
-		
+
 		return (f"Anonymized spur successfully saved as anonymized_spur_id: {anonymized_spur_id}")
 	except RuntimeError as e:
 		logger.error("[%s] Error: %s Save anonymized spur failed", __name__, e)

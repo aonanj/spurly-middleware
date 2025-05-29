@@ -1,7 +1,7 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
 from flask import current_app, g # jsonify removed as it's not typical for service layer
-from infrastructure.clients import db
+from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
 from infrastructure.logger import get_logger
 from typing import List, Dict, Optional, Any
@@ -61,6 +61,7 @@ def create_connection_profile(
     profile_data_to_save["context_block"] = data.get("context_block", None)
 
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
         logger.info(f"Connection profile {connection_id} created for user {user_id}.")
         saved_profile_object = ConnectionProfile.from_dict(profile_data_to_save)
@@ -123,13 +124,15 @@ def save_connection_profile(connection_profile: ConnectionProfile) -> dict:
         return {"error": "Cannot save connection profile: Missing or invalid user ID or connection ID."}
 
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(connection_profile_dict)
         logger.info(f"Connection profile {connection_id} for user {user_id} saved successfully.")
         return {
-            "success": "connection profile successfully saved"   }
-        
+            "success": "connection profile successfully saved"
+        }
+
     except Exception as e:
-        err_point = __package__ or "connection_service" 
+        err_point = __package__ or "connection_service"
         logger.error("[%s] Error saving conn profile %s for user %s: %s", err_point, connection_id, user_id, e, exc_info=True)
         return {'error': f"[{err_point}] - Error saving connection profile: {str(e)}"}
 
@@ -139,10 +142,11 @@ def get_user_connections(user_id:str) -> list[ConnectionProfile]:
         return [] 
 
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         connections_ref = db.collection("users").document(user_id).collection("connections")
-        connections_stream = connections_ref.stream() 
+        connections_stream = connections_ref.stream()
         connection_list = []
-        for connection_doc in connections_stream: 
+        for connection_doc in connections_stream:
             if connection_doc.exists:
                 connection_data = connection_doc.to_dict()
                 # Ensure all fields are present for ConnectionProfile.from_dict
@@ -174,6 +178,7 @@ def set_active_connection_firestore(user_id: str, connection_id: Optional[str]) 
     effective_connection_id = connection_id if connection_id is not None else get_null_connection_id(user_id)
     
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         db.collection("users").document(user_id).collection("settings").document("active_connection").set({
             "connection_id": effective_connection_id
         })
@@ -189,6 +194,7 @@ def get_active_connection_firestore(user_id: str) -> str:
         return get_null_connection_id("UNKNOWN_USER_ACTIVE_CONN_ERROR") 
 
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         doc_ref = db.collection("users").document(user_id).collection("settings").document("active_connection")
         doc = doc_ref.get()
         if doc.exists:
@@ -229,6 +235,7 @@ def get_connection_profile(user_id: str, connection_id: str) -> Optional[Connect
         return None 
 
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
         doc = doc_ref.get()
         if doc.exists:
@@ -265,34 +272,39 @@ def update_connection_profile(
         logger.error("Cannot update conn profile: invalid IDs. User:'%s', Conn:'%s'", user_id, connection_id)
         return {"error": "Cannot update connection profile: Missing or invalid user ID or connection ID."}
 
-    doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
-    current_profile_doc = doc_ref.get()
-    if not current_profile_doc.exists:
-        logger.error(f"Conn profile {connection_id} for user {user_id} not found. Cannot update.")
-        return {"error": "Connection profile not found, cannot update."}
-    
-    current_profile_data = current_profile_doc.to_dict()
-    update_payload = {} # Build payload with only the fields to change
-
-    # Update basic form data fields
-    if data is not None:
-        update_payload["context_block"] = data
-    elif data == "":
-        update_payload["context_block"] = None # Explicitly set to None if empty string
-
-    # Update OCR'd text content if provided (None means no change, [] means clear)
-    if profile_text_content_list is not None:
-        if current_profile_data.get("profile_text_content") != profile_text_content_list:
-            update_payload["profile_text_content"] = profile_text_content_list
-    
+    try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
+        doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
+        current_profile_doc = doc_ref.get()
+        if not current_profile_doc.exists:
+            logger.error(f"Conn profile {connection_id} for user {user_id} not found. Cannot update.")
+            return {"error": "Connection profile not found, cannot update."}
         
-        combined_traits = current_profile_data.get("personality_traits", [])
-        if updated_personality_traits is not None:
-            combined_traits.append(updated_personality_traits)
+        current_profile_data = current_profile_doc.to_dict()
+        update_payload = {} # Build payload with only the fields to change
+
+        # Update basic form data fields
+        if data is not None:
+            update_payload["context_block"] = data
+        elif data == "":
+            update_payload["context_block"] = None # Explicitly set to None if empty string
+
+        # Update OCR'd text content if provided (None means no change, [] means clear)
+        if profile_text_content_list is not None:
+            if current_profile_data.get("profile_text_content") != profile_text_content_list:
+                update_payload["profile_text_content"] = profile_text_content_list
         
-        if combined_traits and len(combined_traits) > 5:
-            # If more than 5 traits, keep only the top 5 by confidence
-            update_payload["personality_traits"] = _get_top_n_traits(combined_traits, 5)
+            
+            combined_traits = current_profile_data.get("personality_traits", [])
+            if updated_personality_traits is not None:
+                combined_traits.append(updated_personality_traits)
+            
+            if combined_traits and len(combined_traits) > 5:
+                # If more than 5 traits, keep only the top 5 by confidence
+                update_payload["personality_traits"] = _get_top_n_traits(combined_traits, 5)
+    except Exception as e:
+        logger.error(f"Error updating conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
+        return {"error": f"Cannot update connection profile: {str(e)}"}
 
     
     # Note: The logic for comparing new traits with existing ones and merging to keep top 5
@@ -326,6 +338,7 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
         return {"error": "Cannot delete connection profile: Missing or invalid user ID or connection ID."}
     
     try:
+        db = get_firestore_db()  # Ensure Firestore client is initialized
         doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
         if not doc_ref.get().exists:
             logger.warning(f"Delete attempt: non-existent conn profile {connection_id} for user {user_id}.")

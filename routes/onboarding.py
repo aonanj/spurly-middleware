@@ -1,17 +1,24 @@
 # In routes/onboarding.py
 from flask import Blueprint, request, jsonify, current_app, g # Add g
-from infrastructure.auth import create_jwt
+from infrastructure.firebase_auth import require_firebase_auth
 from infrastructure.id_generator import generate_user_id
 from infrastructure.logger import get_logger
 # Import necessary functions and classes
-from services.user_service import save_user_profile, format_user_profile
-from class_defs.profile_def import UserProfile, BaseProfile # Import UserProfile/BaseProfile
+from services.user_service import update_user_profile
+from class_defs.profile_def import UserProfile # Import UserProfile/BaseProfile
 from dataclasses import fields # Import fields
+from infrastructure.firebase_auth import require_firebase_auth # Import auth decorator
+import jwt
+import logging
+from functools import wraps
+from profile_routes import handle_errors, verify_token
 
 onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
 
 @onboarding_bp.route("/onboarding", methods=["POST"])
+@handle_errors
+@verify_token
 def onboarding(): # Removed type hint for simplicity during debug
     """
     
@@ -37,8 +44,11 @@ def onboarding(): # Removed type hint for simplicity during debug
                 # Return 400 for bad request data, not 401 (unauthorized)
                 return jsonify({"error": "[routes.onboarding] - Error: Age must be an integer between 18 and 99"}), 400
 
-        user_id = generate_user_id()
-        token = create_jwt(user_id)
+        if not g.user.user_id:
+            user_id = generate_user_id()
+            g.user = {'user_id': user_id} # Set in g for current request context
+        else:
+            user_id = g.user.user_id
 
         # Determine selected spurs, default to list from config
         selected_spurs = data.get("selected_spurs", list(current_app.config['SPUR_VARIANTS']))
@@ -54,8 +64,7 @@ def onboarding(): # Removed type hint for simplicity during debug
             "age": age
         }
         # Add optional fields from request data if they exist
-        optional_fields = [f.name for f in fields(BaseProfile)] + \
-                          [f.name for f in fields(UserProfile) if f.name not in ['user_id', 'selected_spurs']] # Get all optional field names
+        optional_fields = [f.name for f in fields(UserProfile) if f.name not in ['user_id', 'selected_spurs']] # Get all optional field names
         for field_name in optional_fields:
              request_key = field_name
 
@@ -65,7 +74,7 @@ def onboarding(): # Removed type hint for simplicity during debug
 
 
         # 2. Save the structured data using the modified service function
-        save_result = save_user_profile(user_id, UserProfile.from_dict(profile_data_dict)) # Pass user_id and dict
+        save_result = update_user_profile(**profile_data_dict) # Pass user_id and dict
 
         # Check if save was successful (optional, depends on return value)
         if isinstance(save_result, tuple) or (isinstance(save_result, dict) and "error" in save_result):
@@ -87,17 +96,16 @@ def onboarding(): # Removed type hint for simplicity during debug
             #           full_profile_data[field_name] = None # Add Nones for fields not in request
 
             profile_obj_for_formatting = UserProfile(**full_profile_data)
-            formatted_profile_string = format_user_profile(profile_obj_for_formatting)
+            
         except Exception as format_exc:
              logger.error("Error formatting profile object for response: %s", format_exc, exc_info=True)
-             formatted_profile_string = f"user_id: {user_id}\nAge: {age}\n(Profile formatting error)"
+             return jsonify({"error": f"[routes.onboarding] - Error: {str(format_exc)}"}), 500
 
 
-        # 4. Return response including the formatted string
         return jsonify({
             "user_id": user_id,
-            "token": token, # Return the token!
-            "user_profile": formatted_profile_string
+            "success": True,
+            "message": "Onboarding successful",
         })
 
     except Exception as e:

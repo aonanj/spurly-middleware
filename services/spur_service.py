@@ -2,7 +2,7 @@ import firebase_admin
 from class_defs.spur_def import Spur
 from flask import g
 from google.cloud import firestore
-from infrastructure.clients import db
+from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger
 from infrastructure.id_generator import generate_spur_id
@@ -37,7 +37,7 @@ def save_spur(user_id, spur: Spur):
         
         
         
-
+        db = get_firestore_db()
         doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
         doc_data = {
             "user_id": user_id,
@@ -66,6 +66,7 @@ def get_saved_spurs(user_id, filters=None):
         logger.error(f"Error: {err_point}")
         return f"error - {err_point} - Error:", 400
     try:
+        db = get_firestore_db()
         ref = db.collection("users").document(user_id).collection("spurs")
         query = ref
 
@@ -113,6 +114,7 @@ def delete_saved_spur(user_id, spur_id):
         return f"error - {err_point} - Error:", 400
 
     try:
+        db = get_firestore_db()
         doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
         doc_ref.delete()
         return {"success": "spur deleted"}
@@ -128,14 +130,19 @@ def get_spur(spur_id: str) -> Spur:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point} - Missing user_id or spur_id")
         raise ValueError("Error: Missing user_id or spur_id")
-
-    doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
-    doc = doc_ref.get()
-    if doc.exists:
-        spur = Spur.from_dict(doc)
-        return spur
-    else:
+    try:
+        db = get_firestore_db()
+        doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
+        doc = doc_ref.get()
+        if doc.exists:
+            spur = Spur.from_dict(doc)
+            return spur
+        else:
+            err_point = __package__ or __name__
+            logger.error(f"Error: {err_point}")
+            raise Exception(f"error - {err_point} - Error:")
+    except Exception as e:
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        raise Exception(f"error - {err_point} - Error:")
+        logger.error("[%s] Error: %s", err_point, e)
+        raise ValueError(f"error - {err_point} - Error: {str(e)}")
 

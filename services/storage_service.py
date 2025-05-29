@@ -3,7 +3,7 @@ from datetime import datetime, timezone, timedelta
 from flask import g, current_app
 from google.cloud import firestore
 from google.cloud import storage 
-from infrastructure.clients import db, get_algolia_client
+from infrastructure.clients import get_firestore_db, get_algolia_client
 from infrastructure.id_generator import generate_conversation_id 
 from infrastructure.logger import get_logger
 import uuid
@@ -242,9 +242,9 @@ class ConversationStorage:
             conversation_text = conversation.conversation_as_string()
             
             # Save to Firestore
-            doc_ref = db.collection("users").document(conversation.user_id)\
-                       .collection("conversations").document(conversation.conversation_id)
-            
+            db = get_firestore_db()
+            doc_ref = db.collection("users").document(conversation.user_id).collection("conversations").document(conversation.conversation_id)
+
             doc_data = conversation.to_dict()
             doc_ref.set(doc_data)
             
@@ -283,6 +283,7 @@ class ConversationStorage:
             raise ValueError("Both user_id and conversation_id are required")
             
         try:
+            db = get_firestore_db()
             doc_ref = db.collection("users").document(user_id)\
                        .collection("conversations").document(conversation_id)
             doc = doc_ref.get()
@@ -320,6 +321,7 @@ class ConversationStorage:
             
         try:
             # Delete from Firestore
+            db = get_firestore_db()
             doc_ref = db.collection("users").document(user_id)\
                        .collection("conversations").document(conversation_id)
             doc_ref.delete()
@@ -449,6 +451,7 @@ class ConversationStorage:
     def _search_with_firestore(self, params: ConversationSearchParams) -> List[Conversation]:
         """Searches conversations using Firestore."""
         try:
+            db = get_firestore_db()
             query = db.collection("users").document(params.user_id)\
                      .collection("conversations")
             
@@ -508,6 +511,7 @@ class ConversationStorage:
                 continue
                 
             try:
+                db = get_firestore_db()
                 query = db.collection("users").document(user_id)\
                          .collection("conversations")\
                          .where("conversation_id", "in", chunk)

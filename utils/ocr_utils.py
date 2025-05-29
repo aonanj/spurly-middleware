@@ -8,7 +8,7 @@ from sklearn.cluster import DBSCAN
 import cv2
 from PIL import Image
 from google.cloud import vision
-from infrastructure.clients import vision_client
+from infrastructure.clients import get_vision_client
 from google.cloud import vision
 import io
 
@@ -581,6 +581,11 @@ def perform_ocr_on_screenshot(screenshot_bytes: bytes) -> List[str]:
         raise ValueError("Screenshot bytes cannot be empty")
     
     # Use the vision client from infrastructure.clients
+    try:
+        vision_client = get_vision_client()
+    except RuntimeError as e:
+        logger.error(f"Vision client initialization failed: {str(e)}")
+        raise RuntimeError("Vision client has not been initialized. Ensure init_clients() is called.")
     if vision_client is None:
         raise RuntimeError("Vision client has not been initialized. Ensure init_clients() is called.")
     

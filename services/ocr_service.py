@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Tuple, Generator, Any
 from flask import jsonify
 from google.cloud import vision
-from infrastructure.clients import vision_client
+from infrastructure.clients import get_vision_client
 from infrastructure.logger import get_logger
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 import cv2
@@ -209,7 +209,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
             content = prepare_image_for_ocr(image_array)
         
         # Perform OCR
-        client = vision_client
+        client = get_vision_client()
         if not client:
             raise OCRProcessingError("Vision client not initialized")
             
