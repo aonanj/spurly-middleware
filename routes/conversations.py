@@ -1,7 +1,7 @@
 # routes/conversations.py
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
-from infrastructure.firebase_auth import require_firebase_auth
+from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from class_defs.spur_def import Spur
 from class_defs.conversation_def import Conversation
@@ -18,7 +18,8 @@ logger = get_logger(__name__)
 conversations_bp = Blueprint("conversations", __name__)
 
 @conversations_bp.route("/get-conversations", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def get_conversations_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -47,7 +48,8 @@ def get_conversations_bp():
     return jsonify(result)
 
 @conversations_bp.route("/save-conversation", methods=["POST"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def save_conversation_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -70,7 +72,8 @@ def save_conversation_bp():
     return jsonify(result)
 
 @conversations_bp.route("/get-conversations", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def get_conversation_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -89,7 +92,8 @@ def get_conversation_bp():
     return jsonify(result)
 
 @conversations_bp.route("/delete-conversation", methods=["DELETE"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def delete_conversation_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -108,7 +112,8 @@ def delete_conversation_bp():
     return jsonify(result)
 
 @conversations_bp.route("/get-saved-spurs", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def fetch_saved_spurs_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -148,7 +153,8 @@ def fetch_saved_spurs_bp():
     return jsonify(result)
 
 @conversations_bp.route("/save-spur", methods=["POST"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def save_spur_bp():
 
     user_id = g.user['user_id']
@@ -174,7 +180,8 @@ def save_spur_bp():
 
 
 @conversations_bp.route("/delete-spur", methods=["DELETE"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def delete_saved_spurs_bp(spur_id):
     user_id = g.user['user_id']
     if not user_id:

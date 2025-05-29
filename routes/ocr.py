@@ -10,7 +10,7 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 
 from services.classifiers import classify_image
 from services.ocr_service import process_image
-from infrastructure.firebase_auth import require_firebase_auth
+from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +19,8 @@ ocr_bp = Blueprint('ocr', __name__)
 
 
 @ocr_bp.route('/scan', methods=['POST'])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def ocr_scan():
     """
     Endpoint to process multiple images sent as bytes for OCR.
@@ -55,7 +56,7 @@ def ocr_scan():
     try:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
-            logger.error("User ID not found in g after @require_firebase_auth.")
+            logger.error("User ID not found in g after @verify_token.")
             return jsonify({"error": "Authentication error: User ID not available."}), 401
 
         # Get JSON data from request
@@ -218,7 +219,8 @@ def ocr_scan():
 
 # Alternative endpoint that accepts multipart/form-data (if needed)
 @ocr_bp.route('/scan-multipart', methods=['POST'])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def ocr_scan_multipart():
     """
     Alternative endpoint that accepts images as multipart/form-data.
@@ -227,7 +229,7 @@ def ocr_scan_multipart():
     try:
         user_id = getattr(g, 'user_id', None)
         if not user_id:
-            logger.error("User ID not found in g after @require_firebase_auth.")
+            logger.error("User ID not found in g after @verify_token.")
             return jsonify({"error": "Authentication error: User ID not available."}), 401
 
         files = request.files.getlist('images')

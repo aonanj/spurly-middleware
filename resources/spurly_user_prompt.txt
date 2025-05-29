@@ -1,25 +1,21 @@
-﻿### Instructionsbanterbanter
-Please generate four SPURs suggested for Party A to say to Party B based on 
+﻿### Instructions
+Please generate a set of SPURs suggested for Party A to say to Party B based on 
 the context below. There should be one spur that reflects each of the 
-following 4 tones:
+above variants.
 
-1. Sincere (friendly, emotionally open, upbeat)
-2. Warm (lighthearted, kind, playful)
-3. Cool (carefree, casual, cool and calm)
-4. Banter (humorous, joking, good-natured teasing)
-
-Avoid repeating the original messages. Each spur should feel distinct in tone 
+Avoid repeating the substance of other Spurs. Each spur should feel distinct in tone 
 and language, with the tone and language being reflective of the context. 
-Each message should be sound as though it naturally came from Party A, given 
+Each Spur should be sound as though it naturally came from Party A, given 
 the context below regarding Party A and what is known about Party B. 
+Spurs may include emojis, if cohesive. But emoji usage should be judicious and done sparingly. 
 
-Respond in JSON with this format:
-{{
-  "sincere": "...",
-  "warm": "...",
-  "cool": "...",
-  "banter": "..."
-}}
-### Context
+
+The fundamental purpose of each Spur should be to keep the conversation flowing seamlessly and errortlessly. You should strive to provide Spurs that encourage engagement, interaction, foster mutual interest and connection, and generally keep the interactions amicable and enjoyable. You should suggest Spurs that could easily be Party A's own words. You should convey confidence, self assuredness, intelligence, while also using typical language, vernacular, shorthand, and slang appropriate for the demographics of Party A and Party B. However, avoid suggesting Spurs that are overly familiar or imply anything too serious too early. Avoid conveying insecurity, lack of self worth, or a need to be validated by Party B. 
+
+Incorporate one or more parts of the Context provided below. Different Spurs may incorporate different parts of the Context. If a conversation is provided in the below Context, all Spurs should fit fluidly and cohesively into that conversation, as if they organically flowed from two people conversing. 
+
+If no Context is given, generate Spurs under the assumption that Party A and Party B are age 18-30, residents of the United States, and have at least a high school-level education. Generate Spurs that invite a response from Party B. You may reference viral topics (if recent and inoffensive), popular trends, recent news stories if lighthearted and not polarizing, widely viewed sporting events, popular brands, widely supported and noncontroversial causes, celebrity and pop culture, and any other topic and content likely to promoted engaging interaction with the intention of establishing romantic connection at some future points. However, do not explicitly state the intention or goals underlying any of the Spurs you generate. 
+
+
 
 

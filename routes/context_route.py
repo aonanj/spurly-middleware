@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
-from infrastructure.firebase_auth import require_firebase_auth
+from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.context import (
     set_current_connection,
     get_current_connection,
@@ -11,7 +12,8 @@ from services.connection_service import get_connection_profile
 context_bp = Blueprint("context", __name__)
 
 @context_bp.route("/connection", methods=["POST"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def set_connection_context():
     user = get_current_user()
     if not user:
@@ -30,13 +32,15 @@ def set_connection_context():
     return jsonify({"message": "Connection context set successfully."})
 
 @context_bp.route("/connection", methods=["DELETE"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def clear_connection_context():
     clear_current_connection()
     return jsonify({"message": "Connection context cleared."})
 
 @context_bp.route("/", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def get_context():
     user = get_current_user()
     connection = get_current_connection()

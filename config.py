@@ -55,6 +55,8 @@ class Config:
     ENABLE_AUTH = os.environ.get("ENABLE_AUTH", "True").lower() == "true"
     
     SPURLY_SYSTEM_PROMPT_PATH = os.environ.get("SPURLY_SYSTEM_PROMPT_PATH", "resources/spurly_system_prompt.txt")
+    SPURLY_USER_PROMPT_PATH = os.environ.get("SPURLY_USER_PROMPT_PATH", "resources/spurly_user_prompt.txt")
+    SPURLY_INFERENCE_PROMPT = os.environ.get("SPURLY_INFERENCE_PROMPT", "resources/spurly_inference_prompt.txt")
 
     SPUR_VARIANTS = (
         "main_spur",
@@ -64,17 +66,18 @@ class Config:
     )
 
     SPUR_VARIANT_DESCRIPTIONS = {
-        "main_spur": "Friendly (emotionally open, upbeat, optimistic, receptive, engaging)",
-        "warm_spur": "Warm (lighthearted, kind, empathetic, sincere, thoughtful)",
-        "cool_spur": "Cool (carefree, casual, cool and calm, dry, occasionally sarcastic)",
-        "banter_spur": "banter (humorous, joking, good-natured teasing, occasionally flirty)",
+        "main_spur": "Natural, charismatic, confident, open, friendly. Prioritize fluid conversation and approachability.",
+        "warm_spur": "Kind, inviting, sincere, lightly humorous. Emphasize receptiveness and warmth.",
+        "cool_spur": "Dry humor, clever, smooth, low-key, chill, lightly ironic. Emphasize ease, calm confidence, or witty restraint.",
+        "banter_spur": "Energetic, teasing, engaging, flirtatious, humorous, joking, good-natured teasing, occasionally flirty. Use fun language and soft banter—respect boundaries, but keep the conversation going."
     }
+
     
     SPUR_VARIANT_ID_KEYS = {
         "main_spur": "S",
         "warm_spur": "W",
         "cool_spur": "C",
-        "banter_spur": "P"
+        "banter_spur": "B"
         }
 
     JWT_EXPIRATION = 60 * 60 * 24 * 7  # 1 week

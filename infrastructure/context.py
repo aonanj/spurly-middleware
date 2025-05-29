@@ -89,7 +89,7 @@ def require_user_context():
 # context_bp = Blueprint("context", __name__)
 
 # @context_bp.route("/context/connection", methods=["POST"])
-# @require_firebase_auth
+# @verify_token
 # def set_connection_context():
 #     """
 #     Sets a connection as active in the current context. 
@@ -118,7 +118,7 @@ def require_user_context():
 #     return jsonify({"message": "Connection context set successfully."})
 
 # @context_bp.route("/context/connection", methods=["DELETE"])
-# @require_firebase_auth
+# @verify_token
 # def clear_connection_context():
 #     """
 #     Removes an active connection from the current context. 
@@ -134,7 +134,7 @@ def require_user_context():
 #     return jsonify({"message": "Connection context cleared."})
 
 # @context_bp.route("/context", methods=["GET"])
-# @require_firebase_auth
+# @verify_token
 # def get_context():
 #     """
 #     Gets active user and connection profiles from the current context.

@@ -8,11 +8,10 @@ from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
 from services.connection_service import format_connection_profile, get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
-from services.user_service import format_user_profile, get_user_profile
+from services.user_service import update_user_profile, get_user
 from utils.filters import apply_phrase_filter, apply_tone_overrides
 from utils.gpt_output import parse_gpt_output
-from utils.prompt_loader import load_system_prompt
-from utils.prompt_template import build_prompt
+from utils.prompt_template import build_prompt, get_system_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
 import openai
@@ -67,7 +66,10 @@ def generate_spurs(
     Returns:
         List of generated Spur objects.
     """
-    user_profile_dict = UserProfile.to_dict(get_user_profile(user_id)) # Renamed for clarity
+    user = get_user(user_id)
+    if not user:
+        raise ValueError(f"User with ID {user_id} not found")
+    user_profile_dict = user.to_dict_deprecated() # Renamed for clarity
     if not selected_spurs:
         selected_spurs = user_profile_dict['selected_spurs']
     
@@ -101,7 +103,7 @@ def generate_spurs(
     # Corrected context_block construction
     context_block = "***User Profile:***\n"
     user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
-    user_profile_text = format_user_profile(user_profile_instance)
+    user_profile_text = user_profile_instance.to_dict_deprecated()
     context_block += f"{user_profile_text}\n\n"
 
     context_block += "***Connection Profile:***\n"
@@ -163,7 +165,7 @@ def generate_spurs(
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
-            system_prompt = load_system_prompt()
+            system_prompt = get_system_prompt()
             openai_client = get_openai_client()
             
             response = openai_client.chat.completions.create(
@@ -229,7 +231,9 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
     Gets spurs that are formatted and content-filtered to send to the frontend. 
     Iterative while loop structure regenerates spurs that fail content filtering.
     """ 
-    user_profile = get_user_profile(user_id=user_id)
+    user_profile = get_user(user_id=user_id)
+    if not user_profile:
+        raise ValueError(f"User with ID {user_id} not found")
     selected_spurs_from_profile = user_profile.to_dict().get("selected_spurs", []) # Ensure it's a list
 
     # Initial generation

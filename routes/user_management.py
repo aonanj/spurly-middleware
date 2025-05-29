@@ -1,13 +1,14 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.firebase_auth import require_firebase_auth
+from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
-from services.user_service import update_user_profile, get_user_profile, delete_user_profile
+from services.user_service import update_user_profile, get_user
 
 user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
 
 @user_management_bp.route("/user", methods=["POST"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def update_user_bp():
     try:
         data = request.get_json()
@@ -18,37 +19,38 @@ def update_user_bp():
             err_point = __package__ or __name__
             logger.error(f"Error: {err_point}")
             return jsonify({"error": f"[{err_point}] - Error"}), 400
+        
+        if user_id != data.get("user_id"):
+            err_point = f"User ID mismatch {user_id} != {data.get('user_id')} in {__package__ or __name__}"
+            logger.error(f"Error: {err_point}")
+            return jsonify({"error": f"[{err_point}] - Error"}), 400
 
-        json_user_profile = update_user_profile(user_id, data)
+        json_user_profile = update_user_profile(**data)
 
-        return json_user_profile
+        return jsonify({
+            "success": True,
+            "message": "Update user profile completed successfully",
+            "user": {
+                "id": json_user_profile.user_id,
+                "email": json_user_profile.email,
+                "name": json_user_profile.name,
+            }
+        }), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({"error": f"[{err_point}] - Error"}), 401
 
 @user_management_bp.route("/user", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def get_user_bp():
     try:
         user_id = g.user['user_id']
-        profile = get_user_profile(user_id)
+        profile = get_user(user_id)
         return jsonify(profile), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
-@user_management_bp.route("/user", methods=["DELETE"])
-@require_firebase_auth
-def delete_user_bp():
-    try:
-        user_id = g.user['user_id']
-        if delete_user_profile(user_id):
-            return jsonify({"message": "User profile deleted successfully."}), 200
-        else:
-            return jsonify({"message": "ERROR - user profile not deleted."}), 200
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500

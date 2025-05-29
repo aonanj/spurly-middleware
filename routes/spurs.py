@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g
-from infrastructure.firebase_auth import require_firebase_auth
+from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, save_spur
 
@@ -10,7 +10,8 @@ logger = get_logger(__name__)
 spurs_bp = Blueprint("spurs", __name__)
 
 @spurs_bp.route("/get-spurs", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def fetch_saved_spurs_bp():
     user_id = g.user['user_id']
     if not user_id:
@@ -45,7 +46,8 @@ def fetch_saved_spurs_bp():
     return jsonify(result)
 
 @spurs_bp.route("/save-spur", methods=["POST"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def save_spur_bp():
     data = request.get_json()
     user_id = g.user['user_id']
@@ -59,7 +61,8 @@ def save_spur_bp():
 
 
 @spurs_bp.route("/delete-spur", methods=["DELETE"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def delete_saved_spurs_bp():
     user_id = g.user['user_id']
 
@@ -78,7 +81,8 @@ def delete_saved_spurs_bp():
     return jsonify(result)
 
 @spurs_bp.route("/get-spur", methods=["GET"])
-@require_firebase_auth
+@verify_token
+@handle_errors
 def get_spur_bp():
     user_id = g.user['user_id']
     if not user_id:

@@ -9,7 +9,7 @@ a sense of pressure or urgency on the connection. Exercise patience and restrian
 toward a call-to-action ("CTA"), wether that be asking for a phone number, instagram profile, or suggesting a date. 
  
 SPUR TYPES: 
-- Primary Spur: Natural, charismatic, confident, open, friendly. Prioritize fluid conversation 
+- Main Spur: Natural, charismatic, confident, open, friendly. Prioritize fluid conversation 
 and approachability. 
 - Warm Spur: Kind, inviting, sincere, lightly humorous. Emphasize 
 receptiveness and warmth. 
@@ -104,7 +104,7 @@ OUTPUT FORMAT:
 Return all four variants in a JSON-like object. Do not label them as 
 suggestions. 
 { 
-  "spur": "Primary variant here", 
+  "spur": "Main variant here", 
   "warm_spur": "Warm variant here", 
   "cool_spur": "Cool variant here", 
   "banter_spur": "banter variant or fallback" 
