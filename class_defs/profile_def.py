@@ -12,7 +12,7 @@ UserProfile:
     email: str - Email address of the user.
     name: Optional[str] - Optional name of the profile owner.
     age: [int] - age of the profile owner; must be >= 18.
-    context_block: Optional[str] - Optional context information about the profile owner.
+    user_context_block: Optional[str] - Optional context information about the profile owner.
     selected_spurs: List[str] - List of the spurs to be generated for a user. Default is all.
     created_at: datetime - Timestamp of when the profile was created.
     updated_at: datetime - Timestamp of when the profile was last updated.
@@ -29,8 +29,8 @@ ConnectionProfile:
     connection_id: str - Unique identifier for the connection.
     name: Optional[str] - Optional name of the connection profile owner.
     age: Optional[int] - Optional age of the connection profile owner; must be >= 18.
-    context_block: Optional[str] - Optional context information about the connection profile owner.
-    profile_text_content: Optional[List[str]] - OCR'd text from connection profile images.
+    connection_context_block: Optional[str] - Optional context information about the connection profile owner.
+    connection_app_ocr_text: Optional[List[str]] - OCR'd text from connection profile images.
     personality_traits: Optional[List[Dict[str, Any]]] - Optional list of personality traits for the connection.
     created_at: datetime - Timestamp of when the connection profile was created.
     updated_at: datetime - Timestamp of when the connection profile was last updated.
@@ -56,7 +56,7 @@ class UserProfile:
     auth_provider_id: str  # Firebase UID or provider-specific ID
     name: Optional[str] = None
     age: Optional[int] = None
-    context_block: Optional[str] = None
+    user_context_block: Optional[str] = None
     selected_spurs: List[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -124,8 +124,8 @@ class ConnectionProfile:
     connection_id: str
     name: Optional[str] = None
     age: Optional[int] = None
-    context_block: Optional[str] = None
-    profile_text_content: Optional[List[str]] = field(default_factory=list)
+    connection_context_block: Optional[str] = None
+    connection_app_ocr_text: Optional[List[str]] = field(default_factory=list)
     personality_traits: Optional[List[Dict[str, Any]]] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

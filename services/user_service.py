@@ -73,7 +73,7 @@ def create_user(
     auth_provider_id: str,
     name: Optional[str] = None,
     age: Optional[int] = None,
-    context_block: Optional[str] = None,
+    user_context_block: Optional[str] = None,
     selected_spurs: Optional[List[str]] = None
 ) -> UserProfile:
     """
@@ -85,7 +85,7 @@ def create_user(
         auth_provider_id: Provider-specific ID (Firebase UID for all providers)
         name: User's display name (optional)
         age: User's age (optional)
-        context_block: User's context/profile text (optional)
+        user_context_block: User's context/profile text (optional)
         selected_spurs: List of selected spur variants (optional)
         
     Returns:
@@ -117,7 +117,7 @@ def create_user(
         auth_provider_id=auth_provider_id,
         name=name,
         age=age,
-        context_block=context_block,
+        user_context_block=user_context_block,
         selected_spurs=selected_spurs
     )
     
@@ -137,7 +137,7 @@ def update_user(
     user_id: str,
     name: Optional[str] = None,
     age: Optional[int] = None,
-    context_block: Optional[str] = None,
+    user_context_block: Optional[str] = None,
     selected_spurs: Optional[List[str]] = None,
     email: Optional[str] = None
 ) -> UserProfile:
@@ -148,7 +148,7 @@ def update_user(
         user_id: The unique user identifier
         name: User's display name (optional)
         age: User's age (optional)
-        context_block: User's context/profile text (optional)
+        user_context_block: User's context/profile text (optional)
         selected_spurs: List of selected spur variants (optional)
         email: User's email (optional, usually shouldn't change)
         
@@ -180,9 +180,9 @@ def update_user(
         update_data.update({"age": str(age)})
         user.age = age
     
-    if context_block is not None:
-        update_data.update({"context_block": context_block})
-        user.context_block = context_block
+    if user_context_block is not None:
+        update_data.update({"user_context_block": user_context_block})
+        user.user_context_block = user_context_block
     
     if selected_spurs is not None:
         update_data.update({"selected_spurs": ", ".join(selected_spurs)})
@@ -342,7 +342,7 @@ def get_selected_spurs(user_id: str) -> List[str]:
     
     return user.selected_spurs
 
-def update_user_profile(user_id: str, name: str, age: int, context_block: str) -> UserProfile:
+def update_user_profile(user_id: str, name: str, age: int, user_context_block: str) -> UserProfile:
     """
     Update user's profile information (typically called after onboarding).
     
@@ -350,7 +350,7 @@ def update_user_profile(user_id: str, name: str, age: int, context_block: str) -
         user_id: The unique user identifier
         name: User's display name
         age: User's age
-        context_block: User's context/profile text
+        user_context_block: User's context/profile text
         
     Returns:
         Updated UserProfile object
@@ -359,5 +359,5 @@ def update_user_profile(user_id: str, name: str, age: int, context_block: str) -
         user_id=user_id,
         name=name,
         age=age,
-        context_block=context_block
+        user_context_block=user_context_block
     )

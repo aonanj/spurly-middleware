@@ -227,7 +227,7 @@ def create_connection():
         # Create the connection profile
         result = create_connection_profile(
             data=form_data,
-            profile_text_content_list=profile_content_texts,
+            connection_app_ocr_text_list=profile_content_texts,
             personality_traits_list=personality_traits
         )
         
@@ -306,14 +306,14 @@ def update_connection():
                     logger.error(f"Error processing profile pic: {e}", exc_info=True)
         
         # Get context block if provided
-        context_block = form_data.get("context_block", "").strip()
+        connection_context_block = form_data.get("connection_context_block", "").strip()
         
         # Update the profile
         result = update_connection_profile(
             user_id=user_id,
             connection_id=connection_id,
-            data=context_block if context_block else None,
-            profile_text_content_list=profile_content_texts,
+            data=connection_context_block if connection_context_block else None,
+            connection_app_ocr_text_list=profile_content_texts,
             updated_personality_traits=personality_traits
         )
         

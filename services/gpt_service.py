@@ -107,10 +107,10 @@ def generate_spurs(
     context_block += f"{user_profile_text}\n\n"
 
     context_block += "***Connection Profile:***\n"
-    connection_profile_text = ""
-    if connection_profile is not None:
-        connection_profile_text = format_connection_profile(connection_profile) # connection_profile is already an object
+    connection_profile_instance = ConnectionProfile.from_dict(connection_profile.to_dict() if connection_profile else {})
+    connection_profile_text = connection_profile_instance.to_dict_deprecated() if connection_profile else {}
     context_block += f"{connection_profile_text}\n\n"
+
 
     # Append OCR'd profile text if available
     if profile_ocr_texts:

@@ -90,7 +90,7 @@ def onboarding():
             user_id=user_id,
             name=name,
             age=age,
-            context_block=profile_text
+            user_context_block=profile_text
         )
         
         # Update spur preferences if provided
@@ -140,11 +140,11 @@ def onboarding_status():
             return jsonify({"error": "User not found"}), 404
         
         # Check if onboarding is complete
-        # User has completed onboarding if they have name, age, and context_block
+        # User has completed onboarding if they have name, age, and user_context_block
         is_complete = all([
             user.name is not None,
             user.age is not None,
-            user.context_block is not None
+            user.user_context_block is not None
         ])
         
         return jsonify({
@@ -152,7 +152,7 @@ def onboarding_status():
             "user_id": user_id,
             "has_name": user.name is not None,
             "has_age": user.age is not None,
-            "has_context": user.context_block is not None
+            "has_context": user.user_context_block is not None
         }), 200
         
     except Exception as e:
