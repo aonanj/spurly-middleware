@@ -57,7 +57,8 @@ def init_clients(app):
              raise FileNotFoundError(f"Firestore key file not found at: {firestore_cred_path}")
         firestore_creds = service_account.Credentials.from_service_account_file(firestore_cred_path)
         # Ensure project_id is correctly inferred or explicitly provided
-        project_id = get_app().project_id if firebase_admin._apps else app.config.get('GOOGLE_CLOUD_PROJECT_ID')
+        project_id = os.getenv('GOOGLE_PROJECT_ID')
+        print(f"Project ID: {project_id}")
         if not project_id:
             raise ValueError("Google Cloud Project ID could not be determined.")
         _firestore_db = firestore.Client(credentials=firestore_creds)

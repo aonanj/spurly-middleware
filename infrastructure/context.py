@@ -1,7 +1,7 @@
 from class_defs.profile_def import UserProfile, ConnectionProfile
 from flask import request, jsonify, g
 from infrastructure.logger import get_logger
-from services.user_service import get_user_profile
+from services.user_service import get_user
 
 logger = get_logger(__name__)
 
@@ -72,7 +72,7 @@ def load_user_context():
     try:
         user_id = request.headers.get("X-User-ID")
         if user_id:
-            user_profile = get_user_profile(user_id)
+            user_profile = get_user(user_id)
             if user_profile:
                 set_current_user(user_profile)
     except Exception as e:

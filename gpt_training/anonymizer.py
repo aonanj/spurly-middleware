@@ -6,7 +6,7 @@ from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
 from infrastructure.logger import get_logger
 from services.connection_service import get_connection_profile
-from services.user_service import get_user_profile
+from services.user_service import get_user
 
 logger = get_logger(__name__)
 
@@ -32,7 +32,7 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
 		conversation_messages = original_conversation.conversation
 		
 		user_id = conversation_dict.get("user_id", "")
-		user_profile = get_user_profile(user_id)
+		user_profile = get_user(user_id)
 
 		connection_id = original_conversation.connection_id or ""
 		connection_profile = None

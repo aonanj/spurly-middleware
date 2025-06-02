@@ -11,12 +11,12 @@ from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 
 # Create blueprint
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
 
 logger = logging.getLogger(__name__)
 
 # Import shared functions from social_auth.py
-from social_auth import (
+from .social_auth import (
     AuthError,
     ValidationError,
     handle_auth_errors,
