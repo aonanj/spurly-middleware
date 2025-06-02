@@ -118,6 +118,8 @@ class UserProfile:
         else:
             return "" if value is None else str(value)
 
+# Updated class_defs/profile_def.py - ConnectionProfile section
+
 @dataclass
 class ConnectionProfile:
     user_id: str
@@ -127,6 +129,7 @@ class ConnectionProfile:
     connection_context_block: Optional[str] = None
     connection_app_ocr_text: Optional[List[str]] = field(default_factory=list)
     personality_traits: Optional[List[Dict[str, Any]]] = field(default_factory=list)
+    profile_photo_URL: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
@@ -134,14 +137,13 @@ class ConnectionProfile:
         """Convert user object to dictionary for Firestore"""
         data = asdict(self)
         # Convert datetime objects to ISO format strings
-        data['created_at'] = self.created_at.isoformat().replace('Z', '+00:00')  # Use '+00:00' for UTC or '+00' for Firestore compatibility
-        data['updated_at'] = self.updated_at.isoformat().replace('Z', '+00:00') # Use '+00:00' for UTC or '+00' for Firestore compatibility
+        data['created_at'] = self.created_at.isoformat().replace('Z', '+00:00')
+        data['updated_at'] = self.updated_at.isoformat().replace('Z', '+00:00')
         return data
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ConnectionProfile':
         """Create User object from dictionary"""
-
         # Convert ISO strings back to datetime objects if needed
         if isinstance(data.get('created_at'), str):
             data['created_at'] = datetime.fromisoformat(data['created_at'])
@@ -159,7 +161,7 @@ class ConnectionProfile:
             if isinstance(value, list) and not value and callable(f.default_factory):
                     d[f.name] = f.default_factory()
             elif isinstance(value, datetime):
-                d[f.name] = value.isoformat().replace('Z', '+00:00')  # Use '+00:00' for UTC or '+00' for Firestore compatibility
+                d[f.name] = value.isoformat().replace('Z', '+00:00')
             elif f.name.strip().lower() == "selected_spurs" and value and isinstance(value, list):
                 d[f.name] = ", ".join(value)
             elif isinstance(value, Dict) and not value and callable(f.default_factory):

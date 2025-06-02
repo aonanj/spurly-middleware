@@ -42,6 +42,8 @@ class Config:
         _vertex_creds = {}
     GOOGLE_CLOUD_VERTEX_API_KEY = _vertex_creds.get("private_key", "")
 
+    GCS_PROFILE_PICS_BUCKET = os.environ.get("GCS_PROFILE_PICS_BUCKET", "boreal-sweep-455716-a5.firebasestorage.app")
+
     ## Algolia credentials
     ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
     ALGOLIA_ADMIN_KEY = os.getenv("ALGOLIA_ADMIN_KEY")

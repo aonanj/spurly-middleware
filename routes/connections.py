@@ -1,6 +1,9 @@
 from flask import Blueprint, request, jsonify, g, current_app
 import logging
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timezone
+from infrastructure.clients import get_firestore_db
+import time
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from services.connection_service import (
@@ -12,9 +15,10 @@ from services.connection_service import (
     get_connection_profile,
     update_connection_profile,
     delete_connection_profile,
+    get_top_n_traits,
     save_connection_profile
 )
-from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, _allowed_profile_image_file
+from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, upload_profile_image
 from utils.ocr_utils import perform_ocr_on_screenshot as perform_ocr
 from utils.trait_manager import infer_personality_traits_from_openai_vision
 from PIL import Image
@@ -464,3 +468,316 @@ def delete_connection():
     except Exception as e:
         logger.error(f"Error deleting connection: {e}", exc_info=True)
         return jsonify({"error": "Failed to delete connection profile"}), 500
+
+# Add these endpoints to routes/connections.py
+
+@connection_bp.route("/connection/analyze-photos", methods=["POST"])
+@verify_token
+@handle_errors
+def analyze_connection_photos():
+    """
+    Analyze up to 4 photos of a connection for personality traits only.
+    The frontend handles face detection and cropping.
+    """
+    try:
+        user_id = g.user.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication error"}), 401
+
+        # Get connection_id from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON payload"}), 400
+            
+        connection_id = data.get('connection_id')
+        if not connection_id:
+            return jsonify({"error": "Missing connection_id"}), 400
+
+        # Check if connection exists
+        connection_profile = get_connection_profile(user_id, connection_id)
+        if not connection_profile:
+            return jsonify({"error": "Connection profile not found"}), 404
+
+        # Extract image bytes from request (up to 4 images)
+        connection_photo_images = _extract_image_bytes_from_request('connection_photos')
+        
+        if not connection_photo_images:
+            return jsonify({"error": "No photos provided"}), 400
+        
+        if len(connection_photo_images) > 4:
+            logger.warning(f"User {user_id} uploaded {len(connection_photo_images)} photos, limiting to 4")
+            connection_photo_images = connection_photo_images[:4]
+
+        # Validate image sizes
+        valid_images = []
+        for i, image_bytes in enumerate(connection_photo_images):
+            if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
+                logger.warning(f"Skipping oversized photo {i} for connection {connection_id}")
+                continue
+            valid_images.append(image_bytes)
+        
+        if not valid_images:
+            return jsonify({"error": "No valid photos provided"}), 400
+
+        personality_traits = []
+
+        # Analyze all photos for personality traits
+        try:
+            # Prepare images for OpenAI Vision analysis
+            image_data_list = []
+            for i, image_bytes in enumerate(valid_images):
+                try:
+                    img = Image.open(io.BytesIO(image_bytes))
+                    content_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
+                    
+                    image_data_list.append({
+                        "bytes": image_bytes,
+                        "content_type": content_type
+                    })
+                except Exception as e:
+                    logger.error(f"Error preparing image {i} for analysis: {e}")
+                    continue
+            
+            if image_data_list:
+                # Analyze all images for personality traits
+                trait_results = infer_personality_traits_from_openai_vision(image_data_list)
+                if trait_results:
+                    personality_traits = trait_results
+                    logger.info(f"Analyzed {len(image_data_list)} photos and extracted {len(personality_traits)} traits")
+                else:
+                    logger.warning(f"No personality traits extracted from {len(image_data_list)} photos")
+            
+        except Exception as e:
+            logger.error(f"Error analyzing photos for personality traits: {e}", exc_info=True)
+
+        # Update connection profile with personality traits
+        if personality_traits:
+            try:
+                db = get_firestore_db()
+                doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
+                
+                # Get current profile data
+                current_doc = doc_ref.get()
+                if not current_doc.exists:
+                    return jsonify({"error": "Connection profile not found"}), 404
+                
+                current_data = current_doc.to_dict()
+                
+                # Merge personality traits and keep top 5
+                existing_traits = current_data.get('personality_traits', [])
+                all_traits = existing_traits + personality_traits
+                top_traits = get_top_n_traits(all_traits, 5)
+                
+                # Update profile
+                update_data = {
+                    'personality_traits': top_traits,
+                    'updated_at': datetime.now(timezone.utc)
+                }
+                
+                doc_ref.update(update_data)
+                
+                logger.info(f"Updated connection {connection_id} with personality traits")
+                
+            except Exception as e:
+                logger.error(f"Error updating connection profile: {e}", exc_info=True)
+                return jsonify({"error": "Failed to update connection profile"}), 500
+
+        response_data = {
+            "success": True,
+            "message": f"Successfully analyzed {len(valid_images)} photo(s)",
+            "connection_id": connection_id,
+            "photos_analyzed": len(valid_images),
+            "traits_extracted": len(personality_traits)
+        }
+        
+        if personality_traits:
+            response_data["personality_traits"] = personality_traits
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        logger.error(f"Error in analyze_connection_photos: {e}", exc_info=True)
+        return jsonify({"error": "Failed to analyze connection photos"}), 500
+
+
+@connection_bp.route("/connection/upload-face-photo", methods=["POST"])
+@verify_token
+@handle_errors
+def upload_face_photo():
+    """
+    Upload a pre-cropped face photo from the frontend.
+    This endpoint expects the frontend to have already detected and cropped the face.
+    """
+    try:
+        user_id = g.user.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication error"}), 401
+
+        # Get connection_id from form data
+        connection_id = request.form.get('connection_id')
+        if not connection_id:
+            return jsonify({"error": "Missing connection_id"}), 400
+
+        # Check if connection exists
+        connection_profile = get_connection_profile(user_id, connection_id)
+        if not connection_profile:
+            return jsonify({"error": "Connection profile not found"}), 404
+
+        # Get the uploaded face photo
+        if 'face_photo' not in request.files:
+            return jsonify({"error": "No face photo provided"}), 400
+        
+        face_photo_file = request.files['face_photo']
+        if not face_photo_file or not face_photo_file.filename:
+            return jsonify({"error": "Invalid face photo file"}), 400
+
+        # Read the image data
+        face_photo_file.seek(0)
+        image_bytes = face_photo_file.read()
+        
+        if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
+            return jsonify({"error": "Face photo is too large or empty"}), 400
+
+        # Upload to storage
+        try:
+            # Generate filename
+            timestamp = int(time.time())
+            filename = f"connection_face_{connection_id}_{timestamp}.jpg"
+            
+            # Upload to GCS
+            photo_url = upload_profile_image(
+                user_id=user_id,
+                connection_id=connection_id,
+                image_bytes=image_bytes,
+                original_filename=filename,
+                content_type="image/jpeg"
+            )
+            
+            # Update connection profile with photo URL
+            db = get_firestore_db()
+            doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
+            
+            update_data = {
+                'profile_photo_url': photo_url,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            
+            doc_ref.update(update_data)
+            
+            logger.info(f"Successfully uploaded face photo for connection {connection_id}")
+            
+            return jsonify({
+                "success": True,
+                "message": "Face photo uploaded successfully",
+                "photo_url": photo_url,
+                "connection_id": connection_id
+            })
+            
+        except Exception as e:
+            logger.error(f"Error uploading face photo: {e}", exc_info=True)
+            return jsonify({"error": "Failed to upload face photo"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in upload_face_photo: {e}", exc_info=True)
+        return jsonify({"error": "Failed to process face photo upload"}), 500
+
+
+@connection_bp.route("/connection/profile-photo", methods=["DELETE"])
+@verify_token
+@handle_errors
+def delete_profile_photo():
+    """Delete the profile photo from a connection."""
+    try:
+        user_id = g.user.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication error"}), 401
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid JSON payload"}), 400
+            
+        connection_id = data.get('connection_id')
+        
+        if not connection_id:
+            return jsonify({"error": "Missing connection_id"}), 400
+
+        # Get connection profile
+        connection_profile = get_connection_profile(user_id, connection_id)
+        if not connection_profile:
+            return jsonify({"error": "Connection profile not found"}), 404
+
+        # Update profile to remove the photo URL
+        try:
+            db = get_firestore_db()
+            doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
+            
+            current_doc = doc_ref.get()
+            if not current_doc.exists:
+                return jsonify({"error": "Connection profile not found"}), 404
+            
+            current_data = current_doc.to_dict()
+            current_photo_url = current_data.get('profile_photo_url')
+            
+            if not current_photo_url:
+                return jsonify({"error": "No profile photo to delete"}), 404
+            
+            # Remove the photo URL
+            update_data = {
+                'profile_photo_url': None,
+                'updated_at': datetime.now(timezone.utc)
+            }
+            
+            doc_ref.update(update_data)
+            
+            logger.info(f"Removed profile photo from connection {connection_id}")
+            
+            # TODO: Optionally delete the actual file from GCS
+            # This would require parsing the GCS path from the URL
+            
+            return jsonify({
+                "success": True,
+                "message": "Profile photo deleted successfully",
+                "connection_id": connection_id
+            })
+            
+        except Exception as e:
+            logger.error(f"Error deleting profile photo: {e}", exc_info=True)
+            return jsonify({"error": "Failed to delete profile photo"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error in delete_profile_photo: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete profile photo"}), 500
+
+
+@connection_bp.route("/connection/profile-photo", methods=["GET"])
+@verify_token
+@handle_errors
+def get_profile_photo():
+    """Get profile photo URL for a connection."""
+    try:
+        user_id = g.user.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Authentication error"}), 401
+
+        connection_id = request.args.get('connection_id')
+        if not connection_id:
+            return jsonify({"error": "Missing connection_id parameter"}), 400
+
+        # Get connection profile
+        connection_profile = get_connection_profile(user_id, connection_id)
+        if not connection_profile:
+            return jsonify({"error": "Connection profile not found"}), 404
+
+        profile_dict = connection_profile.to_dict()
+        profile_photo_url = profile_dict.get('profile_photo_url')
+        
+        return jsonify({
+            "success": True,
+            "connection_id": connection_id,
+            "profile_photo_url": profile_photo_url,
+            "has_profile_photo": profile_photo_url is not None
+        })
+        
+    except Exception as e:
+        logger.error(f"Error in get_profile_photo: {e}", exc_info=True)
+        return jsonify({"error": "Failed to get profile photo"}), 500

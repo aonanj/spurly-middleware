@@ -11,7 +11,7 @@ from services.storage_service import upload_profile_image # Ensure this path is 
 
 logger = get_logger(__name__)
 
-def _get_top_n_traits(traits_with_scores: List[Dict[str, Any]], n: int = 5) -> List[Dict[str, Any]]:
+def get_top_n_traits(traits_with_scores: List[Dict[str, Any]], n: int = 5) -> List[Dict[str, Any]]:
     """Sorts traits by confidence and returns the top N unique traits."""
     if not traits_with_scores:
         return []
@@ -33,8 +33,7 @@ def create_connection_profile(
     # images: Optional[List[bytes]] = None, # This was for the old trait system from generic images
     # links: Optional[List[str]] = None,    # This is being removed
     connection_app_ocr_text_list: Optional[List[str]] = None,
-    personality_traits_list: Optional[List[Dict[str, Any]]] = None 
-) -> Dict:
+    personality_traits_list: Optional[List[Dict[str, Any]]] = None) -> Dict:
     user_id = g.user.get('user_id')
     if not user_id:
         logger.error("Error: Cannot create connection profile - missing user ID in g.user")
@@ -56,7 +55,7 @@ def create_connection_profile(
     # Personality traits from profile pictures (using OpenAI Vision)
 
             
-    profile_data_to_save["personality_traits"] = _get_top_n_traits(personality_traits_list or [], 5)
+    profile_data_to_save["personality_traits"] = get_top_n_traits(personality_traits_list or [], 5)
 
     profile_data_to_save["connection_context_block"] = data.get("connection_context_block", None)
 
@@ -301,7 +300,7 @@ def update_connection_profile(
             
             if combined_traits and len(combined_traits) > 5:
                 # If more than 5 traits, keep only the top 5 by confidence
-                update_payload["personality_traits"] = _get_top_n_traits(combined_traits, 5)
+                update_payload["personality_traits"] = get_top_n_traits(combined_traits, 5)
     except Exception as e:
         logger.error(f"Error updating conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
         return {"error": f"Cannot update connection profile: {str(e)}"}
@@ -315,7 +314,7 @@ def update_connection_profile(
     # If "compare the confidence scores, and save the highest 5" meant combining traits derived from
     # *old* images (currently stored) with traits from *new* images, then we'd need to fetch
     # `current_profile_data.get("personality_traits", [])`, merge with `new_photo_traits_with_scores`,
-    # then apply `_get_top_n_traits`.
+    # then apply `get_top_n_traits`.
     # Given "When ... called with new profile images", it suggests the new images are the source.
 
     if not update_payload:

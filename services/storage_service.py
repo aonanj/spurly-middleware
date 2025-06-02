@@ -114,7 +114,7 @@ def upload_profile_image(user_id: str, connection_id: str, image_bytes: bytes,
         # Create unique filename
         s_filename = secure_filename(original_filename)
         unique_id = str(uuid.uuid4())
-        gcs_path = f"profiles/{user_id}/{connection_id}/{unique_id}-{s_filename}"
+        gcs_path = f"users/{user_id}/connections/{connection_id}/{unique_id}-{s_filename}"
         
         # Upload to GCS
         blob = bucket.blob(gcs_path)

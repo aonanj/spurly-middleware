@@ -42,7 +42,7 @@ def init_clients(app):
             if not cred_path or not os.path.exists(cred_path):
                  raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
             cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716-a5.firebasestorage.app'})
             logger.info("Firebase Admin initialized.")
         else:
              logger.info("Firebase Admin already initialized.")
