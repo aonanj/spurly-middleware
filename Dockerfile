@@ -15,6 +15,8 @@ RUN apt-get update \
         gcc \
         g++ \
         curl \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
@@ -39,10 +41,11 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
+
 # Command to run the application
 # Adjust this based on your specific application entry point
 # Replace the CMD line with:
-CMD ["sh", "-c", "python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 app:app"]
+CMD ["sh", "-c", "python -m gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --access-logfile - --access-logformat '%(h)s %(l)s %(u)s %(t)s \"%(r)s\" %(s)s %(b)s \"%(f)s\" \"%(a)s\"' 'app:create_app()'"]
 
 # Alternative commands for different frameworks:
 # For Flask with built-in server (development only):

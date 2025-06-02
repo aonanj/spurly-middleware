@@ -38,7 +38,7 @@ def clear_connection_context():
     clear_current_connection()
     return jsonify({"message": "Connection context cleared."})
 
-@context_bp.route("/", methods=["GET"])
+@context_bp.route("/get_context", methods=["GET"])
 @verify_token
 @handle_errors
 def get_context():

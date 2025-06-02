@@ -20,7 +20,7 @@ from cryptography.x509 import load_pem_x509_certificate
 from infrastructure.clients import get_firestore_db
 
 # Create blueprint
-social_auth_bp = Blueprint('social_auth_bp', __name__, url_prefix='/api/auth')
+social_auth_bp = Blueprint('social_auth_bp', __name__, url_prefix='/api/social_auth')
 
 # Constants
 APPLE_AUTH_URL = "https://appleid.apple.com/auth/keys"

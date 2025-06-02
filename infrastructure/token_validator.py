@@ -26,7 +26,7 @@ def verify_token(f):
                 return jsonify({'error': 'Invalid authorization header format'}), 401
 
         if not token:
-            return jsonify({'error': 'Authorization token is missing'}), 401
+            return jsonify({'error': f'Authorization token is missing. path: {request.path}, method: {request.method}'}), 401
 
         try:
             # Decode the token
