@@ -50,10 +50,23 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
         AuthError: If token is invalid or expired
     """
     try:
-        # Verify the ID token
-        decoded_token = firebase_auth.verify_id_token(id_token)
+        # --- START ADDED/REVISED LOGGING ---
+        admin_app = firebase_admin.get_app() # Get the default initialized Firebase app
+        logger.info(f"ADMIN_SDK_PROJECT_ID_CHECK: {admin_app.project_id}")
+        logger.info(f"RECEIVED_TOKEN_TO_VERIFY (first 30 chars): {id_token[:30]}...")
+        # --- END ADDED/REVISED LOGGING ---
+
+        # The actual verification call.
+        # This will raise an error if the token is invalid for any reason,
+        # including audience mismatch, signature issues, expiry, etc.
+        decoded_token = firebase_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
         
-        # Extract user information
+        # If verification is successful, log some claims from the now *verified* token
+        logger.info("TOKEN_VERIFIED_SUCCESSFULLY")
+        logger.info(f"VERIFIED_TOKEN_AUDIENCE (aud): {decoded_token.get('aud')}")
+        logger.info(f"VERIFIED_TOKEN_ISSUER (iss): {decoded_token.get('iss')}")
+        logger.info(f"VERIFIED_TOKEN_SUBJECT_USER_ID (sub): {decoded_token.get('sub')}")
+        
         return {
             'uid': decoded_token['uid'],
             'email': decoded_token.get('email'),
@@ -62,15 +75,21 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             'picture': decoded_token.get('picture'),
             'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         }
-    except firebase_auth.ExpiredIdTokenError:
+    except firebase_auth.ExpiredIdTokenError as e:
+        logger.error(f"Firebase token has expired: {str(e)}")
         raise AuthError("Firebase token has expired", 401)
-    except firebase_auth.RevokedIdTokenError:
+    except firebase_auth.RevokedIdTokenError as e:
+        logger.error(f"Firebase token has been revoked: {str(e)}")
         raise AuthError("Firebase token has been revoked", 401)
-    except firebase_auth.InvalidIdTokenError:
-        raise AuthError("Invalid Firebase token", 401)
-    except Exception as e:
-        logger.error(f"Firebase token verification error: {str(e)}")
-        raise AuthError("Unable to verify authentication token", 401)
+    except firebase_auth.InvalidIdTokenError as e: 
+        # This is the key exception for "invalid token" issues.
+        # The error message 'e' often contains the specific reason.
+        logger.error(f"FIREBASE_TOKEN_IS_INVALID: {str(e)}") 
+        raise AuthError(f"Invalid Firebase token: {str(e)}", 401)
+    except Exception as e: # Catch any other unexpected errors during verification
+        logger.error(f"UNEXPECTED_FIREBASE_TOKEN_VERIFICATION_ERROR: {str(e)}", exc_info=True) # Log with stack trace
+        raise AuthError(f"Unable to verify authentication token due to an unexpected error: {str(e)}", 401)
+
 
 def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[str, Any]:
     """
