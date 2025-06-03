@@ -5,7 +5,7 @@ import json
 load_dotenv()
 
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "spurly-default-key")
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "spurly-default-key")
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     APP_OATH_KEY = os.environ.get("APP_OATH_KEY", "")
     APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "")
