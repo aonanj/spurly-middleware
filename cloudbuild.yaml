@@ -37,7 +37,7 @@ steps:
     ]
 
 # Service account configuration
-serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/spurly-owner-editor@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:
