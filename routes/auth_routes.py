@@ -49,9 +49,14 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
     Raises:
         AuthError: If token is invalid or expired
     """
+    
+    logger.info(f"verify_firebase_token called with ID token: {id_token[:30]}...")  # Log first 30 chars for brevity
     try:
         # --- START ADDED/REVISED LOGGING ---
+        logger.info(f"Try block hit / pre-firebase_admin: {id_token[:30]}...")
         admin_app = firebase_admin.get_app() # Get the default initialized Firebase app
+        if not admin_app:
+            raise AuthError("Firebase Admin SDK is not initialized", 500)
         logger.info(f"ADMIN_SDK_PROJECT_ID_CHECK: {admin_app.project_id}")
         logger.info(f"RECEIVED_TOKEN_TO_VERIFY (first 30 chars): {id_token[:30]}...")
         # --- END ADDED/REVISED LOGGING ---
