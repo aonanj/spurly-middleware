@@ -279,7 +279,7 @@ def verify_facebook_token(access_token: str) -> Tuple[Dict[str, Any], bool]:
 def create_jwt_token(user_id: str, email: str, name: Optional[str] = None, 
                     provider: Optional[str] = None) -> Tuple[str, str]:
     """Create JWT access and refresh tokens"""
-    secret_key = current_app.config.get('JWT_SECRET_KEY')
+    secret_key = "3fc4689751710871873c50b432c71b06dfcd69a4dcc2f2ea7db08ab17cffff10"   ##current_app.config.get('JWT_SECRET_KEY')
     if not secret_key:
         raise AuthError("JWT configuration missing", 500)
     
