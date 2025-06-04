@@ -168,39 +168,43 @@ def update_user(
     if not user:
         raise ValueError(f"User not found: {user_id}")
     
-    # Update fields if provided
-    update_data = {}
-    update_data.update({
-        "updated_at": datetime.now(timezone.utc)
-    })
+    try:
+        # Update fields if provided
+        update_data = {}
+        update_data.update({
+            "updated_at": datetime.now(timezone.utc)
+        })
 
-    if name is not None:
-        update_data.update({"name": name })
-        user.name = name
-    
-    if age is not None:
-        update_data.update({"age": str(age)})
-        user.age = age
-    
-    if user_context_block is not None:
-        update_data.update({"user_context_block": user_context_block})
-        user.user_context_block = user_context_block
-    
-    if selected_spurs is not None:
-        update_data.update({"selected_spurs": ", ".join(selected_spurs)})
-        user.selected_spurs = selected_spurs
-    
-    if email is not None:
-        update_data.update({"email": email})
-        user.email = email
-    
-    if auth_provider is not None:
-        update_data.update({"auth_provider": auth_provider})
-        user.auth_provider = auth_provider
+        if name is not None:
+            update_data.update({"name": name })
+            user.name = name
+        
+        if age is not None:
+            update_data.update({"age": str(age)})
+            user.age = age
+        
+        if user_context_block is not None:
+            update_data.update({"user_context_block": user_context_block})
+            user.user_context_block = user_context_block
+        
+        if selected_spurs is not None:
+            update_data.update({"selected_spurs": ", ".join(selected_spurs)})
+            user.selected_spurs = selected_spurs
+        
+        if email is not None:
+            update_data.update({"email": email})
+            user.email = email
+        
+        if auth_provider is not None:
+            update_data.update({"auth_provider": auth_provider})
+            user.auth_provider = auth_provider
 
-    if auth_provider_id is not None:
-        update_data.update({"auth_provider_id": auth_provider_id})
-        user.auth_provider_id = auth_provider_id
+        if auth_provider_id is not None:
+            update_data.update({"auth_provider_id": auth_provider_id})
+            user.auth_provider_id = auth_provider_id
+    except Exception as e:
+        logger.error(f"Error getting update_data for {user_id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Error getting update_data for user: {str(e)}")
     
 
     try:

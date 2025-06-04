@@ -200,17 +200,21 @@ def firebase_login():
     
     try:
         # Verify Firebase token
+        logger.error("firebase_id_token: " + firebase_id_token)  # Debugging line
         firebase_user = verify_firebase_token(firebase_id_token)
         
         # Create or update user in your database
+        logger.error("firebase_user: " + str(firebase_user))  # Debugging line
         user_data = create_or_update_user_from_firebase(firebase_user)
         
         # Create your own JWT tokens
+        logger.error("user_data: " + str(user_data))  # Debugging line
         access_token, refresh_token = create_jwt_token(
             user_id=user_data['user_id'],
             email=user_data['email'],
-            name=user_data['name']
+            name=user_data['name'] if user_data.get('name') else None
         )
+        logger.error("access_token: " + access_token)  # Debugging line
         
         # Log successful login
         logger.info(f"User logged in via Firebase: {user_data['user_id']}")
