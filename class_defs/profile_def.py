@@ -52,8 +52,8 @@ class UserProfile:
     """Unified UserProfile model for all authentication providers"""
     user_id: str
     email: str
-    auth_provider: str  # 'email', 'google.com', 'apple.com', 'facebook.com'
-    auth_provider_id: str  # Firebase UID or provider-specific ID
+    auth_provider: Optional[str]  # 'email', 'google.com', 'apple.com', 'facebook.com'
+    auth_provider_id: Optional[str]  # Firebase UID or provider-specific ID
     name: Optional[str] = None
     age: Optional[int] = None
     user_context_block: Optional[str] = None

@@ -58,8 +58,6 @@ def onboarding():
     elif not isinstance(age, int) or age < 18 or age > 150:
         errors.append("Age must be a number between 18 and 150")
     
-    if not profile_text:
-        errors.append("Profile text is required")
     
     if errors:
         return jsonify({"error": "Validation failed", "details": errors}), 400
