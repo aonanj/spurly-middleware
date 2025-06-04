@@ -208,26 +208,31 @@ def firebase_login():
         firebase_user = verify_firebase_token(firebase_id_token)
         
         # Create or update user in your database
-        user_data = create_or_update_user_from_firebase(firebase_user)
+        user_data = get_user(firebase_user['user_id'])
+        
+        if not user_data:
+            raise AuthError("User not found. Please register first.", 404)
 
         access_token, refresh_token = create_jwt_token(
-            user_id=user_data['user_id'],
-            email=user_data['email'],
-            name=user_data['name'] if user_data.get('name') else None
+            user_id=user_data.user_id,
+            email=user_data.email,
+            name=user_data.name if user_data.name else None
         )
         
         # Log successful login
-        logger.info(f"User logged in via Firebase: {user_data['user_id']}")
-        
+        logger.info(f"User logged in via Firebase: {user_data.user_id}")
+
+        name = user_data.name if user_data.name else ""
+
         return jsonify({
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 3600,
             "user": {
-                "id": user_data['user_id'],
-                "email": user_data['email'],
-                "name": user_data['name'],  
+                "id": user_data.user_id,
+                "email": user_data.email,
+                "name": name
             }
         }), 200
         
