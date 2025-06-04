@@ -101,10 +101,14 @@ def get_profile(user_id: str):
     
     # Return profile data
     return jsonify({
-        "exists": profile_data.get('exists', True),
         "user_id": profile_data.get('user_id'),
-        "name": profile_data.get('name'),
-        "profile_completed": profile_data.get('profile_completed', False)
+        "name": profile_data.get('name', ""),
+        "email": profile_data.get('email', ""),
+        "age": profile_data.get('age', None),
+        "user_context_block": profile_data.get('user_context_block', ""),
+        "selected_spurs": profile_data.get('selected_spurs', []),
+        "created_at": profile_data.get('created_at', ""),
+        "updated_at": profile_data.get('updated_at', "")
     }), 200
 
 # Health check

@@ -354,7 +354,7 @@ def get_selected_spurs(user_id: str) -> List[str]:
     
     return user.selected_spurs
 
-def update_user_profile(user_id: str, name: str, age: int, user_context_block: str) -> UserProfile:
+def update_user_profile(user_id: str, name: str, age: int, user_context_block: str, selected_spurs: Optional[List[str]], email: Optional[str]) -> UserProfile:
     """
     Update user's profile information (typically called after onboarding).
     
@@ -363,13 +363,17 @@ def update_user_profile(user_id: str, name: str, age: int, user_context_block: s
         name: User's display name
         age: User's age
         user_context_block: User's context/profile text
-        
+        selected_spurs: List of selected spur variants
+
     Returns:
         Updated UserProfile object
     """
+    
     return update_user(
         user_id=user_id,
         name=name,
         age=age,
-        user_context_block=user_context_block
+        user_context_block=user_context_block,
+        selected_spurs=selected_spurs,
+        email=email
     )

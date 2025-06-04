@@ -31,7 +31,7 @@ def update_user_bp():
             "success": True,
             "message": "Update user profile completed successfully",
             "user": {
-                "id": json_user_profile.user_id,
+                "user_id": json_user_profile.user_id,
                 "email": json_user_profile.email,
                 "name": json_user_profile.name,
             }

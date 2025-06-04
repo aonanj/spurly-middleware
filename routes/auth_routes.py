@@ -153,7 +153,6 @@ def firebase_register():
         access_token, refresh_token = create_jwt_token(
             user_id=user_data['user_id'],
             email=user_data['email'],
-            name=user_data['name']
         )
         
         # Log successful registration
@@ -166,8 +165,7 @@ def firebase_register():
             "expires_in": 3600,
             "user": {
                 "user_id": user_data['user_id'],
-                "email": user_data['email'],
-                "name": user_data['name'],
+                "email": user_data['email']
             }
         }), 201
         

@@ -12,7 +12,6 @@ logger = get_logger(__name__)
 @generate_bp.route("/generate", methods=["POST"])
 @verify_token
 @handle_errors
-@validate_profile
 @enrich_context
 @sanitize_topic
 def generate():

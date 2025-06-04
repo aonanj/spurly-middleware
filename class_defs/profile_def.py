@@ -129,7 +129,7 @@ class ConnectionProfile:
     connection_context_block: Optional[str] = None
     connection_app_ocr_text: Optional[List[str]] = field(default_factory=list)
     personality_traits: Optional[List[Dict[str, Any]]] = field(default_factory=list)
-    profile_photo_URL: Optional[str] = None
+    profile_photo_url: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
