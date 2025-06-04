@@ -28,13 +28,9 @@ def update_user_bp():
         json_user_profile = update_user_profile(**data)
 
         return jsonify({
-            "success": True,
-            "message": "Update user profile completed successfully",
-            "user": {
-                "user_id": json_user_profile.user_id,
-                "email": json_user_profile.email,
-                "name": json_user_profile.name,
-            }
+            "user_id": json_user_profile.user_id,
+            "email": json_user_profile.email,
+            "name": json_user_profile.name,
         }), 200
     except Exception as e:
         err_point = __package__ or __name__

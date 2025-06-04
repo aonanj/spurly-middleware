@@ -69,7 +69,7 @@ def generate_spurs(
     user = get_user(user_id)
     if not user:
         raise ValueError(f"User with ID {user_id} not found")
-    user_profile_dict = user.to_dict_deprecated() # Renamed for clarity
+    user_profile_dict = user.to_dict_alt() # Renamed for clarity
     if not selected_spurs:
         selected_spurs = user_profile_dict['selected_spurs']
     
@@ -103,13 +103,13 @@ def generate_spurs(
     # Corrected context_block construction
     context_block = "***User Profile:***\n"
     user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
-    user_profile_text = user_profile_instance.to_dict_deprecated()
-    context_block += f"{user_profile_text}\n\n"
+    user_user_context_block = user_profile_instance.to_dict_alt()
+    context_block += f"{user_user_context_block}\n\n"
 
     context_block += "***Connection Profile:***\n"
     connection_profile_instance = ConnectionProfile.from_dict(connection_profile.to_dict() if connection_profile else {})
-    connection_profile_text = connection_profile_instance.to_dict_deprecated() if connection_profile else {}
-    context_block += f"{connection_profile_text}\n\n"
+    connection_user_context_block = connection_profile_instance.to_dict_alt() if connection_profile else {}
+    context_block += f"{connection_user_context_block}\n\n"
 
 
     # Append OCR'd profile text if available

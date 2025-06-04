@@ -24,7 +24,7 @@ def onboarding():
     {
         "name": "User Name",
         "age": 25,
-        "profile_text": "Context about the user...",
+        "user_context_block": "Context about the user...",
         "selected_spurs": ["spur1", "spur2"] (optional)
     }
     
@@ -45,7 +45,7 @@ def onboarding():
     # Validate required fields
     name = data.get('name', '').strip()
     age = data.get('age')
-    profile_text = data.get('profile_text', '').strip()
+    user_context_block = data.get('user_context_block', '').strip()
     
     # Validation
     errors = []
@@ -88,7 +88,7 @@ def onboarding():
             user_id=user_id,
             name=name,
             age=age,
-            user_context_block=profile_text,
+            user_context_block=user_context_block,
             selected_spurs=selected_spurs,
             email=user.email
         )
