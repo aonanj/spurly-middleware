@@ -88,7 +88,9 @@ def onboarding():
             user_id=user_id,
             name=name,
             age=age,
-            user_context_block=profile_text
+            user_context_block=profile_text,
+            selected_spurs=selected_spurs,
+            email=user.email
         )
         
         # Update spur preferences if provided
@@ -103,12 +105,9 @@ def onboarding():
         return jsonify({
             "success": True,
             "message": "Onboarding completed successfully",
-            "user": {
-                "id": updated_user.user_id,
-                "email": updated_user.email,
-                "name": updated_user.name,
-                "profile_completed": True
-            }
+            "user_id": updated_user.user_id,
+            "email": updated_user.email,
+            "name": updated_user.name
         }), 200
         
     except ValueError as e:
@@ -148,9 +147,9 @@ def onboarding_status():
         return jsonify({
             "onboarding_completed": is_complete,
             "user_id": user_id,
-            "has_name": user.name is not None,
-            "has_age": user.age is not None,
-            "has_context": user.user_context_block is not None
+            "name": user.name is not None,
+            "age": user.age is not None,
+            "user_context_block": user.user_context_block is not None
         }), 200
         
     except Exception as e:

@@ -2,6 +2,7 @@ from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
+from infrastructure.id_generator import get_null_connection_id
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, validate_profile, sanitize_topic
@@ -53,9 +54,7 @@ def generate():
         # If OCR data is connection-specific, client should always provide connection_id.
         logger.info(f"No connection_id provided for user {user_id}, attempting to get active connection.")
         connection_id = get_active_connection_firestore(user_id)
-        if not connection_id:
-            logger.error(f"No connection_id provided and no active connection found for user {user_id}.")
-            return jsonify({'error': "Connection ID is required or an active connection must be set."}), 400
+        connection_id = get_null_connection_id(user_id)
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
     if profile_ocr_texts_from_request:

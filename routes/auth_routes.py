@@ -167,10 +167,8 @@ def firebase_register():
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 3600,
-            "user": {
-                "user_id": user_data['user_id'],
-                "email": user_data['email']
-            }
+            "user_id": user_data['user_id'],
+            "email": user_data['email']
         }), 201
         
     except ValidationError:
@@ -229,11 +227,9 @@ def firebase_login():
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 3600,
-            "user": {
-                "id": user_data.user_id,
-                "email": user_data.email,
-                "name": name
-            }
+            "user_id": user_data.user_id,
+            "email": user_data.email,
+            "name": name    
         }), 200
         
     except AuthError:

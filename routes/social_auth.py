@@ -395,11 +395,9 @@ def google_auth():
         "refresh_token": refresh_token,
         "token_type": "Bearer",
         "expires_in": 3600,
-        "user": {
-            "id": user_data['user_id'],
-            "email": user_data['email'],
-            "name": user_data['name'],
-        }
+        "user_id": user_data['user_id'],
+        "email": user_data['email'],
+        "name": user_data['name']
     }), 200
 
 @social_auth_bp.route('/apple', methods=['POST'])
@@ -467,11 +465,9 @@ def apple_auth():
         "refresh_token": refresh_token,
         "token_type": "Bearer",
         "expires_in": 3600,
-        "user": {
-            "id": user_data['user_id'],
-            "email": user_data['email'],
-            "name": user_data['name'],
-        }
+        "user_id": user_data['user_id'],
+        "email": user_data['email'],
+        "name": user_data['name'],
     }), 200
 
 @social_auth_bp.route('/facebook', methods=['POST'])
@@ -530,11 +526,9 @@ def facebook_auth():
         "refresh_token": refresh_token,
         "token_type": "Bearer",
         "expires_in": 3600,
-        "user": {
-            "id": user_data['user_id'],
-            "email": user_data['email'],
-            "name": user_data['name'],
-        }
+        "user_id": user_data['user_id'],
+        "email": user_data['email'],
+        "name": user_data['name'],
     }), 200
 
 @social_auth_bp.route('/refresh', methods=['POST'])
