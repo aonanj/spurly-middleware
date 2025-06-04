@@ -2,10 +2,10 @@ from flask import Blueprint, request, jsonify
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.context import (
-    set_current_connection,
-    get_current_connection,
-    clear_current_connection,
-    get_current_user
+    set_active_connection,
+    get_active_connection,
+    clear_active_connection,
+    get_active_user
 )
 from services.connection_service import get_connection_profile
 
@@ -15,7 +15,7 @@ context_bp = Blueprint("context", __name__)
 @verify_token
 @handle_errors
 def set_connection_context():
-    user = get_current_user()
+    user = get_active_user()
     if not user:
         return jsonify({"error": "User context not loaded"}), 401
 
@@ -28,22 +28,22 @@ def set_connection_context():
     if not profile:
         return jsonify({"error": "Connection profile not found"}), 404
 
-    set_current_connection(profile)
+    set_active_connection(profile)
     return jsonify({"message": "Connection context set successfully."})
 
 @context_bp.route("/connection", methods=["DELETE"])
 @verify_token
 @handle_errors
 def clear_connection_context():
-    clear_current_connection()
+    clear_active_connection()
     return jsonify({"message": "Connection context cleared."})
 
 @context_bp.route("/get_context", methods=["GET"])
 @verify_token
 @handle_errors
 def get_context():
-    user = get_current_user()
-    connection = get_current_connection()
+    user = get_active_user()
+    connection = get_active_connection()
 
     return jsonify({
         "user_profile": user.to_dict() if user else None,

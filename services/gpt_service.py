@@ -6,6 +6,7 @@ from flask import current_app
 from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
+from infrastructure.id_generator import get_null_connection_id
 from services.connection_service import format_connection_profile, get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
 from services.user_service import update_user_profile, get_user
@@ -73,13 +74,20 @@ def generate_spurs(
     if not selected_spurs:
         selected_spurs = user_profile_dict['selected_spurs']
     
-    if connection_id:
+    connection_profile = None
+    if connection_id and connection_id != get_null_connection_id():
         connection_profile = get_connection_profile(user_id, connection_id)
     else:
-        # Assuming get_active_connection_firestore returns a connection_id string
         active_connection_id = get_active_connection_firestore(user_id)
-        connection_profile = get_connection_profile(user_id, active_connection_id)
+        if active_connection_id and active_connection_id != get_null_connection_id():
+            connection_profile = get_connection_profile(user_id, active_connection_id)
 
+    # Initialize context_block first
+    context_block = "***User Profile:***\n"
+    user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
+    user_user_context_block = user_profile_instance.to_dict_alt()
+    context_block += f"{user_user_context_block}\n\n"
+    
     conversation_obj = None
     conversation = None
     conversation_text = ""
@@ -100,16 +108,15 @@ def generate_spurs(
             if classify_confidence(situation_info["confidence"]) == "high":
                 situation = situation_info["situation"]
 
-    # Corrected context_block construction
-    context_block = "***User Profile:***\n"
-    user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
-    user_user_context_block = user_profile_instance.to_dict_alt()
-    context_block += f"{user_user_context_block}\n\n"
+    # Continue building context_block
 
-    context_block += "***Connection Profile:***\n"
-    connection_profile_instance = ConnectionProfile.from_dict(connection_profile.to_dict() if connection_profile else {})
-    connection_user_context_block = connection_profile_instance.to_dict_alt() if connection_profile else {}
-    context_block += f"{connection_user_context_block}\n\n"
+
+    
+    if connection_profile and connection_id != get_null_connection_id():
+        context_block += "***Connection Profile:***\n"
+        connection_profile_instance = ConnectionProfile.from_dict(connection_profile.to_dict() if connection_profile else {})
+        connection_context_block = connection_profile_instance.to_dict_alt() if connection_profile else {}
+        context_block += f"{connection_context_block}\n\n"
 
 
     # Append OCR'd profile text if available
@@ -120,13 +127,14 @@ def generate_spurs(
         context_block += "\n"
 
 
-    context_block += "***Conversation Between User and Connection:***\n"
-    context_block += f"{conversation_text}\n\n"
 
-    context_block += f"***Situation:*** {situation}\n" # Added colon for clarity
-    context_block += f"***Topic:*** {topic}\n"       # Added colon for clarity
-    context_block += f"***Tone:*** {tone}"           # Added colon for clarity
-    
+    if situation and situation.strip() != "":
+        context_block += f"***Situation:*** {situation}\n" # Added colon for clarity
+    if topic and topic.strip() != "":
+        context_block += f"***Topic:*** {topic}\n"       # Added colon for clarity
+    if tone and tone.strip() != "":
+        context_block += f"***Tone:*** {tone}"           # Added colon for clarity
+
     logger.debug(f"Context block for prompt:\n{context_block}")
 
     prompt = build_prompt(selected_spurs or [], context_block)

@@ -5,9 +5,9 @@ from services.user_service import get_user
 
 logger = get_logger(__name__)
 
-def set_current_user(user_profile: UserProfile):
+def set_active_user(user_profile: UserProfile):
     """
-    Sets the app context global variable current_user to the user's profile
+    Sets the app context global variable active_user to the user's profile
 
     Args
         user_profile: user profile of current user
@@ -15,24 +15,24 @@ def set_current_user(user_profile: UserProfile):
     Return
         N/A
     """
-    
-    g.current_user = user_profile
+    g.user_id = user_profile.user_id  # Store user_id for later use
+    g.active_user = user_profile
 
-def get_current_user() -> UserProfile:
+def get_active_user() -> UserProfile:
     """
-    Gets the app context global variable current_user
+    Gets the app context global variable active_user
 
     Args
         N/A
     Return
-        current_user: User profile of the current user
+        active_user: User profile of the current user
             UserProfile object
     """
-    return getattr(g, "current_user")
+    return getattr(g, "active_user")
 
-def set_current_connection(connection_profile):
+def set_active_connection(connection_profile):
     """
-    Sets the app context global variable current_connection to a connection profile selected or entered by user
+    Sets the app context global variable active_connection to a connection profile selected or entered by user
 
     Args
         connection_profile: connection profile of current user
@@ -40,30 +40,31 @@ def set_current_connection(connection_profile):
     Return
         N/A
     """
-    g.current_connection = connection_profile
+    g.active_connection_id = connection_profile.connection_id  # Store connection_id for later use
+    g.active_connection = connection_profile
 
-def get_current_connection() -> ConnectionProfile:
+def get_active_connection() -> ConnectionProfile:
     """
-    Gets the app context global variable current_connection, if one is active
+    Gets the app context global variable active_connection, if one is active
 
     Args
         N/A
     Return
-        current_connection: Connection profile of a connection loaded by the current user
+        active_connection: Connection profile of a connection loaded by the current user
             ConnectionProfile object
     """
-    return getattr(g, "current_connection")
+    return getattr(g, "active_connection")
 
-def clear_current_connection():
+def clear_active_connection():
     """
-    Clear the app context global variable current_connection, so none is active
+    Clear the app context global variable active_connection, so none is active
 
     Args
         N/A
     Return
         N/A
     """
-    g.current_connection = None
+    g.active_connection = None
 
 def load_user_context():
     """
@@ -74,7 +75,7 @@ def load_user_context():
         if user_id:
             user_profile = get_user(user_id)
             if user_profile:
-                set_current_user(user_profile)
+                set_active_user(user_profile)
     except Exception as e:
         logger.error("[%s] Error: %s Load user profile into app context failed", __name__, e)
         raise RuntimeError(f"Failed to load user profile into app context: {e}") from e      
@@ -83,7 +84,7 @@ def require_user_context():
     """
     Middleware that enforces user context must be loaded for protected routes.
     """
-    if not get_current_user():
+    if not get_active_user():
         return jsonify({"error": "Missing user context"}), 401
 
 # context_bp = Blueprint("context", __name__)
@@ -101,7 +102,7 @@ def require_user_context():
 #         status: JSON-like structure indicating that a connection is active in the current context 
 
 #     """
-#     user_profile = get_current_user()
+#     user_profile = get_active_user()
 #     if not user_profile:
 #         return jsonify({"error": "User context not loaded"}), 401
 
@@ -114,7 +115,7 @@ def require_user_context():
 #         logger.error("Failed to load connection profile for active user profile")
 #         return jsonify({"error": "Connection profile not found"}), 404
 
-#     set_current_connection(connection_profile)
+#     set_active_connection(connection_profile)
 #     return jsonify({"message": "Connection context set successfully."})
 
 # @context_bp.route("/context/connection", methods=["DELETE"])
@@ -130,7 +131,7 @@ def require_user_context():
 #         status: JSON-like structure indicating that active connection cleared from current context 
 #     """
     
-#     clear_current_connection()
+#     clear_active_connection()
 #     return jsonify({"message": "Connection context cleared."})
 
 # @context_bp.route("/context", methods=["GET"])
@@ -145,8 +146,8 @@ def require_user_context():
 #     Return
 #         status: JSON-like structure representing user and connections profiles as dict objects 
 #     """
-#     user_profile = get_current_user()
-#     connection_profile = get_current_connection()
+#     user_profile = get_active_user()
+#     connection_profile = get_active_connection()
 
 #     return jsonify({
 #         "user_profile": user_profile.to_dict if user_profile else None,

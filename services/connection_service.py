@@ -175,6 +175,7 @@ def set_active_connection_firestore(user_id: str, connection_id: Optional[str]) 
         return {"error": "Missing user ID for set_active_connection"} 
     
     effective_connection_id = connection_id if connection_id is not None else get_null_connection_id(user_id)
+    g
     
     try:
         db = get_firestore_db()  # Ensure Firestore client is initialized
