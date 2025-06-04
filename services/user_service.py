@@ -67,6 +67,31 @@ def get_user_by_auth_provider(auth_provider: str, auth_provider_id: str) -> Opti
         logger.error(f"Error getting user by auth provider {auth_provider}/{auth_provider_id}: {str(e)}", exc_info=True)
         return None
 
+def get_user_by_email(email: str) -> Optional[UserProfile]:
+    """
+    Get a user by their email address.
+    Args:
+        email: The user's email address
+
+    Returns:
+        UserProfile object if found, None otherwise
+    """
+    try:
+        db = get_firestore_db()
+        users_ref = db.collection("users")
+        query = users_ref.where("email", "==", email)
+        docs = query.stream()
+
+        for doc in docs:
+            data = doc.to_dict()
+            return UserProfile.from_dict(data)
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error getting user by email {email}: {str(e)}", exc_info=True)
+        return None
+
 def create_user(
     email: str,
     auth_provider: str,

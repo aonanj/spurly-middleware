@@ -9,7 +9,7 @@ from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
-from services.user_service import get_user, update_user, create_user 
+from services.user_service import get_user, update_user, create_user, get_user_by_email 
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -132,8 +132,6 @@ def firebase_register():
         firebase_id_token = data.get('access_token', '').strip()
     else:
         firebase_id_token = firebase_id_token_1.strip()
-    email = data.get('email', '').strip().lower()  # Optional, for reference
-    
     if not firebase_id_token:
         raise ValidationError("Firebase ID token is required")
     
@@ -146,7 +144,9 @@ def firebase_register():
             raise ValidationError("Please use the appropriate social login endpoint")
         
         # Check if user already exists in your database
-        existing_user = get_user(firebase_user['user_id'])
+        email = firebase_user.get('email', '').strip().lower()
+        existing_user = get_user_by_email(email)
+
         if existing_user:
             raise ValidationError("User already registered")
 
