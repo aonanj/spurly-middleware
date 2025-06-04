@@ -39,7 +39,7 @@ class Conversation:
             "situation": self.situation,
             "topic": self.topic,
             "spurs": self.spurs,
-            "created_at": self.created_at.isoformat().replace("+00:00", "Z") if self.created_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     @classmethod
@@ -54,7 +54,7 @@ class Conversation:
             situation=data.get("situation"),
             topic=data.get("topic"),
             spurs=data.get("spurs", {}),
-            created_at=datetime.fromisoformat(created_at_str.replace("Z", "+00:00")) or datetime.now(timezone.utc)
+            created_at= created_at_str if created_at_str else datetime.now(timezone.utc)
         )
 
     @classmethod

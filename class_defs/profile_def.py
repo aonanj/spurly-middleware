@@ -65,8 +65,8 @@ class UserProfile:
         """Convert user object to dictionary for Firestore"""
         data = asdict(self)
         # Convert datetime objects to ISO format strings
-        data['created_at'] = self.created_at.isoformat().replace('Z', '+00:00')  # Use '+00:00' for UTC or '+00' for Firestore compatibility
-        data['updated_at'] = self.updated_at.isoformat().replace('Z', '+00:00') # Use '+00:00' for UTC or '+00' for Firestore compatibility
+        data['created_at'] = self.created_at.isoformat()
+        data['updated_at'] = self.updated_at.isoformat()
         return data
     
     @classmethod
@@ -90,7 +90,7 @@ class UserProfile:
             if isinstance(value, list) and not value and callable(f.default_factory):
                     d[f.name] = f.default_factory()
             elif isinstance(value, datetime):
-                d[f.name] = value.isoformat().replace('Z', '+00:00')  # Use '+00:00' for UTC or '+00' for Firestore compatibility
+                d[f.name] = value.isoformat()
             elif f.name.strip().lower() == "selected_spurs" and value and isinstance(value, list):
                 d[f.name] = ", ".join(value)
             elif value:
@@ -137,8 +137,8 @@ class ConnectionProfile:
         """Convert user object to dictionary for Firestore"""
         data = asdict(self)
         # Convert datetime objects to ISO format strings
-        data['created_at'] = self.created_at.isoformat().replace('Z', '+00:00')
-        data['updated_at'] = self.updated_at.isoformat().replace('Z', '+00:00')
+        data['created_at'] = self.created_at.isoformat()
+        data['updated_at'] = self.updated_at.isoformat()
         return data
     
     @classmethod
@@ -161,7 +161,7 @@ class ConnectionProfile:
             if isinstance(value, list) and not value and callable(f.default_factory):
                     d[f.name] = f.default_factory()
             elif isinstance(value, datetime):
-                d[f.name] = value.isoformat().replace('Z', '+00:00')
+                d[f.name] = value.isoformat()
             elif f.name.strip().lower() == "selected_spurs" and value and isinstance(value, list):
                 d[f.name] = ", ".join(value)
             elif isinstance(value, Dict) and not value and callable(f.default_factory):

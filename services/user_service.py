@@ -201,14 +201,12 @@ def update_user(
     if auth_provider_id is not None:
         update_data.update({"auth_provider_id": auth_provider_id})
         user.auth_provider_id = auth_provider_id
+    
 
     try:
         db = get_firestore_db()
         user_ref = db.collection("users").document(user_id)
         user_ref.update(update_data)
-        
-        # Update the user object's updated_at field
-        user.updated_at = datetime.fromisoformat(update_data["updated_at"]).replace(tzinfo=timezone.utc)
         
         logger.info(f"Updated user: {user_id}")
         return user

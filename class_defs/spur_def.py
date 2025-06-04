@@ -44,7 +44,7 @@ class Spur:
             "variant": self.variant,
             "tone": self.tone,
             "text": self.text,
-            "created_at": self.created_at.isoformat().replace("+00:00", "Z") if self.created_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     @classmethod
@@ -61,7 +61,7 @@ class Spur:
             variant=data.get("variant"),
             tone=data.get("tone"),
             text=data.get("text"),
-            created_at=datetime.fromisoformat(created_at_str.replace("Z", "+00:00")) or datetime.now(timezone.utc)
+            created_at=datetime.fromisoformat(created_at_str) if created_at_str else datetime.now(timezone.utc)
         )
 
     @classmethod

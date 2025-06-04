@@ -644,5 +644,5 @@ def auth_health():
     return jsonify({
         "status": "healthy",
         "service": "social_auth",
-        "timestamp": datetime.now(timezone.utc).isoformat().replace('Z', '+00:00')
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200
