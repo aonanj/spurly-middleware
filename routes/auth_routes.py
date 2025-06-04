@@ -49,35 +49,19 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
     Raises:
         AuthError: If token is invalid or expired
     """
-    
-    logger.warning(f"verify_firebase_token called with ID token: {id_token[:30]}...")  # Log first 30 chars for brevity
+
     try:
-        # --- START ADDED/REVISED LOGGING ---
-        logger.warning(f"Try block hit / pre-firebase_admin: {id_token[:30]}...")
+
         admin_app = firebase_admin.get_app() # Get the default initialized Firebase app
         if not admin_app:
             raise AuthError("Firebase Admin SDK is not initialized", 500)
-        logger.warning(f"ADMIN_SDK_PROJECT_ID_CHECK: {admin_app.project_id}")
-        logger.warning(f"RECEIVED_TOKEN_TO_VERIFY (first 30 chars): {id_token[:30]}...")
-        # --- END ADDED/REVISED LOGGING ---
 
-        # The actual verification call.
-        # This will raise an error if the token is invalid for any reason,
-        # including audience mismatch, signature issues, expiry, etc.
         decoded_token = firebase_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
-        
-        # If verification is successful, log some claims from the now *verified* token
-        logger.warning("TOKEN_VERIFIED_SUCCESSFULLY")
-        logger.warning(f"VERIFIED_TOKEN_AUDIENCE (aud): {decoded_token.get('aud')}")
-        logger.warning(f"VERIFIED_TOKEN_ISSUER (iss): {decoded_token.get('iss')}")
-        logger.warning(f"VERIFIED_TOKEN_SUBJECT_USER_ID (sub): {decoded_token.get('sub')}")
-
         return {
             'uid': decoded_token['uid'],
             'email': decoded_token.get('email'),
             'email_verified': decoded_token.get('email_verified', False),
             'name': decoded_token.get('name'),
-            'picture': decoded_token.get('picture'),
             'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         }
     except firebase_auth.ExpiredIdTokenError as e:

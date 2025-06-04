@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from functools import wraps
 from typing import Dict, Optional, Any
+import os
 
 import jwt
 from flask import Blueprint, request, jsonify, current_app, g
@@ -46,8 +47,8 @@ def verify_token(f):
             raise AuthError("Invalid authorization header format")
         
         token = parts[1]
-        secret_key = "3fc4689751710871873c50b432c71b06dfcd69a4dcc2f2ea7db08ab17cffff10" ##current_app.config.get('JWT_SECRET_KEY')
-        
+        secret_key = os.environ.get('JWT_SECRET_KEY')
+
         if not secret_key:
             raise AuthError("JWT configuration missing", 500)
         

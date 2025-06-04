@@ -10,15 +10,16 @@ import os
 
 # Local application imports
 from .logger import get_logger # Use relative import if logger is in the same directory
-from google.cloud import firestore, vision
+from google.cloud import vision
+from google.cloud.firestore import Client as FirestoreClient
 # --- Global Client Variables ---
 # Initialize clients to None initially
 
-_firestore_db = None
 _vision_client = None
 _openai_client = None
 _algolia_client = None
 _algolia_index = None 
+_firestore_db = None
 
 
 # --- Initialization Function ---
@@ -34,6 +35,7 @@ def init_clients(app):
 
     logger = get_logger(__name__)
     logger.info("Initializing external clients...")
+    global _firestore_db
 
     # --- Firebase Admin ---
     try:
@@ -57,12 +59,8 @@ def init_clients(app):
              raise FileNotFoundError(f"Firestore key file not found at: {firestore_cred_path}")
         firestore_creds = service_account.Credentials.from_service_account_file(firestore_cred_path)
         # Ensure project_id is correctly inferred or explicitly provided
-        project_id = os.getenv('GOOGLE_PROJECT_ID')
-        print(f"Project ID: {project_id}")
-        if not project_id:
-            raise ValueError("Google Cloud Project ID could not be determined.")
-        _firestore_db = firestore.Client(credentials=firestore_creds)
-        logger.info("Firestore client initialized for project: %s", project_id)
+        _firestore_db = firestore.client()
+        logger.info("Firestore client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Firestore client: %s", e, exc_info=True)
         raise RuntimeError("Firestore client has not been initialized.")
@@ -113,26 +111,35 @@ def init_clients(app):
         raise RuntimeError("OpenAI client has not been initialized.")
 
     logger.info("All external clients initialized successfully.")
-
-def get_firestore_db() -> firestore.Client:
+def get_firestore_db() -> FirestoreClient:
     """ Safely returns the initialized Firestore client instance. """
-    if _firestore_db is None:
-        # This indicates an issue with the application startup order
-        raise RuntimeError("Firestore client has not been initialized. Ensure init_clients() is called.")
+    global _firestore_db
+    if not _firestore_db:
+        try:
+            _firestore_db = firestore.client()
+        except Exception as e:
+            raise RuntimeError("Firestore client has not been initialized.")
     return _firestore_db
+
 
 def get_vision_client() -> vision.ImageAnnotatorClient:
     """ Safely returns the initialized Google Cloud Vision client instance. """
-    if _vision_client is None:
-        # This indicates an issue with the application startup order
-        raise RuntimeError("Vision client has not been initialized. Ensure init_clients() is called.")
+    global _vision_client
+    if not _vision_client:
+        try:
+            _vision_client = vision.ImageAnnotatorClient()
+        except Exception as e:
+            raise RuntimeError("Vision client has not been initialized.")
     return _vision_client
 
 def get_openai_client() -> openai.OpenAI:
     """ Safely returns the initialized OpenAI client instance. """
-    if _openai_client is None:
-        # This indicates an issue with the application startup order
-        raise RuntimeError("OpenAI client has not been initialized. Ensure init_clients() is called.")
+    global _openai_client
+    if not _openai_client:
+        try:
+            _openai_client = openai.OpenAI()
+        except Exception as e:
+            raise RuntimeError("OpenAI client has not been initialized.")
     return _openai_client
 
 def get_algolia_client():

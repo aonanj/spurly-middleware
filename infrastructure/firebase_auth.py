@@ -11,7 +11,7 @@ def init_firebase(app):
     Uses GOOGLE_APPLICATION_CREDENTIALS or explicit path.
     """
     if not firebase_admin._apps:
-        cred_path = os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON")
+        cred_path = os.environ.get("GOOGLE_CLOUD_FIREBASE_CREDS")
         cred = credentials.Certificate(cred_path) if cred_path else credentials.ApplicationDefault()
         firebase_admin.initialize_app(cred)
 

@@ -4,6 +4,7 @@ from flask import request, g, jsonify, current_app
 import logging
 from typing import Dict, Any
 from infrastructure.logger import get_logger
+import os
 
 logger = get_logger(__name__)
 
@@ -30,7 +31,7 @@ def verify_token(f):
 
         try:
             # Decode the token
-            secret_key = current_app.config.get('JWT_SECRET_KEY')
+            secret_key = os.environ.get('JWT_SECRET_KEY')
             if not secret_key:
                 logger.error("JWT_SECRET_KEY not configured")
                 return jsonify({'error': 'Server configuration error'}), 500
