@@ -74,7 +74,7 @@ def create_user(
     name: Optional[str] = None,
     age: Optional[int] = None,
     user_context_block: Optional[str] = None,
-    selected_spurs: Optional[List[str]] = None
+    selected_spurs: Optional[List[str]] = None,
 ) -> UserProfile:
     """
     Create a new user in Firestore.
@@ -139,7 +139,9 @@ def update_user(
     age: Optional[int] = None,
     user_context_block: Optional[str] = None,
     selected_spurs: Optional[List[str]] = None,
-    email: Optional[str] = None
+    email: Optional[str] = None,
+    auth_provider: Optional[str] = None,
+    auth_provider_id: Optional[str] = None
 ) -> UserProfile:
     """
     Update an existing user's information.
@@ -192,6 +194,14 @@ def update_user(
         update_data.update({"email": email})
         user.email = email
     
+    if auth_provider is not None:
+        update_data.update({"auth_provider": auth_provider})
+        user.auth_provider = auth_provider
+
+    if auth_provider_id is not None:
+        update_data.update({"auth_provider_id": auth_provider_id})
+        user.auth_provider_id = auth_provider_id
+
     try:
         db = get_firestore_db()
         user_ref = db.collection("users").document(user_id)

@@ -1,4 +1,4 @@
-from flask import current_app
+from flask import current_app, g
 from .logger import get_logger
 from uuid import uuid4
 
@@ -12,18 +12,18 @@ logger = get_logger(__name__)
 
 def generate_user_id() -> str:
 	"""
-	Generates a 12-character uuid for ID of a new user. Adds "u" character prefix.
+	Gets the user id from context.
 	
 	Args
 		N/A
 	
 	Return
-		user_id: 13-character user_id, beginning with "u:"
+		user_id: provided user_id
 			str
 
 	"""
-	user_id_indicator = current_app.config['USER_ID_INDICATOR']
-	return (f"{user_id_indicator}:{uuid4().hex[:12]}").lower()
+
+	return g.get('user_id')
 
 def generate_anonymous_user_id() -> str:
 	"""

@@ -82,7 +82,7 @@ class UserProfile:
         filtered_data = {k: v for k, v in data.items() if k in profile_fields}
         return cls(**filtered_data)
 
-    def to_dict_deprecated(self) -> Dict[str, Any]:
+    def to_dict_alt(self) -> Dict[str, Any]:
         # Ensure default_factory lists are included even if empty
         d = {}
         for f in fields(self):
@@ -153,7 +153,7 @@ class ConnectionProfile:
         filtered_data = {k: v for k, v in data.items() if k in profile_fields}
         return cls(**filtered_data)
 
-    def to_dict_deprecated(self) -> Dict[str, Any]:
+    def to_dict_alt(self) -> Dict[str, Any]:
         # Ensure default_factory lists are included even if empty
         d = {}
         for f in fields(self):

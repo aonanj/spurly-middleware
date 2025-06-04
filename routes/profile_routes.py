@@ -3,6 +3,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Dict, Optional, Any
 import os
+from services.user_service import get_user  # Import your user service
 
 import jwt
 from flask import Blueprint, request, jsonify, current_app, g
@@ -74,24 +75,11 @@ def verify_token(f):
 
 def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
     """Get user profile from database"""
-    # TODO: Implement actual database lookup
-    # Example:
-    # user = User.query.get(user_id)
-    # if not user:
-    #     return None
-    # 
-    # profile = UserProfile.query.filter_by(user_id=user_id).first()
-    # 
-    # return {
-    #     'exists': profile is not None,
-    #     'user_id': user_id,
-    #     'name': profile.name if profile else user.name,
-    #     'profile_completed': profile.is_completed if profile else False
-    # }
-    
-    # Mock implementation
-    # In production, check if user has completed profile
-    return None
+    user = get_user(user_id)
+    if not user:
+        return None
+    else:
+        return user.to_dict_alt()
 
 @profile_bp.route('/<user_id>', methods=['GET'])
 @handle_errors

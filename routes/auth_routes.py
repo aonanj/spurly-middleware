@@ -7,8 +7,9 @@ from typing import Dict, Optional, Tuple, Any
 import firebase_admin
 from firebase_admin import auth as firebase_auth
 from firebase_admin import credentials
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
+from services.user_service import get_user, update_user, create_user 
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -21,7 +22,6 @@ from .social_auth import (
     ValidationError,
     handle_auth_errors,
     create_jwt_token,
-    get_or_create_user
 )
 
 # Initialize Firebase Admin SDK (do this once in your app initialization)
@@ -58,7 +58,7 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
 
         decoded_token = firebase_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
         return {
-            'uid': decoded_token['uid'],
+            'user_id': decoded_token['user_id'],
             'email': decoded_token.get('email'),
             'email_verified': decoded_token.get('email_verified', False),
             'name': decoded_token.get('name'),
@@ -90,39 +90,31 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[s
     Returns:
         User data dictionary
     """
-    # TODO: Implement actual database logic
-    # Example:
-    # user = User.query.filter_by(firebase_uid=firebase_user['uid']).first()
-    # if not user:
-    #     user = User(
-    #         firebase_uid=firebase_user['uid'],
-    #         email=firebase_user['email'],
-    #         email_verified=firebase_user['email_verified'],
-    #         name=firebase_user.get('name'),
-    #         profile_picture=firebase_user.get('picture'),
-    #         auth_provider=firebase_user['provider'],
-    #         created_at=datetime.utcnow()
-    #     )
-    #     db.session.add(user)
-    # else:
-    #     # Update user info from Firebase
-    #     user.email_verified = firebase_user['email_verified']
-    #     if firebase_user.get('name'):
-    #         user.name = firebase_user['name']
-    #     if firebase_user.get('picture'):
-    #         user.profile_picture = firebase_user['picture']
-    # db.session.commit()
+   
+    g.user_id = firebase_user['user_id']  
+    current_app.config['user_id'] = g.user_id
     
-    # For now, return mock data with Firebase UID as user ID
-    return {
-        'user_id': firebase_user['uid'],  # Use Firebase UID as user ID
-        'email': firebase_user['email'],
-        'name': firebase_user.get('name'),
-        'profile_picture': firebase_user.get('picture'),
-        'email_verified': firebase_user['email_verified'],
-        'auth_provider': firebase_user['provider']
-    }
-
+    user = get_user(firebase_user['user_id'])
+    if user:
+        user_data = {}
+        user_data['user_id'] = g.user_id
+        if firebase_user['name'] and firebase_user['name'] != user.name:
+            user_data['name'] = firebase_user['name']
+        user_data['auth_provider'] = "password"
+        user_data['auth_provider_id'] = g.user_id  # Use Firebase UID as provider ID
+        if firebase_user['email'] and firebase_user['email'] != user.email:
+            user_data['email'] = firebase_user['email']
+        user_profile = update_user(**user_data)
+    else:
+        # Create new user
+        user_profile = create_user(
+            email=firebase_user['email'],
+            auth_provider='password',
+            auth_provider_id=firebase_user['user_id'], 
+            name=firebase_user.get('name', ''),# Use Firebase UID as provider ID
+        )
+    
+    return user_profile.to_dict_alt()  # Convert to dict for response
 # Routes
 
 @auth_bp.route('/firebase/register', methods=['POST'])
@@ -151,11 +143,10 @@ def firebase_register():
             raise ValidationError("Please use the appropriate social login endpoint")
         
         # Check if user already exists in your database
-        # TODO: Implement database check
-        # existing_user = User.query.filter_by(firebase_uid=firebase_user['uid']).first()
-        # if existing_user:
-        #     raise ValidationError("User already registered")
-        
+        existing_user = get_user(firebase_user['user_id'])
+        if existing_user:
+            raise ValidationError("User already registered")
+
         # Create or update user in your database
         user_data = create_or_update_user_from_firebase(firebase_user)
         
@@ -178,7 +169,6 @@ def firebase_register():
                 "id": user_data['user_id'],
                 "email": user_data['email'],
                 "name": user_data['name'],
-                "profile_picture": user_data['profile_picture'],
                 "email_verified": user_data['email_verified']
             }
         }), 201
@@ -234,7 +224,6 @@ def firebase_login():
                 "id": user_data['user_id'],
                 "email": user_data['email'],
                 "name": user_data['name'],  
-                "profile_picture": user_data['profile_picture'],
                 "email_verified": user_data['email_verified']
             }
         }), 200

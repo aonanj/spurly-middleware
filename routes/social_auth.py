@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 from cryptography.x509 import load_pem_x509_certificate
 
-from infrastructure.clients import get_firestore_db
+from services.user_service import get_user, update_user, create_user
 
 # Create blueprint
 social_auth_bp = Blueprint('social_auth_bp', __name__, url_prefix='/api/social_auth')
@@ -293,7 +293,7 @@ def create_jwt_token(user_id: str, email: str, name: Optional[str] = None,
         'provider': provider,
         'type': 'access',
         'iat': now,
-        'exp': now + timedelta(hours=1),
+        'exp': now + timedelta(hours=3),
         'jti': os.urandom(16).hex()  # Unique token ID
     }
     
@@ -312,60 +312,36 @@ def create_jwt_token(user_id: str, email: str, name: Optional[str] = None,
     return access_token, refresh_token
 
 def get_or_create_user(provider: str, provider_user_id: str, email: str, 
-                      name: Optional[str] = None, profile_picture: Optional[str] = None) -> Dict[str, Any]:
+                      name: Optional[str] = None) -> Dict[str, Any]:
     """Get or create user in database"""
     # Import your user model/service here
     # from models.user import User
     # from services.user_service import UserService
     
-    try:
-        # This is where you integrate with your actual database
-        # Example implementation:
-        
-        # Check if user exists by provider ID
-        # user = User.query.filter_by(
-        #     provider=provider,
-        #     provider_user_id=provider_user_id
-        # ).first()
-        
-        # if not user:
-        #     # Check if user exists by email
-        #     user = User.query.filter_by(email=email).first()
-        #     
-        #     if user:
-        #         # Link provider to existing user
-        #         user.add_provider(provider, provider_user_id)
-        #     else:
-        #         # Create new user
-        #         user = User(
-        #             email=email,
-        #             name=name,
-        #             profile_picture=profile_picture,
-        #             provider=provider,
-        #             provider_user_id=provider_user_id,
-        #             email_verified=True
-        #         )
-        #         db.session.add(user)
-        #     
-        #     db.session.commit()
-        
-        # For now, return a structured response
-        # Replace this with actual database integration
-        user_id = f"{provider}_{provider_user_id}"
-        
-        return {
-            'user_id': user_id,
-            'email': email,
-            'name': name,
-            'profile_picture': profile_picture,
-            'provider': provider,
-            'email_verified': True,
-            'created_at': datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Database error in get_or_create_user: {str(e)}")
-        raise AuthError("Unable to process user data", 500)
+    g.user_id = provider_user_id
+    current_app.config['user_id'] = g.user_id
+    
+    user = get_user(provider_user_id)
+    if user:
+        user_data = {}
+        user_data['user_id'] = g.user_id
+        if name and name != user.name:
+            user_data['name'] = name
+        user_data['auth_provider'] = provider
+        user_data['auth_provider_id'] = g.user_id  # Use Firebase UID as provider ID
+        if email and email != user.email:
+            user_data['email'] = email
+        user_profile = update_user(**user_data)
+    else:
+        # Create new user
+        user_profile = create_user(
+            email=email,
+            auth_provider=provider,
+            auth_provider_id=g.user_id,
+            name=name,
+        )
+    
+    return user_profile.to_dict_alt() 
 
 # Routes
 
@@ -391,7 +367,6 @@ def google_auth():
     email = token_data.get('email')
     name = token_data.get('name')
     google_user_id = token_data.get('sub')
-    profile_picture = token_data.get('picture')
     
     # Validate required fields
     if not google_user_id:
@@ -405,8 +380,7 @@ def google_auth():
         provider_user_id=google_user_id,
         email=email,
         name=name,
-        profile_picture=profile_picture
-    )
+       )
     
     # Create tokens
     access_token, refresh_token = create_jwt_token(
@@ -428,7 +402,6 @@ def google_auth():
             "id": user_data['user_id'],
             "email": user_data['email'],
             "name": user_data['name'],
-            "profile_picture": user_data['profile_picture'],
             "email_verified": user_data['email_verified']
         }
     }), 200
@@ -528,7 +501,6 @@ def facebook_auth():
     facebook_user_id = fb_user.get('id')
     email = fb_user.get('email')
     name = fb_user.get('name')
-    profile_picture = fb_user.get('picture', {}).get('data', {}).get('url')
 
     # Validate required fields
     if not facebook_user_id:
@@ -545,7 +517,6 @@ def facebook_auth():
         provider_user_id=facebook_user_id,
         email=email,
         name=name,
-        profile_picture=profile_picture
     )
     
     # Create tokens
@@ -568,7 +539,6 @@ def facebook_auth():
             "id": user_data['user_id'],
             "email": user_data['email'],
             "name": user_data['name'],
-            "profile_picture": user_data['profile_picture'],
             "email_verified": user_data['email_verified']
         }
     }), 200
@@ -606,18 +576,18 @@ def refresh_token():
         
         # Create new access token
         user_id = payload.get('user_id')
-        
-        # TODO: Fetch fresh user data from database
-        # user = User.query.get(user_id)
-        # if not user or not user.is_active:
-        #     raise AuthError("User account is not active")
-        
+        email = payload.get('email')
+
+        user = get_user(user_id)
+        if not user and user_id != g.user_id:
+            raise AuthError("User account is not active")
+
         # For now, create token with user_id
         access_token, _ = create_jwt_token(
             user_id=user_id,
-            email="",  # Fetch from DB in real implementation
-            name=None,
-            provider=None
+            email=email,
+            name=payload.get('name') if payload.get('name') else None,
+            provider=payload.get('auth_provider') if payload.get('auth_provider') else None
         )
         
         return jsonify({
