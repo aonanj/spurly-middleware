@@ -60,7 +60,6 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
         return {
             'user_id': decoded_token['user_id'],
             'email': decoded_token.get('email'),
-            'email_verified': decoded_token.get('email_verified', False),
             'name': decoded_token.get('name'),
             'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         }
@@ -166,10 +165,9 @@ def firebase_register():
             "token_type": "Bearer",
             "expires_in": 3600,
             "user": {
-                "id": user_data['user_id'],
+                "user_id": user_data['user_id'],
                 "email": user_data['email'],
                 "name": user_data['name'],
-                "email_verified": user_data['email_verified']
             }
         }), 201
         
@@ -200,21 +198,16 @@ def firebase_login():
     
     try:
         # Verify Firebase token
-        logger.error("firebase_id_token: " + firebase_id_token)  # Debugging line
         firebase_user = verify_firebase_token(firebase_id_token)
         
         # Create or update user in your database
-        logger.error("firebase_user: " + str(firebase_user))  # Debugging line
         user_data = create_or_update_user_from_firebase(firebase_user)
-        
-        # Create your own JWT tokens
-        logger.error("user_data: " + str(user_data))  # Debugging line
+
         access_token, refresh_token = create_jwt_token(
             user_id=user_data['user_id'],
             email=user_data['email'],
             name=user_data['name'] if user_data.get('name') else None
         )
-        logger.error("access_token: " + access_token)  # Debugging line
         
         # Log successful login
         logger.info(f"User logged in via Firebase: {user_data['user_id']}")
@@ -228,7 +221,6 @@ def firebase_login():
                 "id": user_data['user_id'],
                 "email": user_data['email'],
                 "name": user_data['name'],  
-                "email_verified": user_data['email_verified']
             }
         }), 200
         

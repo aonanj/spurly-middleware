@@ -148,10 +148,7 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
         if decoded_token.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
             raise AuthError("Invalid token issuer")
         
-        # Check if email is verified
-        if not decoded_token.get('email_verified', False):
-            raise AuthError("Email not verified")
-        
+       
         return decoded_token
         
     except jwt.ExpiredSignatureError:
@@ -402,7 +399,6 @@ def google_auth():
             "id": user_data['user_id'],
             "email": user_data['email'],
             "name": user_data['name'],
-            "email_verified": user_data['email_verified']
         }
     }), 200
 
@@ -475,7 +471,6 @@ def apple_auth():
             "id": user_data['user_id'],
             "email": user_data['email'],
             "name": user_data['name'],
-            "email_verified": user_data['email_verified']
         }
     }), 200
 
@@ -539,7 +534,6 @@ def facebook_auth():
             "id": user_data['user_id'],
             "email": user_data['email'],
             "name": user_data['name'],
-            "email_verified": user_data['email_verified']
         }
     }), 200
 
