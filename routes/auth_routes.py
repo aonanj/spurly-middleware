@@ -127,7 +127,11 @@ def firebase_register():
     if not data:
         raise ValidationError("Request body is required")
     
-    firebase_id_token = data.get('firebase_id_token', '').strip()
+    firebase_id_token_1 = data.get('firebase_id_token')
+    if not firebase_id_token_1:
+        firebase_id_token = data.get('access_token', '').strip()
+    else:
+        firebase_id_token = firebase_id_token_1.strip()
     email = data.get('email', '').strip().lower()  # Optional, for reference
     
     if not firebase_id_token:
@@ -188,7 +192,12 @@ def firebase_login():
     if not data:
         raise ValidationError("Request body is required")
     
-    firebase_id_token = data.get('firebase_id_token', '').strip()
+    firebase_id_token_1 = data.get('firebase_id_token')
+    if not firebase_id_token_1:
+        firebase_id_token = data.get('access_token', '').strip()
+    else:
+        firebase_id_token = firebase_id_token_1.strip()
+        
     email = data.get('email', '').strip().lower()  # Optional, for reference
     
     if not firebase_id_token:
