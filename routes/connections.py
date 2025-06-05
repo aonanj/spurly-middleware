@@ -138,7 +138,7 @@ def save_connection():
         if not data:
             return jsonify({"error": "Invalid JSON payload"}), 400
         
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -160,7 +160,7 @@ def save_connection():
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error in save_connection for user {g.user.get('user_id')}: {e}", exc_info=True)
+        logger.error(f"Error in save_connection for user {getattr(g, "user_id", None)}: {e}", exc_info=True)
         return jsonify({"error": f"Failed to save profile: {str(e)}"}), 500
 
 
@@ -170,7 +170,7 @@ def save_connection():
 def create_connection():
     """Create a new connection profile with image processing."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 
@@ -238,7 +238,7 @@ def create_connection():
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error in create_connection for user {g.user.get('user_id')}: {e}", exc_info=True)
+        logger.error(f"Error in create_connection for user {getattr(g, "user_id", None)}: {e}", exc_info=True)
         return jsonify({"error": "Failed to create connection profile"}), 500
 
 
@@ -248,7 +248,7 @@ def create_connection():
 def update_connection():
     """Update an existing connection profile."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 
@@ -334,7 +334,7 @@ def update_connection():
 def fetch_user_connections():
     """Fetch all connections for the authenticated user."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -363,7 +363,7 @@ def fetch_user_connections():
 def set_active_connection():
     """Set the active connection for the user."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -389,7 +389,7 @@ def set_active_connection():
 def get_active_connection():
     """Get the active connection ID for the user."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -407,7 +407,7 @@ def get_active_connection():
 def clear_active_connection():
     """Clear the active connection for the user."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -425,7 +425,7 @@ def clear_active_connection():
 def fetch_single_connection():
     """Fetch a single connection profile by ID."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -450,7 +450,7 @@ def fetch_single_connection():
 def delete_connection():
     """Delete a connection profile."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
             
@@ -480,7 +480,7 @@ def analyze_connection_photos():
     The frontend handles face detection and cropping.
     """
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 
@@ -609,7 +609,7 @@ def upload_face_photo():
     This endpoint expects the frontend to have already detected and cropped the face.
     """
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 
@@ -688,7 +688,7 @@ def upload_face_photo():
 def delete_profile_photo():
     """Delete the profile photo from a connection."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 
@@ -755,7 +755,7 @@ def delete_profile_photo():
 def get_profile_photo():
     """Get profile photo URL for a connection."""
     try:
-        user_id = g.user.get('user_id')
+        user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
 

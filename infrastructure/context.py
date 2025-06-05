@@ -15,8 +15,8 @@ def set_active_user(user_profile: UserProfile):
     Return
         N/A
     """
-    g.user_id = user_profile.user_id  # Store user_id for later use
-    g.active_user = user_profile
+    setattr(g, "user_id", user_profile.user_id)  # Store user_id for later use
+    setattr(g, "active_user", user_profile)
 
 def get_active_user() -> UserProfile:
     """
@@ -40,8 +40,8 @@ def set_active_connection(connection_profile):
     Return
         N/A
     """
-    g.active_connection_id = connection_profile.connection_id  # Store connection_id for later use
-    g.active_connection = connection_profile
+    setattr(g, "active_connection_id", connection_profile.connection_id)  # Store connection_id for later use
+    setattr(g, "active_connection", connection_profile)
 
 def get_active_connection() -> ConnectionProfile:
     """
@@ -64,7 +64,7 @@ def clear_active_connection():
     Return
         N/A
     """
-    g.active_connection = None
+    setattr(g, "active_connection", None)
 
 def load_user_context():
     """

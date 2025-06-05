@@ -12,7 +12,7 @@ feedback_bp = Blueprint("feedback", __name__)
 def feedback():
     data = request.get_json()
     
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     spur = data.get("spur")  # should be a dict representing a Spur
     feedback_type = data.get("feedback")  # "thumbs_up" or "thumbs_down"
 

@@ -36,9 +36,9 @@ def verify_token(f):
                 raise AuthError("Invalid token type")
             
             # Store user info in g for use in route
-            g.user_id = payload.get('user_id')
-            g.user_email = payload.get('email')
-            
+            setattr(g, "user_id", payload.get('user_id'))
+            setattr(g, "user_email", payload.get('email'))
+
             return f(*args, **kwargs)
             
         except jwt.ExpiredSignatureError:

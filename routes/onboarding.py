@@ -37,7 +37,7 @@ def onboarding():
         return jsonify({"error": "Request body is required"}), 400
     
     # Extract user_id from the verified token
-    user_id = g.user.get('user_id')
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         logger.error("User ID not found in token")
         return jsonify({"error": "Invalid authentication state"}), 401
@@ -127,7 +127,7 @@ def onboarding_status():
     Returns:
         JSON response with onboarding completion status
     """
-    user_id = g.user.get('user_id')
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         return jsonify({"error": "Invalid authentication state"}), 401
     

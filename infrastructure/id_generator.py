@@ -23,7 +23,7 @@ def generate_user_id() -> str:
 
 	"""
 
-	return g.get('user_id')
+	return getattr(g, "user_id", None)
 
 def generate_anonymous_user_id() -> str:
 	"""

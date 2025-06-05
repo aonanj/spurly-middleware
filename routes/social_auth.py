@@ -314,18 +314,18 @@ def get_or_create_user(provider: str, provider_user_id: str, email: str,
     # Import your user model/service here
     # from models.user import User
     # from services.user_service import UserService
-    
-    g.user_id = provider_user_id
-    current_app.config['user_id'] = g.user_id
-    
+
+    setattr(g, "provider_user_id", provider_user_id)
+    current_app.config['user_id'] = getattr(g, "user_id", None)
+
     user = get_user(provider_user_id)
     if user:
         user_data = {}
-        user_data['user_id'] = g.user_id
+        user_data['user_id'] = getattr(g, "user_id", None)
         if name and name != user.name:
             user_data['name'] = name
         user_data['auth_provider'] = provider
-        user_data['auth_provider_id'] = g.user_id  # Use Firebase UID as provider ID
+        user_data['auth_provider_id'] = getattr(g, "user_id", None)  # Use Firebase UID as provider ID
         if email and email != user.email:
             user_data['email'] = email
         user_profile = update_user(**user_data)
@@ -334,7 +334,7 @@ def get_or_create_user(provider: str, provider_user_id: str, email: str,
         user_profile = create_user(
             email=email,
             auth_provider=provider,
-            auth_provider_id=g.user_id,
+            auth_provider_id=getattr(g, "user_id"),
             name=name,
         )
     
@@ -567,7 +567,7 @@ def refresh_token():
         email = payload.get('email')
 
         user = get_user(user_id)
-        if not user and user_id != g.user_id:
+        if not user and user_id != getattr(g, "user_id", None):
             raise AuthError("User account is not active")
 
         # For now, create token with user_id

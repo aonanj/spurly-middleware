@@ -13,7 +13,7 @@ spurs_bp = Blueprint("spurs", __name__)
 @verify_token
 @handle_errors
 def fetch_saved_spurs_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -50,7 +50,7 @@ def fetch_saved_spurs_bp():
 @handle_errors
 def save_spur_bp():
     data = request.get_json()
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -64,7 +64,7 @@ def save_spur_bp():
 @verify_token
 @handle_errors
 def delete_saved_spurs_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
 
     if not user_id:
         err_point = __package__ or __name__
@@ -84,7 +84,7 @@ def delete_saved_spurs_bp():
 @verify_token
 @handle_errors
 def get_spur_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")

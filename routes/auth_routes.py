@@ -89,18 +89,19 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[s
     Returns:
         User data dictionary
     """
-   
-    g.user_id = firebase_user['user_id']  
-    current_app.config['user_id'] = g.user_id
-    
+
+    if not getattr(g, "user_id", None):
+        setattr(g, "user_id", firebase_user['user_id'])
+    current_app.config['user_id'] = getattr(g, "user_id")
+
     user = get_user(firebase_user['user_id'])
     if user:
         user_data = {}
-        user_data['user_id'] = g.user_id
+        user_data['user_id'] = getattr(g, "user_id")
         if firebase_user['name'] and firebase_user['name'] != user.name:
             user_data['name'] = firebase_user['name']
         user_data['auth_provider'] = "password"
-        user_data['auth_provider_id'] = g.user_id  # Use Firebase UID as provider ID
+        user_data['auth_provider_id'] = getattr(g, "user_id")  # Use Firebase UID as provider ID
         if firebase_user['email'] and firebase_user['email'] != user.email:
             user_data['email'] = firebase_user['email']
         user_profile = update_user(**user_data)

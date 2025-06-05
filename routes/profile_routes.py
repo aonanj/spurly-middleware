@@ -59,13 +59,12 @@ def verify_token(f):
             # Verify token type
             if payload.get('type') != 'access':
                 raise AuthError("Invalid token type")
-            
             # Store user info in g for use in route
-            g.user_id = payload.get('user_id')
-            g.user_email = payload.get('email')
-            
+            setattr(g, "user_id", payload.get('user_id'))
+            setattr(g, "user_email", payload.get('email'))
+
             return f(*args, **kwargs)
-            
+
         except jwt.ExpiredSignatureError:
             raise AuthError("Token has expired")
         except jwt.InvalidTokenError:
@@ -87,7 +86,7 @@ def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
 def get_profile(user_id: str):
     """Get user profile by ID"""
     # Verify user is accessing their own profile or has permission
-    if g.user_id != user_id:
+    if getattr(g, "user_id", None) != user_id:
         # You might want to allow admins or implement other permission logic
         raise AuthError("Unauthorized to access this profile", 403)
     

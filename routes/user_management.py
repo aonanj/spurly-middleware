@@ -12,7 +12,7 @@ logger = get_logger(__name__)
 def update_user_bp():
     try:
         data = request.get_json()
-        user_id = g.user['user_id']
+        user_id = getattr(g, "user_id", None)
 
         age = data.get("age")
         if age and (not isinstance(age, int) or not (18 <= age <= 99)):
@@ -42,7 +42,7 @@ def update_user_bp():
 @handle_errors
 def get_user_bp():
     try:
-        user_id = g.user['user_id']
+        user_id = getattr(g, "user_id", None)
         profile = get_user(user_id)
         return jsonify(profile), 200
     except Exception as e:

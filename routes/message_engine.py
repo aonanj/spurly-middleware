@@ -34,7 +34,7 @@ def generate():
         logger.warning("No JSON data received in /generate request.")
         return jsonify({'error': "Request must be JSON"}), 400
 
-    user_id_from_g = getattr(g, 'user', {}).get('user_id') # Safely access user_id from g.user
+    user_id_from_g = getattr(g, 'user_id', None)     
     if not user_id_from_g:
         logger.error("User ID not found in g.user for /generate route.")
         return jsonify({'error': "Authentication error: User ID not available."}), 401

@@ -19,7 +19,7 @@ def save_spur(user_id, spur: Spur):
             logger.error("Error: Missing user ID in save_spur")
             raise ValueError("Error: Missing user ID in save_spur")
 
-        user_id = g.user['user_id']
+        user_id = getattr(g, "user_id", None)
         spur_dict = spur.to_dict()
         if spur_dict.get("spur_id"):
             spur_id = spur_dict.get("spur_id")

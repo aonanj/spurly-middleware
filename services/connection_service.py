@@ -34,7 +34,7 @@ def create_connection_profile(
     # links: Optional[List[str]] = None,    # This is being removed
     connection_app_ocr_text_list: Optional[List[str]] = None,
     personality_traits_list: Optional[List[Dict[str, Any]]] = None) -> Dict:
-    user_id = g.user.get('user_id')
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         logger.error("Error: Cannot create connection profile - missing user ID in g.user")
         return {"error": "Authentication error: User ID not available."}

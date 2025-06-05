@@ -542,8 +542,8 @@ def save_conversation(data: Conversation) -> Dict[str, str]:
         Status dict with success message and conversation_id
     """
     # Ensure user_id is set from global context if not in data
-    if hasattr(g, 'user') and g.user and not data.user_id:
-        data.user_id = g.user.get('user_id')
+    if hasattr(g, 'user_id') and not data.user_id:
+        data.user_id = getattr(g, "user_id")
         
     return _storage.save_conversation(data)
 
@@ -562,8 +562,8 @@ def get_conversation(conversation_id: str) -> Conversation:
         ConversationNotFoundError: If conversation not found
     """
     user_id = None
-    if hasattr(g, 'user') and g.user:
-        user_id = g.user.get('user_id')
+    if hasattr(g, 'user_id'):
+        user_id = getattr(g, "user_id", None)
     
     if not user_id:
         raise ValueError("User not authenticated")
@@ -582,8 +582,8 @@ def delete_conversation(conversation_id: str) -> Dict[str, str]:
         Status dict confirming deletion
     """
     user_id = None
-    if hasattr(g, 'user') and g.user:
-        user_id = g.user.get('user_id')
+    if hasattr(g, 'user_id'):
+        user_id = getattr(g, "user_id", None)
     
     if not user_id:
         raise ValueError("User not authenticated")

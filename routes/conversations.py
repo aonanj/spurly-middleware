@@ -21,7 +21,7 @@ conversations_bp = Blueprint("conversations", __name__)
 @verify_token
 @handle_errors
 def get_conversations_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -51,7 +51,7 @@ def get_conversations_bp():
 @verify_token
 @handle_errors
 def save_conversation_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -75,7 +75,7 @@ def save_conversation_bp():
 @verify_token
 @handle_errors
 def get_conversation_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -95,7 +95,7 @@ def get_conversation_bp():
 @verify_token
 @handle_errors
 def delete_conversation_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -115,7 +115,7 @@ def delete_conversation_bp():
 @verify_token
 @handle_errors
 def fetch_saved_spurs_bp():
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -157,7 +157,7 @@ def fetch_saved_spurs_bp():
 @handle_errors
 def save_spur_bp():
 
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
@@ -183,7 +183,7 @@ def save_spur_bp():
 @verify_token
 @handle_errors
 def delete_saved_spurs_bp(spur_id):
-    user_id = g.user['user_id']
+    user_id = getattr(g, "user_id", None)
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
