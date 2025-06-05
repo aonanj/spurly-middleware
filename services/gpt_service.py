@@ -2,7 +2,7 @@ from class_defs.conversation_def import Conversation
 from class_defs.profile_def import ConnectionProfile, UserProfile
 from class_defs.spur_def import Spur
 from datetime import datetime, timezone
-from flask import current_app
+from flask import current_app, g
 from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
@@ -199,6 +199,11 @@ def generate_spurs(
             
             spur_objects = []
             variant_keys = current_app.config.get('SPUR_VARIANT_ID_KEYS', {})
+            
+            if user_profile_dict.get("user_id"):
+                user_id = user_profile_dict["user_id"]           
+            else:
+                user_id = getattr(g, "user_id")
 
             for variant, _id_key in variant_keys.items():
                 spur_text: str = validated_output.get(variant, "")
@@ -206,14 +211,14 @@ def generate_spurs(
                     spur_objects.append(
                         Spur(
                             user_id=user_profile_dict.get("user_id", ""), # from dict
-                            spur_id=generate_spur_id(user_profile_dict.get("user_id", "")), # from dict
+                            spur_id=generate_spur_id(user_id), # from dict
                             conversation_id=current_conversation_id, # Use derived ID
                             connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id") if connection_profile else "",
                             situation=situation or "",
                             topic=topic or "",
-                            variant=variant,
+                            variant=variant or "",
                             tone=tone or "",
-                            text=spur_text,
+                            text=spur_text or "",
                             created_at=datetime.now(timezone.utc),
                         )
                     )
