@@ -174,13 +174,10 @@ def generate_spurs(
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
             system_prompt = get_system_prompt()
-            ## DEBUG:
-            logger.error(f"System prompt: {system_prompt}")
-            logger.error(f"User prompt: {current_prompt}")
             openai_client = get_openai_client()
             
             response = openai_client.chat.completions.create(
-                model="gpt-4o-latest",
+                model="chatgpt-4o-latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": current_prompt}
