@@ -174,17 +174,22 @@ def generate_spurs(
         try:
             current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
             system_prompt = get_system_prompt()
+            ## DEBUG:
+            logger.error(f"System prompt: {system_prompt}")
+            logger.error(f"User prompt: {current_prompt}")
             openai_client = get_openai_client()
             
             response = openai_client.chat.completions.create(
-                model=current_app.config['AI_MODEL'],
+                model="gpt-4o-latest",
                 messages=[
-                    {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
-                    {"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": current_prompt}
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": current_prompt}
                 ],
-                temperature=current_app.config['AI_TEMPERATURE_INITIAL'] if attempt == 0 else current_app.config['AI_TEMPERATURE_RETRY'],
-                max_tokens=current_app.config['AI_MAX_TOKENS'],
+                temperature=1.3 if attempt == 0 else 0.85,
             )
+            
+            ## DEBUG:
+            logger.error(f"GPT response: {response}")  # Log the full response for debugging
 
             raw_output: str = (response.choices[0].message.content or '') if response.choices else ''
             # Pass user_profile_dict to parse_gpt_output

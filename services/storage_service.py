@@ -152,13 +152,7 @@ class ConversationStorage:
                                   conversation_text: str) -> Dict[str, Any]:
         """Prepares the payload for Algolia indexing."""
         created_at = conversation.created_at
-        if isinstance(created_at, str):
-            try:
-                created_at = datetime.fromisoformat(str(created_at))
-            except ValueError:
-                created_at = datetime.now(timezone.utc)
-        elif not isinstance(created_at, datetime):
-            created_at = datetime.now(timezone.utc)
+
                 
         payload = {
             "objectID": conversation.conversation_id,
@@ -231,9 +225,7 @@ class ConversationStorage:
                 conversation.created_at = datetime.now(timezone.utc)
             elif isinstance(conversation.created_at, str):
                 try:
-                    conversation.created_at = datetime.fromisoformat(
-                        str(conversation.created_at)
-                    )
+                    conversation.created_at = conversation.created_at
                 except ValueError:
                     logger.warning(f"Invalid created_at format, using current time")
                     conversation.created_at = datetime.now(timezone.utc)

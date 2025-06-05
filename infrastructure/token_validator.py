@@ -4,63 +4,48 @@ from flask import request, g, jsonify, current_app
 import logging
 from typing import Dict, Any
 from infrastructure.logger import get_logger
+from routes.profile_routes import AuthError  
 import os
 
 logger = get_logger(__name__)
 
 def verify_token(f):
-    """
-    Decorator to verify JWT token and extract user information.
-    Sets g.user with the decoded token data.
-    """
+    """Decorator to verify JWT token"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = None
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            raise AuthError("Authorization header is required")
+        
+        parts = auth_header.split()
+        if parts[0].lower() != 'bearer' or len(parts) != 2:
+            raise AuthError("Invalid authorization header format")
+        
+        token = parts[1]
+        secret_key = os.environ.get('JWT_SECRET_KEY')
 
-        # Get token from Authorization header
-        if 'Authorization' in request.headers:
-            auth_header = request.headers['Authorization']
-            try:
-                # Expected format: "Bearer <token>"
-                token = auth_header.split(' ')[1]
-            except IndexError:
-                return jsonify({'error': 'Invalid authorization header format'}), 401
-
-        if not token:
-            return jsonify({'error': f'Authorization token is missing. path: {request.path}, method: {request.method}'}), 401
-
+        if not secret_key:
+            raise AuthError("JWT configuration missing", 500)
+        
         try:
-            # Decode the token
-            secret_key = os.environ.get('JWT_SECRET_KEY')
-            if not secret_key:
-                logger.error("JWT_SECRET_KEY not configured")
-                return jsonify({'error': 'Server configuration error'}), 500
-
-            # Decode and verify the token
             payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-
-            # Set user info in g for use in the route
-            g.user = {
-                'user_id': payload.get('user_id'),
-                'email': payload.get('email'),
-                'name': payload.get('name')
-            }
-
-            # Verify user_id exists
-            if not g.user['user_id']:
-                return jsonify({'error': 'Invalid token: missing user_id'}), 401
-
+            
+            # Verify token type
+            if payload.get('type') != 'access':
+                raise AuthError("Invalid token type")
+            
+            # Store user info in g for use in route
+            g.user_id = payload.get('user_id')
+            g.user_email = payload.get('email')
+            
+            return f(*args, **kwargs)
+            
         except jwt.ExpiredSignatureError:
-            return jsonify({'error': 'Token has expired'}), 401
-        except jwt.InvalidTokenError as e:
-            logger.error(f"Invalid token: {str(e)}")
-            return jsonify({'error': 'Invalid token'}), 401
-        except Exception as e:
-            logger.error(f"Token verification error: {str(e)}")
-            return jsonify({'error': 'Token verification failed'}), 401
-
-        return f(*args, **kwargs)
-
+            raise AuthError("Token has expired")
+        except jwt.InvalidTokenError:
+            raise AuthError("Invalid token")
+            
     return decorated_function
 
 

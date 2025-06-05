@@ -35,7 +35,7 @@ def get_conversations_bp():
 
     for date_field in ["date_from", "date_to"]:
         date_str = request.args.get(date_field)
-        if date_str:
+        if date_str and isinstance(date_str, str):
             try:
                 filters[date_field] = datetime.fromisoformat(date_str)
             except ValueError as e:
@@ -131,7 +131,7 @@ def fetch_saved_spurs_bp():
 
     for date_field in ["date_from", "date_to"]:
         date_str = request.args.get(date_field)
-        if date_str:
+        if date_str and isinstance(date_str, str):
             try:
                 filters[date_field] = datetime.fromisoformat(date_str)
             except ValueError as e:

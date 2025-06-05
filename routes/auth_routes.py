@@ -1,7 +1,7 @@
 import os
 import re
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple, Any
 
 import firebase_admin
@@ -274,5 +274,5 @@ def auth_health():
         "status": "healthy",
         "service": "firebase_auth",
         "firebase_admin_sdk": firebase_status,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200

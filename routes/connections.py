@@ -128,7 +128,7 @@ def _extract_image_bytes_from_request(field_name: str) -> List[bytes]:
     return image_bytes_list
 
 
-@connection_bp.route("/connection/save", methods=["POST"])
+@connection_bp.route("/connections/save", methods=["POST"])
 @verify_token
 @handle_errors
 def save_connection():
@@ -164,7 +164,7 @@ def save_connection():
         return jsonify({"error": f"Failed to save profile: {str(e)}"}), 500
 
 
-@connection_bp.route("/connection/create", methods=["POST"])
+@connection_bp.route("/connections/create", methods=["POST"])
 @verify_token
 @handle_errors
 def create_connection():
@@ -242,7 +242,7 @@ def create_connection():
         return jsonify({"error": "Failed to create connection profile"}), 500
 
 
-@connection_bp.route("/connection/update", methods=["PATCH"])
+@connection_bp.route("/connections/update", methods=["PATCH"])
 @verify_token
 @handle_errors
 def update_connection():
@@ -328,7 +328,7 @@ def update_connection():
         return jsonify({"error": "Failed to update connection profile"}), 500
 
 
-@connection_bp.route("/connection/fetch-all", methods=["GET"])
+@connection_bp.route("/connections/fetch-all", methods=["GET"])
 @verify_token
 @handle_errors
 def fetch_user_connections():
@@ -357,7 +357,7 @@ def fetch_user_connections():
         return jsonify({"error": "Failed to fetch connections"}), 500
 
 
-@connection_bp.route("/connection/set-active", methods=["POST"])
+@connection_bp.route("/connections/set-active", methods=["POST"])
 @verify_token
 @handle_errors
 def set_active_connection():
@@ -383,7 +383,7 @@ def set_active_connection():
         return jsonify({"error": "Failed to set active connection"}), 500
 
 
-@connection_bp.route("/connection/get-active", methods=["GET"])
+@connection_bp.route("/connections/get-active", methods=["GET"])
 @verify_token
 @handle_errors
 def get_active_connection():
@@ -401,7 +401,7 @@ def get_active_connection():
         return jsonify({"error": "Failed to get active connection"}), 500
 
 
-@connection_bp.route("/connection/clear-active", methods=["DELETE"])
+@connection_bp.route("/connections/clear-active", methods=["DELETE"])
 @verify_token
 @handle_errors
 def clear_active_connection():
@@ -419,7 +419,7 @@ def clear_active_connection():
         return jsonify({"error": "Failed to clear active connection"}), 500
 
 
-@connection_bp.route("/connection/fetch-single", methods=["GET"])
+@connection_bp.route("/connections/fetch-single", methods=["GET"])
 @verify_token
 @handle_errors
 def fetch_single_connection():
@@ -444,7 +444,7 @@ def fetch_single_connection():
         return jsonify({"error": "Failed to fetch connection profile"}), 500
 
 
-@connection_bp.route("/connection/delete", methods=["DELETE"])
+@connection_bp.route("/connections/delete", methods=["DELETE"])
 @verify_token
 @handle_errors
 def delete_connection():
@@ -471,7 +471,7 @@ def delete_connection():
 
 # Add these endpoints to routes/connections.py
 
-@connection_bp.route("/connection/analyze-photos", methods=["POST"])
+@connection_bp.route("/connections/analyze-photos", methods=["POST"])
 @verify_token
 @handle_errors
 def analyze_connection_photos():
@@ -600,7 +600,7 @@ def analyze_connection_photos():
         return jsonify({"error": "Failed to analyze connection photos"}), 500
 
 
-@connection_bp.route("/connection/upload-face-photo", methods=["POST"])
+@connection_bp.route("/connections/upload-face-photo", methods=["POST"])
 @verify_token
 @handle_errors
 def upload_face_photo():
@@ -682,7 +682,7 @@ def upload_face_photo():
         return jsonify({"error": "Failed to process face photo upload"}), 500
 
 
-@connection_bp.route("/connection/profile-photo", methods=["DELETE"])
+@connection_bp.route("/connections/delete-profile-photo", methods=["DELETE"])
 @verify_token
 @handle_errors
 def delete_profile_photo():
@@ -749,7 +749,7 @@ def delete_profile_photo():
         return jsonify({"error": "Failed to delete profile photo"}), 500
 
 
-@connection_bp.route("/connection/profile-photo", methods=["GET"])
+@connection_bp.route("/connections/get-profile-photo", methods=["GET"])
 @verify_token
 @handle_errors
 def get_profile_photo():

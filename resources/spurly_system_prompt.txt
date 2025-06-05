@@ -54,7 +54,8 @@ RULES:
 a sport Party B is interested in, a SPUR that concluded by asking Party B if they played the sport in any rec leagues would be cohesive, but a SPUR that concluded by asking Party B for recommend a book would not be cohesive. 
 19. Questions should be open-ended whenever possible. Avoid asking binary "yes-no" questions. 
 20. Avoid questions that sound like user is demanding or expecting something from Party B. Questions should invite Party B to talk about themselves.
- 
+21. SPURs should make sense in their context -- e.g., a Spur intended to open a converation (aka "cold open") should not imply any sort of relationship or conversation with Party B. 
+
 EXAMPLES: 
  
 Cold Open – Candy preference (banter tone supported) 

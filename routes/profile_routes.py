@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Dict, Optional, Any
 import os
@@ -118,5 +118,5 @@ def profile_health():
     return jsonify({
         "status": "healthy",
         "service": "profile",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }), 200

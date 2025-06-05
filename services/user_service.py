@@ -34,8 +34,9 @@ def get_user(user_id: str) -> Optional[UserProfile]:
             return None
         
         data = doc.to_dict()
-        return UserProfile.from_dict(data)
-        
+        user_profile = UserProfile.from_dict(data)
+        return user_profile
+
     except Exception as e:
         logger.error(f"Error getting user {user_id}: {str(e)}", exc_info=True)
         return None
