@@ -20,6 +20,10 @@ def save_spur(user_id, spur: Spur):
             raise ValueError("Error: Missing user ID in save_spur")
 
         user_id = getattr(g, "user_id", None)
+        if not user_id:
+            logger.error("Error: No user_id found in flask context")
+            raise ValueError("Error: No user_id found in flask context")
+        
         spur_dict = spur.to_dict()
         if spur_dict.get("spur_id"):
             spur_id = spur_dict.get("spur_id")

@@ -23,7 +23,7 @@ def generate_user_id() -> str:
 
 	"""
 
-	return getattr(g, "user_id", None)
+	return getattr(g, "user_id", "None")
 
 def generate_anonymous_user_id() -> str:
 	"""
@@ -109,15 +109,17 @@ def generate_connection_id(user_id="") -> str:
 		connection_id: Connection ID, beginning with "u:" and ending with ":p"
 			str
 	"""
-	connection_id_indicator = current_app.config['CONNECTION_ID_INDICATOR']
+	connection_id_indicator = getattr(g, "connection_id", current_app.config['CONNECTION_ID_INDICATOR'])
 	connection_id_stub = uuid4().hex[:5]
-	if user_id:
+	if user_id and connection_id_indicator:
 		return (f"{user_id}:{connection_id_stub}:{connection_id_indicator}").lower()
 	elif not user_id:
+		uid = getattr(g, "user_id", None)
+		return (f"{uid}:{connection_id_stub}:{connection_id_indicator}").lower()
+	else:	
 		logger.error("Error: Missing user_id for connection_id generation")		 
 		return (f":{connection_id_stub}:{connection_id_indicator}").lower()
-	return ""
-
+	
 
 def get_null_connection_id(user_id="") -> str:
 	"""
@@ -135,9 +137,11 @@ def get_null_connection_id(user_id="") -> str:
 	if user_id:
 		return (f"{user_id}:{null_connection_id}").lower()
 	elif not user_id:
+		uid = getattr(g, "user_id", None)
+		return (f"{uid}:{null_connection_id}").lower()
+	else:
 		logger.error("Error: Missing user_id for connection_id generation")		 
 		return null_connection_id.lower()
-	return ""
 
 def generate_anonymous_spur_id(anonymous_user_id) -> str:
 	"""
