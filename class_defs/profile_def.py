@@ -30,7 +30,7 @@ ConnectionProfile:
     name: Optional[str] - Optional name of the connection profile owner.
     age: Optional[int] - Optional age of the connection profile owner; must be >= 18.
     connection_context_block: Optional[str] - Optional context information about the connection profile owner.
-    connection_app_ocr_text: Optional[List[str]] - OCR'd text from connection profile images.
+    connection_profile_text: Optional[List[str]] - OCR'd text from connection profile images.
     personality_traits: Optional[List[Dict[str, Any]]] - Optional list of personality traits for the connection.
     created_at: datetime - Timestamp of when the connection profile was created.
     updated_at: datetime - Timestamp of when the connection profile was last updated.
@@ -127,9 +127,9 @@ class ConnectionProfile:
     name: Optional[str] = None
     age: Optional[int] = None
     connection_context_block: Optional[str] = None
-    connection_app_ocr_text: Optional[List[str]] = field(default_factory=list)
+    connection_profile_text: Optional[List[str]] = field(default_factory=list)
     personality_traits: Optional[List[Dict[str, Any]]] = field(default_factory=list)
-    profile_photo_url: Optional[str] = None
+    connection_profile_pic_url: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     

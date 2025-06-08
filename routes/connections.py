@@ -180,6 +180,8 @@ def create_connection():
         else:
             form_data = request.form.to_dict()
         
+        connection_profile_pic_url = form_data.get("connection_profile_pic_url", "")
+        
         # Process profile content images (OCR)
         profile_content_texts = []
         content_images = _extract_image_bytes_from_request('profileContentImageBytes')
@@ -231,8 +233,9 @@ def create_connection():
         # Create the connection profile
         result = create_connection_profile(
             data=form_data,
-            connection_app_ocr_text_list=profile_content_texts,
-            personality_traits_list=personality_traits
+            connection_profile_text=profile_content_texts,
+            personality_traits_list=personality_traits,
+            connection_profile_pic_url=connection_profile_pic_url
         )
         
         return jsonify(result)
@@ -317,7 +320,7 @@ def update_connection():
             user_id=user_id,
             connection_id=connection_id,
             data=connection_context_block if connection_context_block else None,
-            connection_app_ocr_text_list=profile_content_texts,
+            connection_profile_text=profile_content_texts,
             updated_personality_traits=personality_traits
         )
         
@@ -624,10 +627,10 @@ def upload_face_photo():
             return jsonify({"error": "Connection profile not found"}), 404
 
         # Get the uploaded face photo
-        if 'face_photo' not in request.files:
+        if 'connection_profile_pic_url' not in request.files:
             return jsonify({"error": "No face photo provided"}), 400
         
-        face_photo_file = request.files['face_photo']
+        face_photo_file = request.files['connection_profile_pic_url']
         if not face_photo_file or not face_photo_file.filename:
             return jsonify({"error": "Invalid face photo file"}), 400
 
@@ -658,7 +661,7 @@ def upload_face_photo():
             doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
             
             update_data = {
-                'profile_photo_url': photo_url,
+                'connection_profile_pic_url': photo_url,
                 'updated_at': datetime.now(timezone.utc)
             }
             
@@ -669,7 +672,7 @@ def upload_face_photo():
             return jsonify({
                 "success": True,
                 "message": "Face photo uploaded successfully",
-                "photo_url": photo_url,
+                "connection_profile_pic_url": photo_url,
                 "connection_id": connection_id
             })
             
@@ -716,14 +719,14 @@ def delete_profile_photo():
                 return jsonify({"error": "Connection profile not found"}), 404
             
             current_data = current_doc.to_dict()
-            current_photo_url = current_data.get('profile_photo_url')
+            current_photo_url = current_data.get('connection_profile_pic_url')
             
             if not current_photo_url:
                 return jsonify({"error": "No profile photo to delete"}), 404
             
             # Remove the photo URL
             update_data = {
-                'profile_photo_url': None,
+                'connection_profile_pic_url': None,
                 'updated_at': datetime.now(timezone.utc)
             }
             
@@ -769,13 +772,12 @@ def get_profile_photo():
             return jsonify({"error": "Connection profile not found"}), 404
 
         profile_dict = connection_profile.to_dict()
-        profile_photo_url = profile_dict.get('profile_photo_url')
+        connection_profile_pic_url = profile_dict.get('connection_profile_pic_url')
         
         return jsonify({
             "success": True,
             "connection_id": connection_id,
-            "profile_photo_url": profile_photo_url,
-            "has_profile_photo": profile_photo_url is not None
+            "connection_profile_pic_url": connection_profile_pic_url
         })
         
     except Exception as e:
@@ -817,18 +819,12 @@ def create_connection_with_photos():
     
     # Process OCR images
     try:
-        ocr_files = request.files.getlist('connection_app_ocr_text_list[]')
-        connection_app_ocr_text_list = []
-        for file in ocr_files:
+        ocr_image_bytes = _extract_image_bytes_from_request('profileContentImageBytes')
+        connection_profile_text = []
+        for image_bytes in ocr_image_bytes:
             # Process each OCR image
-            file.seek(0)
-            file_bytes = file.read()
-            result = perform_ocr(file_bytes)
-            for text in result:
-                if text.strip():
-                    text = text.strip()
-                    if text not in connection_app_ocr_text_list:
-                        connection_app_ocr_text_list.append(text)
+            result = perform_ocr(image_bytes)
+            connection_profile_text.extend(result)
 
     except Exception as e:
         logger.error(f"Error getting OCR files: {e}", exc_info=True)
@@ -836,33 +832,46 @@ def create_connection_with_photos():
     
     # Process profile images (store them)
     try:
-        profile_files = request.files.getlist('profile_images[]')
+        profile_image_bytes = _extract_image_bytes_from_request('connectionPicsImageBytes')
         connection_traits = []
-        image_dict = [{}]
-        image_format = []
-        for file in profile_files:
-            image__bytes = _process_image_file(file, MAX_PROFILE_IMAGE_SIZE_BYTES, ALLOWED_CONTENT_IMAGE_EXTENSIONS)
-            image_format = file.filename.rsplit('.', 1)[1].lower() if image__bytes and file.filename else None
-            image_dict.append({
-                "bytes": image__bytes,
-                "content_type": f"image/{image_format}" if image_format else "image/jpeg"
-            })
+        image_dict = []
+        for image_bytes in profile_image_bytes:
+            try:
+                # Use PIL to determine the image format from bytes
+                img = Image.open(io.BytesIO(image_bytes))
+                image_format = img.format.lower() if img.format else "jpeg"
+                image_dict.append({
+                    "bytes": image_bytes,
+                    "content_type": f"image/{image_format}"
+                })
+            except Exception as e:
+                logger.error(f"Error processing image bytes: {e}")
+                # Fallback to default format
+                image_dict.append({
+                    "bytes": image_bytes,
+                    "content_type": "image/jpeg"
+                })
         connection_traits = infer_personality_traits_from_openai_vision(image_dict)
     except Exception as e:
         logger.error(f"Error getting profile images: {e}", exc_info=True)
         return jsonify({"error": "Failed to get profile images"}), 500
     
 
-    profile_pic_url = ""
-    if request.form.get('connection_profile_pic') and request.form.get('connection_profile_pic') != "":
-        profile_pic_url = request.form.get('connection_profile_pic')
+    connection_profile_pic_url = ""
+    if request.form.get('connection_profile_pic_url') and request.form.get('connection_profile_pic_url') != "":
+        connection_profile_pic_url = request.form.get('connection_profile_pic_url')
     else:
-        profile_pic_url = ""
+        connection_profile_pic_url = ""
 
     # Create connection in database
-    connection = create_connection_profile(connection_data, connection_app_ocr_text_list, connection_traits, profile_pic_url or "")
+    try:
+        connection = create_connection_profile(connection_data, connection_profile_text, connection_traits, connection_profile_pic_url or "")
+        return jsonify({
+            'connection_id': connection_id,
+            'message': 'Connection created successfully'
+        }), 201
+    except Exception as e:
+        logger.error(f"Error creating connection profile: {e}", exc_info=True)
+        return jsonify({"error": "Failed to create connection profile"}), 500
 
-    return jsonify({
-        'connection_id': connection_id,
-        'message': 'Connection created successfully'
-    }), 201
+    

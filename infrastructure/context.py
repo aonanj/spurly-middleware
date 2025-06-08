@@ -28,7 +28,7 @@ def get_active_user() -> UserProfile:
         active_user: User profile of the current user
             UserProfile object
     """
-    return getattr(g, "active_user")
+    return getattr(g, "user_id")
 
 def set_active_connection(connection_profile):
     """
@@ -72,12 +72,18 @@ def load_user_context():
     """
     try:
         user_id = request.headers.get("X-User-ID")
-        if user_id:
+        if user_id is None or user_id.strip() == "":
+            user_id = getattr(g, "user_id", None)  # fallback to g.user_id if present
+
+        if user_id and user_id.strip() != "":
             user_profile = get_user(user_id)
             if user_profile:
                 set_active_user(user_profile)
+        else:
+            logger.error(f"[%s] Missing or invalid X-User-ID header", __name__)
+            raise RuntimeError(f"Missing or invalid X-User-ID header [%s]" % __name__)
     except Exception as e:
-        logger.error("[%s] Error: %s Load user profile into app context failed", __name__, e)
+        logger.error(f"[%s] Error: %s Load user profile into app context failed", __name__, e)
         raise RuntimeError(f"Failed to load user profile into app context: {e}") from e      
 
 def require_user_context():
