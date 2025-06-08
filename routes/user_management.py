@@ -43,6 +43,10 @@ def update_user_bp():
 def get_user_bp():
     try:
         user_id = getattr(g, "user_id", None)
+        if user_id is None:
+            err_point = __package__ or __name__
+            logger.error(f"Error: User ID is None in {err_point}")
+            return jsonify({"error": f"[{err_point}] - Error"}), 400
         profile = get_user(user_id)
         return jsonify(profile), 200
     except Exception as e:

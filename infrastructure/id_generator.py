@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 # connection_id_indicator = current_app.config['CONNECTION_ID_INDICATOR']
 # spur_id_indicator = current_app.config['SPUR_ID_INDICATOR']
 
-def __generate_random_string(length: int) -> str:
+def _generate_random_string(length: int) -> str:
 	"""
 	Generates a random string of fixed length.
 	
@@ -32,22 +32,6 @@ def __generate_random_string(length: int) -> str:
 	random_string = ''.join(random.choice(letters) for i in range(length))
 	return random_string
 
-def generate_user_id(id_token: str) -> str:
-	"""
-	Gets the user id from context.
-	
-	Args
-		id_token: Firebase ID token to verify
-			str
-	
-	Return
-		user_id: provided user_id
-			str
-
-	"""
-	decoded_token = verify_firebase_token(id_token)
-	setattr(g, "user_id", decoded_token['user_id'])  # set user_id in context for later use
-	return decoded_token['user_id']
 
 def generate_anonymous_user_id() -> str:
 	"""
@@ -113,7 +97,7 @@ def generate_conversation_id(user_id="") -> str:
 
 	"""
 	conversation_id_indicator = os.getenv('CONVERSATION_ID_INDICATOR') or current_app.config['CONVERSATION_ID_INDICATOR']
-	conversation_id_stub = __generate_random_string(6)  # 6 characters for conversation_id_stub
+	conversation_id_stub = _generate_random_string(6)  # 6 characters for conversation_id_stub
 	if user_id:
 		return (f"{user_id}:{conversation_id_stub}:{conversation_id_indicator}").lower()
 	else:
@@ -121,7 +105,7 @@ def generate_conversation_id(user_id="") -> str:
 		return (f":{conversation_id_stub}:{conversation_id_indicator}").lower()
 
 	 
-def generate_connection_id(user_id="") -> str:
+def generate_connection_id(user_id: str) -> str:
 	"""
 	Generates a string for ID of a connection. User ID associated with the connection is prepended, connection_id_indicator is appended
 
@@ -133,13 +117,10 @@ def generate_connection_id(user_id="") -> str:
 		connection_id: Connection ID, beginning with "u:" and ending with ":p"
 			str
 	"""
-	connection_id_indicator = os.getenv('CONNECTION_ID_INDICATOR') or getattr(g, "connection_id", current_app.config['CONNECTION_ID_INDICATOR'])
-	connection_id_stub = __generate_random_string(6)
+	connection_id_indicator = os.getenv('CONNECTION_ID_INDICATOR') or "p"
+	connection_id_stub = _generate_random_string(6)
 	if user_id and connection_id_indicator:
 		return (f"{user_id}:{connection_id_stub}:{connection_id_indicator}").lower()
-	elif not user_id:
-		uid = getattr(g, "user_id", None)
-		return (f"{uid}:{connection_id_stub}:{connection_id_indicator}").lower()
 	else:	
 		logger.error("Error: Missing user_id for connection_id generation")		 
 		return (f":{connection_id_stub}:{connection_id_indicator}").lower()
@@ -197,8 +178,8 @@ def generate_spur_id(user_id="") -> str:
 		spur_id: Spur ID, beginning with "u:" and ending with ":s"
 			str
 	"""
-	spur_id_indicator = os.getenv('SPUR_ID_INDICATOR') or current_app.config['SPUR_ID_INDICATOR']
-	spur_id_stub = __generate_random_string(6)  # 7 characters for spur_id_stub
+	spur_id_indicator = os.getenv('SPUR_ID_INDICATOR') or "s"
+	spur_id_stub = _generate_random_string(6)  # 7 characters for spur_id_stub
 	if user_id:
 		return (f"{user_id}:{spur_id_stub}:{spur_id_indicator}").lower()
 	elif not user_id:

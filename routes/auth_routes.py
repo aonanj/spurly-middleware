@@ -10,7 +10,6 @@ from firebase_admin import credentials
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
-from infrastructure.id_generator import generate_user_id
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -97,7 +96,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
     """
 
     if not getattr(g, "user_id", None):
-        setattr(g, "user_id", generate_user_id(firebase_id_token))
+        setattr(g, "user_id", firebase_user['user_id'])  # Ensure user_id is set from token
     current_app.config['user_id'] = getattr(g, "user_id")
 
     user = get_user(getattr(g, "user_id"))
