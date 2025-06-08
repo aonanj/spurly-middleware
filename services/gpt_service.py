@@ -203,7 +203,7 @@ def generate_spurs(
             if user_profile_dict.get("user_id"):
                 user_id = user_profile_dict["user_id"]           
             else:
-                user_id = getattr(g, "user_id")
+                user_id = ""
 
             for variant, _id_key in variant_keys.items():
                 spur_text: str = validated_output.get(variant, "")

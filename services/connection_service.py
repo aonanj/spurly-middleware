@@ -36,7 +36,7 @@ def create_connection_profile(
     personality_traits_list: Optional[List[Dict[str, Any]]] = None, connection_profile_pic_url: str = "") -> Dict:
     
     
-    user_id = getattr(g, "user_id", None)
+    user_id = data['user_id']
     if not user_id:
         logger.error("Error: Cannot create connection profile - missing user ID in g.user")
         return {"error": "Authentication error: User ID not available."}

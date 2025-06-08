@@ -9,6 +9,8 @@ from typing import Dict, Optional, Tuple, Any
 import jwt
 import jwt.algorithms
 import requests
+import firebase_auth
+import firebase_admin.auth# Firebase Admin SDK for token verification
 from flask import Blueprint, request, jsonify, current_app, g
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -308,16 +310,14 @@ def create_jwt_token(user_id: str, email: str, name: Optional[str] = None,
     
     return access_token, refresh_token
 
-def get_or_create_user(provider: str, provider_user_id: str, email: str, 
+def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email: str, 
                       name: Optional[str] = None) -> Dict[str, Any]:
     """Get or create user in database"""
     # Import your user model/service here
     # from models.user import User
     # from services.user_service import UserService
 
-    setattr(g, "provider_user_id", provider_user_id)
-    current_app.config['user_id'] = getattr(g, "user_id", None)
-    user_id = getattr(g, "user_id", "")
+    user_id = user_id
 
     user = get_user(user_id)
     if user:
@@ -326,16 +326,17 @@ def get_or_create_user(provider: str, provider_user_id: str, email: str,
         if name and name != user.name:
             user_data['name'] = name
         user_data['auth_provider'] = provider
-        user_data['auth_provider_id'] = getattr(g, "user_id", None)  # Use Firebase UID as provider ID
+        user_data['auth_provider_id'] = provider_user_id  # Use Firebase UID as provider ID
         if email and email != user.email:
             user_data['email'] = email
         user_profile = update_user(**user_data)
     else:
         # Create new user
         user_profile = create_user(
+            user_id=user_id,
             email=email,
             auth_provider=provider,
-            auth_provider_id=getattr(g, "user_id"),
+            auth_provider_id=provider_user_id,
             name=name,
         )
     
@@ -373,7 +374,9 @@ def google_auth():
         raise ValidationError("Email not found in token")
     
     # Get or create user
+
     user_data = get_or_create_user(
+        user_id=google_user_id,
         provider='google',
         provider_user_id=google_user_id,
         email=email,
@@ -444,6 +447,7 @@ def apple_auth():
     
     # Get or create user
     user_data = get_or_create_user(
+        user_id=apple_user_id,
         provider='apple',
         provider_user_id=apple_user_id,
         email=email,
@@ -505,6 +509,7 @@ def facebook_auth():
     
     # Get or create user
     user_data = get_or_create_user(
+        user_id=facebook_user_id,
         provider='facebook',
         provider_user_id=facebook_user_id,
         email=email,

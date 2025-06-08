@@ -114,6 +114,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
     else:
         # Create new user
         user_profile = create_user(
+            user_id=getattr(g, "user_id"),
             email=firebase_user['email'],
             auth_provider='password',
             auth_provider_id=getattr(g, "user_id"),  # Use Firebase UID as provider ID

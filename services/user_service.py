@@ -5,7 +5,6 @@ from firebase_admin import auth
 from flask import current_app, g
 from infrastructure.clients import get_firestore_db
 from infrastructure.logger import get_logger
-from infrastructure.id_generator import generate_user_id
 from class_defs.profile_def import UserProfile
 
 logger = get_logger(__name__)
@@ -93,7 +92,7 @@ def get_user_by_email(email: str) -> Optional[UserProfile]:
         logger.error(f"Error getting user by email {email}: {str(e)}", exc_info=True)
         return None
 
-def create_user(
+def create_user(user_id: str,
     email: str,
     auth_provider: str,
     auth_provider_id: str,
@@ -129,7 +128,7 @@ def create_user(
         raise ValueError(f"UserProfile already exists with {auth_provider}/{auth_provider_id}")
     
     # Generate a new user ID
-    user_id = getattr(g, "user_id", None)
+    user_id = user_id
     if not user_id:
         user_id = ""
     
@@ -301,6 +300,7 @@ def delete_user(user_id: str) -> Dict[str, str]:
         raise ValueError(f"Failed to delete user: {str(e)}")
 
 def get_or_create_user_from_auth(
+    user_id: str,
     email: str,
     auth_provider: str,
     auth_provider_id: str,
@@ -342,6 +342,7 @@ def get_or_create_user_from_auth(
     
     # Create new user
     return create_user(
+        user_id=user_id,
         email=email,
         auth_provider=auth_provider,
         auth_provider_id=auth_provider_id,

@@ -542,8 +542,7 @@ def save_conversation(data: Conversation) -> Dict[str, str]:
         Status dict with success message and conversation_id
     """
     # Ensure user_id is set from global context if not in data
-    if hasattr(g, 'user_id') and not data.user_id:
-        data.user_id = getattr(g, "user_id")
+
         
     return _storage.save_conversation(data)
 
