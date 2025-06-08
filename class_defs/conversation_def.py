@@ -24,7 +24,7 @@ class Conversation:
     conversation_id: str
     created_at: datetime
     conversation: List[Dict[str, Any]] = attr_field(default_factory=list) 
-    spurs: Optional[Dict[str, Any]] = attr_field(default_factory=dict) 
+    spurs: Optional[Dict[str, Any]] = attr_field(default_factory=lambda: {}) 
     connection_id: Optional[str] = None
     situation: Optional[str] = None
     topic: Optional[str] = None

@@ -1,11 +1,10 @@
-from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from infrastructure.id_generator import get_null_connection_id
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
-from utils.middleware import enrich_context, validate_profile, sanitize_topic
+from utils.middleware import enrich_context, sanitize_topic
 
 generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)

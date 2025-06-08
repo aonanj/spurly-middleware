@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Tuple, Any
 
 import firebase_admin
-from firebase_admin import auth as firebase_auth
+from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
 import requests
@@ -72,7 +72,7 @@ def validate_email(email: str) -> bool:
     return bool(EMAIL_REGEX.match(email))
 
 def _get_user_id_from_token(id_token):
-    decoded_token = firebase_auth.verify_id_token(id_token)
+    decoded_token = firebase_admin_auth.verify_id_token(id_token)
     return decoded_token['uid']
 
 def create_jwt_token(user_id: str, email: str, name: Optional[str] = None, 
@@ -130,7 +130,7 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
         if not admin_app:
             raise AuthError("Firebase Admin SDK is not initialized", 500)
 
-        decoded_token = firebase_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
+        decoded_token = firebase_admin_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
         setattr(g, "user_id", decoded_token['uid'])  # Store token in Flask global for later use
         return {
             'user_id': decoded_token['uid'],
@@ -138,13 +138,13 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             'name': decoded_token.get('name'),
             'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         }
-    except firebase_auth.ExpiredIdTokenError as e:
+    except firebase_admin_auth.ExpiredIdTokenError as e:
         logger.error(f"Firebase token has expired: {str(e)}")
         raise AuthError("Firebase token has expired", 401)
-    except firebase_auth.RevokedIdTokenError as e:
+    except firebase_admin_auth.RevokedIdTokenError as e:
         logger.error(f"Firebase token has been revoked: {str(e)}")
         raise AuthError("Firebase token has been revoked", 401)
-    except firebase_auth.InvalidIdTokenError as e: 
+    except firebase_admin_auth.InvalidIdTokenError as e: 
         # This is the key exception for "invalid token" issues.
         # The error message 'e' often contains the specific reason.
         logger.error(f"FIREBASE_TOKEN_IS_INVALID: {str(e)}") 

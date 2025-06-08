@@ -140,8 +140,10 @@ def save_connection():
         
         user_id = getattr(g, "user_id", None)
         if not user_id:
-            return jsonify({"error": "Authentication error"}), 401
-            
+            user_id = data.get("user_id")
+            if not user_id:
+                return jsonify({"error": "Authentication error"}), 401
+
         # Ensure user_id from auth is used
         if 'user_id' in data and data['user_id'] != user_id:
             logger.warning(f"User ID mismatch. Authenticated: {user_id}, Provided: {data['user_id']}")
@@ -179,9 +181,9 @@ def create_connection():
             form_data = request.get_json()
         else:
             form_data = request.form.to_dict()
-        
         connection_profile_pic_url = form_data.get("connection_profile_pic_url", "")
-        
+        form_data.update({'user_id': user_id})  # Ensure user_id is included in form data
+
         # Process profile content images (OCR)
         profile_content_texts = []
         content_images = _extract_image_bytes_from_request('profileContentImageBytes')

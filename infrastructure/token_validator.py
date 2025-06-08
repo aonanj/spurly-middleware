@@ -1,13 +1,17 @@
 import jwt
 from functools import wraps
-from flask import request, g, jsonify, current_app
-import logging
-from typing import Dict, Any
+from flask import request, g, jsonify
 from infrastructure.logger import get_logger
-from routes.profile_routes import AuthError  
 import os
 
 logger = get_logger(__name__)
+
+class AuthError(Exception):
+    """Custom authentication error"""
+    def __init__(self, message: str, status_code: int = 401):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
 
 def verify_token(f):
     """Decorator to verify JWT token"""
