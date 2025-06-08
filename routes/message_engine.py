@@ -46,8 +46,6 @@ def generate():
     situation = data.get("situation", "")
     topic = data.get("topic", "")
 
-    ## DEBUG
-    logger.error(f"message_engine.py -- data: {str(data)}")
     profile_ocr_texts_from_request = data.get("profile_ocr_texts") # Defaults to None if not present
 
     if not connection_id:
@@ -70,11 +68,9 @@ def generate():
         topic=topic,
         profile_ocr_texts=profile_ocr_texts_from_request,       # Pass new data
     )
-    ## DEBUG 
-    logger.error(f"message_engine.py -- spur_objs: {str(spur_objs)}")
+  
     spurs = [spur.to_dict() for spur in spur_objs]
-    ## DEBUG
-    logger.error(f"message_engine.py -- spurs: {str(spurs)}")
+
     return jsonify({
         "user_id": user_id,
         "spurs": spurs,

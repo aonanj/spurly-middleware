@@ -129,7 +129,9 @@ def create_user(
         raise ValueError(f"UserProfile already exists with {auth_provider}/{auth_provider_id}")
     
     # Generate a new user ID
-    user_id = getattr(g, "user_id", None) or generate_user_id()
+    user_id = getattr(g, "user_id", None)
+    if not user_id:
+        user_id = ""
     
     # Use default spur variants if none provided
     if selected_spurs is None:

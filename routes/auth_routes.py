@@ -10,6 +10,7 @@ from firebase_admin import credentials
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
+from infrastructure.id_generator import generate_user_id
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -36,6 +37,10 @@ def validate_email(email: str) -> bool:
     """Validate email format"""
     return bool(EMAIL_REGEX.match(email))
 
+def _get_user_id_from_token(id_token):
+    decoded_token = firebase_auth.verify_id_token(id_token)
+    return decoded_token['uid']
+
 def verify_firebase_token(id_token: str) -> Dict[str, Any]:
     """
     Verify Firebase ID token and extract user information
@@ -57,8 +62,9 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             raise AuthError("Firebase Admin SDK is not initialized", 500)
 
         decoded_token = firebase_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
+        setattr(g, "user_id", decoded_token['uid'])  # Store token in Flask global for later use
         return {
-            'user_id': decoded_token['user_id'],
+            'user_id': decoded_token['uid'],
             'email': decoded_token.get('email'),
             'name': decoded_token.get('name'),
             'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
@@ -79,7 +85,7 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
         raise AuthError(f"Unable to verify authentication token due to an unexpected error: {str(e)}", 401)
 
 
-def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[str, Any]:
+def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_id_token) -> Dict[str, Any]:
     """
     Create or update user from Firebase authentication data
     
@@ -91,10 +97,10 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[s
     """
 
     if not getattr(g, "user_id", None):
-        setattr(g, "user_id", firebase_user['user_id'])
+        setattr(g, "user_id", generate_user_id(firebase_id_token))
     current_app.config['user_id'] = getattr(g, "user_id")
 
-    user = get_user(firebase_user['user_id'])
+    user = get_user(getattr(g, "user_id"))
     if user:
         user_data = {}
         user_data['user_id'] = getattr(g, "user_id")
@@ -110,7 +116,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any]) -> Dict[s
         user_profile = create_user(
             email=firebase_user['email'],
             auth_provider='password',
-            auth_provider_id=firebase_user['user_id'], 
+            auth_provider_id=getattr(g, "user_id"),  # Use Firebase UID as provider ID
             name=firebase_user.get('name', ''),# Use Firebase UID as provider ID
         )
     
@@ -139,6 +145,7 @@ def firebase_register():
     try:
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
+        setattr(g, "user_id", firebase_user['uid']) 
         
         # Validate that this is a new registration (not a social login)
         if firebase_user['provider'] != 'password':
@@ -152,7 +159,7 @@ def firebase_register():
             raise ValidationError("User already registered")
 
         # Create or update user in your database
-        user_data = create_or_update_user_from_firebase(firebase_user)
+        user_data = create_or_update_user_from_firebase(firebase_user, firebase_id_token)
         
         # Create your own JWT tokens
         access_token, refresh_token = create_jwt_token(
@@ -205,10 +212,11 @@ def firebase_login():
     try:
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
-        
+        setattr(g, "user_id", firebase_user['uid']) 
+              
         # Create or update user in your database
-        user_data = get_user(firebase_user['user_id'])
-        
+        user_data = get_user(firebase_user['uid'])
+ 
         if not user_data:
             raise AuthError("User not found. Please register first.", 404)
 

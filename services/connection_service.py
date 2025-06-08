@@ -33,7 +33,9 @@ def create_connection_profile(
     # images: Optional[List[bytes]] = None, # This was for the old trait system from generic images
     # links: Optional[List[str]] = None,    # This is being removed
     connection_app_ocr_text_list: Optional[List[str]] = None,
-    personality_traits_list: Optional[List[Dict[str, Any]]] = None) -> Dict:
+    personality_traits_list: Optional[List[Dict[str, Any]]] = None, profile_pic_url: str = "") -> Dict:
+    
+    
     user_id = getattr(g, "user_id", None)
     if not user_id:
         logger.error("Error: Cannot create connection profile - missing user ID in g.user")
@@ -50,7 +52,7 @@ def create_connection_profile(
     profile_data_to_save = profile.to_dict()
 
     # OCR'd text content
-    profile_data_to_save["connection_app_ocr_text"] = connection_app_ocr_text_list if connection_app_ocr_text_list is not None else []
+    profile_data_to_save["connection_app_ocr_text_list"] = connection_app_ocr_text_list if connection_app_ocr_text_list is not None else []
 
     # Personality traits from profile pictures (using OpenAI Vision)
 
@@ -58,17 +60,14 @@ def create_connection_profile(
     profile_data_to_save["personality_traits"] = get_top_n_traits(personality_traits_list or [], 5)
 
     profile_data_to_save["connection_context_block"] = data.get("connection_context_block", None)
+    profile_data_to_save["profile_pic_url"] = profile_pic_url
 
     try:
         db = get_firestore_db()  # Ensure Firestore client is initialized
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
         logger.info(f"Connection profile {connection_id} created for user {user_id}.")
         saved_profile_object = ConnectionProfile.from_dict(profile_data_to_save)
-        return {
-            "status": "connection profile created",
-            "connection_id": connection_id,
-            "connection_profile_summary": format_connection_profile(saved_profile_object)
-        }
+        return profile_data_to_save
     except Exception as e:
         logger.error("Error creating connection profile in Firestore for user %s: %s", user_id, e, exc_info=True)
         return {"error": f"Cannot create connection profile due to storage error: {str(e)}"}

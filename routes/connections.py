@@ -781,3 +781,88 @@ def get_profile_photo():
     except Exception as e:
         logger.error(f"Error in get_profile_photo: {e}", exc_info=True)
         return jsonify({"error": "Failed to get profile photo"}), 500
+
+@connection_bp.route('connections/create_multipart_form', methods=['POST'])
+@verify_token
+@handle_errors
+def create_connection_with_photos():
+    """
+    Create a new connection with multipart form data
+    Expects:
+    - connection_id (text)
+    - connection_name (text)
+    - connection_age (text/number)
+    - connection_context_block (text)
+    - connection_face_photo_url (text, optional)
+    - ocr_images[] (files)
+    - profile_images[] (files)
+    """
+    user_id = getattr(g, "user_id", None)
+    connection_id = request.form.get('connection_id')
+    
+    
+    # Get form data
+    connection_data = {
+        'user_id': user_id,
+        'connection_id': connection_id,
+        'connection_name': request.form.get('connection_name'),
+        'connection_age': request.form.get('connection_age'),
+        'connection_context_block': request.form.get('connection_context_block'),
+       
+    }
+    
+    # Validate required fields
+    if not connection_data['connection_id']:
+        return jsonify({"error": "Missing connection_id"}), 400
+    
+    # Process OCR images
+    try:
+        ocr_files = request.files.getlist('connection_app_ocr_text_list[]')
+        connection_app_ocr_text_list = []
+        for file in ocr_files:
+            # Process each OCR image
+            file.seek(0)
+            file_bytes = file.read()
+            result = perform_ocr(file_bytes)
+            for text in result:
+                if text.strip():
+                    text = text.strip()
+                    if text not in connection_app_ocr_text_list:
+                        connection_app_ocr_text_list.append(text)
+
+    except Exception as e:
+        logger.error(f"Error getting OCR files: {e}", exc_info=True)
+        return jsonify({"error": "Failed to get OCR files"}), 500
+    
+    # Process profile images (store them)
+    try:
+        profile_files = request.files.getlist('profile_images[]')
+        connection_traits = []
+        image_dict = [{}]
+        image_format = []
+        for file in profile_files:
+            image__bytes = _process_image_file(file, MAX_PROFILE_IMAGE_SIZE_BYTES, ALLOWED_CONTENT_IMAGE_EXTENSIONS)
+            image_format = file.filename.rsplit('.', 1)[1].lower() if image__bytes and file.filename else None
+            image_dict.append({
+                "bytes": image__bytes,
+                "content_type": f"image/{image_format}" if image_format else "image/jpeg"
+            })
+        connection_traits = infer_personality_traits_from_openai_vision(image_dict)
+    except Exception as e:
+        logger.error(f"Error getting profile images: {e}", exc_info=True)
+        return jsonify({"error": "Failed to get profile images"}), 500
+    
+
+    profile_pic_url = ""
+    if request.form.get('connection_profile_pic') and request.form.get('connection_profile_pic') != "":
+        profile_pic_url = request.form.get('connection_profile_pic')
+    else:
+        profile_pic_url = ""
+
+    # Create connection in database
+    connection = create_connection_profile(connection_data, connection_app_ocr_text_list, connection_traits, profile_pic_url or "")
+
+    return jsonify({
+        'connection_id': connection_id,
+        'message': 'Connection created successfully'
+    }), 201
