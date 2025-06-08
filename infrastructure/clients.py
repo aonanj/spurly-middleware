@@ -11,7 +11,6 @@ import os
 # Use relative import if logger is in the same directory
 from google.cloud import vision
 from google.cloud.firestore import Client as FirestoreClient
-import firebase_auth
 from .logger import get_logger 
 # --- Global Client Variables ---
 # Initialize clients to None initially
@@ -46,7 +45,6 @@ def init_clients(app):
                  raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716-a5.firebasestorage.app'})
-            firebase_auth.initialize_app(app)  # Initialize Firebase Auth for Flask app
             logger.info("Firebase Admin initialized.")
         else:
              logger.info("Firebase Admin already initialized.")
