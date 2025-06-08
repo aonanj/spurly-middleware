@@ -1,22 +1,20 @@
-from class_defs.conversation_def import Conversation
+from datetime import datetime, timezone
+from flask import current_app
+import openai
+from typing import Optional
 from class_defs.profile_def import ConnectionProfile, UserProfile
 from class_defs.spur_def import Spur
-from datetime import datetime, timezone
-from flask import current_app, g
-from infrastructure.clients import get_openai_client
-from infrastructure.id_generator import generate_spur_id
 from infrastructure.logger import get_logger
-from infrastructure.id_generator import get_null_connection_id
-from services.connection_service import format_connection_profile, get_connection_profile, get_active_connection_firestore
+from infrastructure.clients import get_openai_client
+from infrastructure.id_generator import generate_spur_id, get_null_connection_id
+from services.connection_service import get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
-from services.user_service import update_user_profile, get_user
-from utils.filters import apply_phrase_filter, apply_tone_overrides
+from services.user_service import get_user
 from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt
 from utils.trait_manager import infer_tone, infer_situation
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
-import openai
-from typing import Optional
+
 
 logger = get_logger(__name__)
 

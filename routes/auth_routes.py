@@ -6,9 +6,10 @@ from typing import Dict, Optional, Tuple, Any
 
 import firebase_admin
 from firebase_admin import auth as firebase_auth
-from firebase_admin import credentials
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
+import requests
+import jwt
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 
 # Create blueprint
@@ -17,12 +18,6 @@ auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
 logger = logging.getLogger(__name__)
 
 # Import shared functions from social_auth.py
-from .social_auth import (
-    AuthError,
-    ValidationError,
-    handle_auth_errors,
-    create_jwt_token,
-)
 
 # Initialize Firebase Admin SDK (do this once in your app initialization)
 # Make sure to set the path to your service account key file
@@ -32,6 +27,46 @@ from .social_auth import (
 # Email validation regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
+
+class AuthError(Exception):
+    """Custom authentication error"""
+    def __init__(self, message: str, status_code: int = 401):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+class ValidationError(Exception):
+    """Custom validation error"""
+    def __init__(self, message: str, status_code: int = 400):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+
+def handle_auth_errors(f):
+    """Decorator to handle authentication errors"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except AuthError as e:
+            logger.warning(f"Authentication error in {f.__name__}: {e.message}")
+            return jsonify({"error": e.message}), e.status_code
+        except ValidationError as e:
+            logger.warning(f"Validation error in {f.__name__}: {e.message}")
+            return jsonify({"error": e.message}), e.status_code
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token has expired"}), 401
+        except jwt.InvalidTokenError as e:
+            logger.warning(f"Invalid token in {f.__name__}: {str(e)}")
+            return jsonify({"error": "Invalid token"}), 401
+        except requests.RequestException as e:
+            logger.error(f"External API error in {f.__name__}: {str(e)}")
+            return jsonify({"error": "External service temporarily unavailable"}), 503
+        except Exception as e:
+            logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")
+            return jsonify({"error": "Internal server error"}), 500
+    return decorated_function
+
 def validate_email(email: str) -> bool:
     """Validate email format"""
     return bool(EMAIL_REGEX.match(email))
@@ -39,6 +74,41 @@ def validate_email(email: str) -> bool:
 def _get_user_id_from_token(id_token):
     decoded_token = firebase_auth.verify_id_token(id_token)
     return decoded_token['uid']
+
+def create_jwt_token(user_id: str, email: str, name: Optional[str] = None, 
+                    provider: Optional[str] = None) -> Tuple[str, str]:
+    """Create JWT access and refresh tokens"""
+    secret_key = os.environ.get('JWT_SECRET_KEY')
+    if not secret_key:
+       raise AuthError("JWT configuration missing", 500)
+    
+    now = datetime.now(timezone.utc)
+    
+    # Access token payload (short-lived)
+    access_payload = {
+        'user_id': user_id,
+        'email': email,
+        'name': name,
+        'provider': provider,
+        'type': 'access',
+        'iat': now,
+        'exp': now + timedelta(hours=3),
+        'jti': os.urandom(16).hex()  # Unique token ID
+    }
+    
+    # Refresh token payload (long-lived)
+    refresh_payload = {
+        'user_id': user_id,
+        'type': 'refresh',
+        'iat': now,
+        'exp': now + timedelta(days=30),
+        'jti': os.urandom(16).hex()
+    }
+    
+    access_token = jwt.encode(access_payload, secret_key, algorithm='HS256')
+    refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
+    
+    return access_token, refresh_token
 
 def verify_firebase_token(id_token: str) -> Dict[str, Any]:
     """

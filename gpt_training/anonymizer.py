@@ -2,10 +2,9 @@ from class_defs.conversation_def import Conversation
 from class_defs.spur_def import Spur
 from datetime import datetime, timezone
 from flask import current_app, jsonify
+from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
-from infrastructure.logger import get_logger
-from services.connection_service import get_connection_profile
 from services.user_service import get_user
 
 logger = get_logger(__name__)

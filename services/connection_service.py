@@ -1,13 +1,11 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
 from flask import current_app, g # jsonify removed as it's not typical for service layer
+
+from typing import List, Dict, Optional, Any
+from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
-from infrastructure.logger import get_logger
-from typing import List, Dict, Optional, Any
-from utils.trait_manager import (
-    infer_personality_traits_from_openai_vision)
-from services.storage_service import upload_profile_image # Ensure this path is correct
 
 logger = get_logger(__name__)
 

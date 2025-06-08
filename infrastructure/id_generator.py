@@ -1,11 +1,11 @@
-from flask import current_app, g
+from flask import current_app
 from .logger import get_logger
 from uuid import uuid4
 import random
 import string
 import os
-from firebase_admin import auth
-from routes.auth_routes import verify_firebase_token
+
+
 
 logger = get_logger(__name__)
 
@@ -141,9 +141,6 @@ def get_null_connection_id(user_id="") -> str:
 	null_connection_id = os.getenv('NULL_CONNECTION_ID') or current_app.config['NULL_CONNECTION_ID']
 	if user_id:
 		return (f"{user_id}:{null_connection_id}").lower()
-	elif not user_id:
-		uid = getattr(g, "user_id", None)
-		return (f"{uid}:{null_connection_id}").lower()
 	else:
 		logger.error("Error: Missing user_id for connection_id generation")		 
 		return null_connection_id.lower()

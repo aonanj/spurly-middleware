@@ -2,10 +2,11 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 from firebase_admin import auth
-from flask import current_app, g
-from infrastructure.clients import get_firestore_db
+from flask import current_app
 from infrastructure.logger import get_logger
 from class_defs.profile_def import UserProfile
+from infrastructure.clients import get_firestore_db
+
 
 logger = get_logger(__name__)
 

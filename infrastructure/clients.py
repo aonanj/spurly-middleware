@@ -2,16 +2,16 @@
 
 from algoliasearch.search.client import SearchClientSync
 import firebase_admin
-from firebase_admin import initialize_app, firestore, get_app, credentials
-from flask import current_app
+from firebase_admin import firestore, credentials
 from google.oauth2 import service_account
 import openai
 import os
 
 # Local application imports
-from .logger import get_logger # Use relative import if logger is in the same directory
+# Use relative import if logger is in the same directory
 from google.cloud import vision
 from google.cloud.firestore import Client as FirestoreClient
+from .logger import get_logger 
 # --- Global Client Variables ---
 # Initialize clients to None initially
 

@@ -1,7 +1,4 @@
-from class_defs.profile_def import UserProfile, ConnectionProfile
-from flask import request, jsonify, g
 from infrastructure.logger import get_logger
-from services.user_service import get_user
 
 logger = get_logger(__name__)
 

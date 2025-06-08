@@ -9,15 +9,9 @@ from typing import Dict, Optional, Tuple, Any
 import jwt
 import jwt.algorithms
 import requests
-import firebase_auth
-import firebase_admin.auth# Firebase Admin SDK for token verification
 from flask import Blueprint, request, jsonify, current_app, g
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.backends import default_backend
-from cryptography.x509 import load_pem_x509_certificate
 
 from services.user_service import get_user, update_user, create_user
 
