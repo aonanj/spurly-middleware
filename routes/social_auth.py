@@ -317,11 +317,12 @@ def get_or_create_user(provider: str, provider_user_id: str, email: str,
 
     setattr(g, "provider_user_id", provider_user_id)
     current_app.config['user_id'] = getattr(g, "user_id", None)
+    user_id = getattr(g, "user_id", "")
 
-    user = get_user(provider_user_id)
+    user = get_user(user_id)
     if user:
         user_data = {}
-        user_data['user_id'] = getattr(g, "user_id", None)
+        user_data['user_id'] = user_id
         if name and name != user.name:
             user_data['name'] = name
         user_data['auth_provider'] = provider

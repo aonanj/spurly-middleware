@@ -145,7 +145,7 @@ def firebase_register():
     try:
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
-        setattr(g, "user_id", firebase_user['uid']) 
+        setattr(g, "user_id", firebase_user['user_id']) 
         
         # Validate that this is a new registration (not a social login)
         if firebase_user['provider'] != 'password':
@@ -212,10 +212,10 @@ def firebase_login():
     try:
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
-        setattr(g, "user_id", firebase_user['uid']) 
+        setattr(g, "user_id", firebase_user['user_id']) 
               
         # Create or update user in your database
-        user_data = get_user(firebase_user['uid'])
+        user_data = get_user(firebase_user['user_id'])
  
         if not user_data:
             raise AuthError("User not found. Please register first.", 404)

@@ -5,6 +5,7 @@ import random
 import string
 import os
 from firebase_admin import auth
+from routes.auth_routes import verify_firebase_token
 
 logger = get_logger(__name__)
 
@@ -44,9 +45,9 @@ def generate_user_id(id_token: str) -> str:
 			str
 
 	"""
-	decoded_token = auth.verify_id_token(id_token)
-	setattr(g, "user_id", decoded_token['uid'])  # set user_id in context for later use
-	return decoded_token['uid']
+	decoded_token = verify_firebase_token(id_token)
+	setattr(g, "user_id", decoded_token['user_id'])  # set user_id in context for later use
+	return decoded_token['user_id']
 
 def generate_anonymous_user_id() -> str:
 	"""
