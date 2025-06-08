@@ -784,7 +784,7 @@ def get_profile_photo():
         logger.error(f"Error in get_profile_photo: {e}", exc_info=True)
         return jsonify({"error": "Failed to get profile photo"}), 500
 
-@connection_bp.route('connections/create_multipart_form', methods=['POST'])
+@connection_bp.route('/connections/create_multipart_form', methods=['POST'])
 @verify_token
 @handle_errors
 def create_connection_with_photos():
