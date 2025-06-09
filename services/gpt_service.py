@@ -34,10 +34,7 @@ def get_user_profile_for_prompt(user_id: str) -> Dict:
     
     prompt_dict = {}
     prompt_dict["name"] = f"User Name: {user.name if user.name else ''}, \n"
-    if user.age and user.age > 17:
-        prompt_dict["age"] = f"User Age: {user.age}, \n"
-    else:
-        prompt_dict["age"] = "User Age: unknown, \n"
+    prompt_dict["age"] = f"User Age: {user.age if user.age else 'unknown'}, \n"
     prompt_dict["user_context_block"] = f"Personal Info about User {user.name if user.name else ''}: {user.user_context_block if user.user_context_block else ''}. \n"
 
     return prompt_dict
@@ -167,17 +164,12 @@ def generate_spurs(
                 situation = situation_info["situation"]
 
 
-
-    
-
-
-
-    # Append OCR'd profile text if available
     if conversation_messages:
+        tone_info = infer_tone(conversation_messages[-1].get("text", ""))
         i = 1
         context_block += "\n*** *CONVERSATION* ***\n"
         for text, sender in conversation_messages:
-            context_block += f"**Message {i}**\n"
+            context_block += f"* Message #{i} *\n"
             context_block += f"{sender}: {text}\n"
             i += 1
         context_block += "\n\n"

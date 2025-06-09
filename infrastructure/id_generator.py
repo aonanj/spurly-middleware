@@ -139,6 +139,9 @@ def get_null_connection_id(user_id="") -> str:
 			str
 	"""
 	null_connection_id = os.getenv('NULL_CONNECTION_ID') or current_app.config['NULL_CONNECTION_ID']
+	if not null_connection_id or null_connection_id.strip() == "":
+		logger.error("Error: NULL_CONNECTION_ID is not set in config.")
+		null_connection_id = "null_connection_id_p"
 	if user_id:
 		return (f"{user_id}:{null_connection_id}").lower()
 	else:
