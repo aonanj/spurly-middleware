@@ -125,8 +125,8 @@ class UserProfile:
 class ConnectionProfile:
     user_id: str
     connection_id: str
-    name: Optional[str] = None
-    age: Optional[int] = None
+    connection_name: Optional[str] = None
+    connection_age: Optional[int] = None
     connection_context_block: Optional[str] = None
     connection_profile_text: Optional[List[str]] = field(default_factory=list)
     personality_traits: Optional[List[Dict[str, Any]]] = field(default_factory=list)

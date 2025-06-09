@@ -21,6 +21,7 @@ _algolia_client = None
 _algolia_index = None 
 _firestore_db = None
 
+logger = get_logger(__name__)
 
 # --- Initialization Function ---
 def init_clients(app):
@@ -31,9 +32,6 @@ def init_clients(app):
     Args:
         app: Flask app object providing configuration.
     """
-
-
-    logger = get_logger(__name__)
     logger.info("Initializing external clients...")
     global _firestore_db
 
@@ -147,3 +145,31 @@ def get_algolia_client():
     if _algolia_client is None:
            return None
     return _algolia_client
+
+
+def refresh_vision_client():
+    """
+    Force refresh the Vision client by creating a new instance.
+    This can help resolve stale connection issues.
+    
+    Returns:
+        vision.ImageAnnotatorClient: New Vision API client instance
+    """
+    global _vision_client
+    
+    try:
+        # Close existing client if any
+        if _vision_client:
+            try:
+                _vision_client.transport.close()
+            except Exception:
+                pass  # Ignore errors when closing
+        
+        # Create new client
+        _vision_client = vision.ImageAnnotatorClient()
+        logger.info("Vision client refreshed successfully")
+        return _vision_client
+        
+    except Exception as e:
+        logger.error(f"Failed to refresh Vision client: {str(e)}")
+        raise RuntimeError(f"Failed to refresh Vision client: {str(e)}")

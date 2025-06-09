@@ -55,10 +55,10 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
         raise ValueError(f"Connection with ID {connection_id} not found for user {user_id}")
 
     prompt_dict = {}
-    prompt_dict["name"] = f"Connection Name: {connection_profile.name if connection_profile.name else ''}, \n"
-    prompt_dict["age"] = f"Connection Age: {connection_profile.age if connection_profile.age else 'unknown'}, \n"
+    prompt_dict["name"] = f"Connection Name: {connection_profile.connection_name if connection_profile.connection_name else ''}, \n"
+    prompt_dict["age"] = f"Connection Age: {connection_profile.connection_age if connection_profile.connection_age else 'unknown'}, \n"
     prompt_dict["connection_profile_pic_url"] = f"Connection Profile Pic URL: {connection_profile.connection_profile_pic_url if connection_profile.connection_profile_pic_url else 'unknown'}, \n"
-    prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.name if connection_profile.name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
+    prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.connection_name if connection_profile.connection_name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
 
     personality_traits = []
     if connection_profile.personality_traits:
