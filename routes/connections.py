@@ -179,8 +179,10 @@ def create_connection():
         # Get form data
         if request.is_json:
             form_data = request.get_json()
+            logger.debug(f"JSON form data received: {form_data}")  # Debug log for JSON data
         else:
             form_data = request.form.to_dict()
+            logger.error(f"Form data received: {form_data}")  # Debug log for form data
         connection_profile_pic_url = form_data.get("connection_profile_pic_url", "")
         form_data.update({'user_id': user_id})  # Ensure user_id is included in form data
         connection_data = {
@@ -239,7 +241,7 @@ def create_connection():
         
         # Create the connection profile
         result = create_connection_profile(
-            data=form_data,
+            data=connection_data,
             connection_profile_text=profile_content_texts,
             personality_traits_list=personality_traits,
             connection_profile_pic_url=connection_profile_pic_url

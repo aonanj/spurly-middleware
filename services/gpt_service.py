@@ -174,7 +174,6 @@ def generate_spurs(
     if not conversation_id:
         conversation_id = generate_conversation_id(user_id)
 
-    logger.error(f"Context block for prompt:\n{context_block}")
 
     prompt = build_prompt(selected_spurs or [], context_block)
 
