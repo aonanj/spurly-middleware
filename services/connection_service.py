@@ -56,6 +56,8 @@ def create_connection_profile(
 
     profile_data_to_save["connection_context_block"] = data.get("connection_context_block", None)
     profile_data_to_save["connection_profile_pic_url"] = data.get("connection_profile_pic_url", None)
+    profile_data_to_save["connection_name"] = data.get("connection_name", None) 
+    profile_data_to_save["connection_age"] = data.get("connection_age", None)
 
     try:
         db = get_firestore_db()  # Ensure Firestore client is initialized

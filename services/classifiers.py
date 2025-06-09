@@ -95,12 +95,25 @@ def has_significant_text_heuristics(image_cv2_gray, image_cv2_color) -> tuple[bo
     return is_text_heavy, confidence
 
 
-def classify_image(image_raw_bytes) -> str:
-    buffer_bytes = np.frombuffer(image_raw_bytes, np.uint8)
-    image_cv2 = cv2.imdecode(buffer_bytes, cv2.IMREAD_COLOR)
+def classify_image(image_cv2) -> str:
+    """
+    Classify an image based on its visual characteristics.
+    
+    Args:
+        image_cv2: OpenCV image array (numpy.ndarray) - already decoded image
+        
+    Returns:
+        str: Classification result ('conversation', 'profile_content', 'connection_pic', or '')
+    """
+    # Input validation
     if image_cv2 is None:
-        logger.error("Failed to decode image from raw bytes.")
+        logger.error("Received None image for classification.")
         return ""
+    
+    if not isinstance(image_cv2, np.ndarray):
+        logger.error(f"Expected numpy array, got {type(image_cv2)}")
+        return ""
+    
     logger.info("Classifying image using enhanced heuristics...")
     height, width = image_cv2.shape[:2]
     
@@ -204,7 +217,7 @@ def classify_image(image_raw_bytes) -> str:
         return "connection_pic"
 
 # Example usage (for testing purposes, if you run this file directly)
-if __name__ == '__main__':
+""" if __name__ == '__main__':
     # This part requires you to have OpenCV installed and an image file for testing.
     # Replace 'path_to_your_test_image.jpg' with an actual image path.
     # test_image_path = 'path_to_your_test_image.jpg'
@@ -241,4 +254,4 @@ if __name__ == '__main__':
     photo_img = np.zeros((400, 500, 3), dtype=np.uint8)
     cv2.circle(photo_img, (250, 200), 100, (30, 80, 150), -1) # A "colored object"
     cv2.putText(photo_img, "Vacation 2024", (10,380), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220,220,220),1) # Minimal text
-    print(f"Test 'dummy_photo_image' classified as: {classify_image(photo_img)}")
+    print(f"Test 'dummy_photo_image' classified as: {classify_image(photo_img)}") """
