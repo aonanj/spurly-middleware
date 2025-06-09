@@ -163,9 +163,9 @@ def generate_spurs(
                 context_block += f"***Situation:*** {situation}\n\n"
         i = 1
         context_block += "\n*** *CONVERSATION* ***\n"
-        for text, sender in conversation_messages:
+        for msg in conversation_messages:
             context_block += f"* Message #{i} *\n"
-            context_block += f"{sender}: {text}\n"
+            context_block += f"{msg.get('sender', '')}: {msg.get('text', '')}\n"
             i += 1
         context_block += "\n\n"
         context_block += f"NOTE: You should suggest SPURs based on the conversation above. Consider the Situation, Topic, and Tone if they are included. Your suggestions should consider the User Profile and the Connection Profile, and you should tie your suggestions back to the Connection Profile only if it fits into the conversation. Your fundamental goal here is to keep the conversation engaging and relevant.\n\n"
