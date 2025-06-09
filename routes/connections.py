@@ -179,7 +179,7 @@ def create_connection():
         # Get form data
         if request.is_json:
             form_data = request.get_json()
-            logger.debug(f"JSON form data received: {form_data}")  # Debug log for JSON data
+            logger.error(f"JSON form data received: {form_data}")  # Debug log for JSON data
         else:
             form_data = request.form.to_dict()
             logger.error(f"Form data received: {form_data}")  # Debug log for form data
@@ -191,6 +191,7 @@ def create_connection():
             'connection_age': form_data.get('connection_age', ''),
             'connection_context_block': form_data.get('connection_context_block', '')
         }
+        logger.error(f"Connection data: {connection_data}")  # Debug log for connection data
         # Process profile content images (OCR)
         profile_content_texts = []
         content_images = _extract_image_bytes_from_request('profileContentImageBytes')
