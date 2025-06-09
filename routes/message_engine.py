@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, g
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
-from infrastructure.id_generator import get_null_connection_id
+from infrastructure.id_generator import get_null_connection_id, generate_conversation_id
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, sanitize_topic
@@ -41,11 +41,13 @@ def generate():
     user_id = user_id_from_g # Use the authenticated user_id
 
     conversation_id = data.get("conversation_id", "")
+    if not conversation_id or conversation_id.strip() == "":
+        conversation_id = generate_conversation_id(user_id)  # Generate a new conversation ID if not provided
+        
+    conversation_messages = data.get("conversation_messages", None)
     connection_id = data.get("connection_id", "") # Client should provide this
-    situation = data.get("situation", "")
-    topic = data.get("topic", "")
 
-    profile_ocr_texts_from_request = data.get("profile_ocr_texts") # Defaults to None if not present
+
 
     if not connection_id:
         # Fallback to active connection if not provided by client; consider if this is desired
@@ -55,9 +57,10 @@ def generate():
         connection_id = get_null_connection_id(user_id)
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
-    if profile_ocr_texts_from_request:
-        logger.info(f"Using {len(profile_ocr_texts_from_request)} OCR'd profile content.")
 
+
+    situation = data.get("situation", "")
+    topic = data.get("topic", "")
 
     spur_objs = get_spurs_for_output(
         user_id=user_id,
@@ -65,7 +68,7 @@ def generate():
         conversation_id=conversation_id,
         situation=situation,
         topic=topic,
-        profile_ocr_texts=profile_ocr_texts_from_request,       # Pass new data
+        conversation_messages=conversation_messages,       # Pass new data
     )
   
     spurs = [spur.to_dict() for spur in spur_objs]

@@ -239,7 +239,9 @@ def create_connection():
             personality_traits_list=personality_traits,
             connection_profile_pic_url=connection_profile_pic_url
         )
-        
+
+        set_active_connection_firestore(user_id, result.get("connection_id"))
+
         return jsonify(result)
         
     except Exception as e:

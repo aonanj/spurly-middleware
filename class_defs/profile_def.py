@@ -97,6 +97,7 @@ class UserProfile:
                 d[f.name] = value
         return d
     
+    
     @classmethod
     def get_attr_as_str(cls, profile_instance: "UserProfile", attr_key: str) -> str:
         """

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from flask import current_app
 import openai
-from typing import Optional
+from typing import Optional, Dict, List
 from class_defs.profile_def import ConnectionProfile, UserProfile
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
@@ -17,6 +17,62 @@ from utils.validation import validate_and_normalize_output, classify_confidence,
 
 
 logger = get_logger(__name__)
+
+def get_user_profile_for_prompt(user_id: str) -> Dict:
+    """
+    Retrieves the user profile for prompt generation.
+
+    Args:
+        user_id (str): The ID of the user whose profile is to be fetched.
+
+    Returns:
+        Dict: A dictionary representation of the user's profile.
+    """
+    user = get_user(user_id)
+    if not user:
+        raise ValueError(f"User with ID {user_id} not found")
+    
+    prompt_dict = {}
+    prompt_dict["name"] = f"User Name: {user.name if user.name else ''}, \n"
+    if user.age and user.age > 17:
+        prompt_dict["age"] = f"User Age: {user.age}, \n"
+    else:
+        prompt_dict["age"] = "User Age: unknown, \n"
+    prompt_dict["user_context_block"] = f"Personal Info about User {user.name if user.name else ''}: {user.user_context_block if user.user_context_block else ''}. \n"
+
+    return prompt_dict
+    
+def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
+    """
+    Retrieves the connection profile for prompt generation.
+
+    Args:
+        user_id (str): The ID of the user associated with the connection.
+        connection_id (str): The ID of the connection whose profile is to be fetched.
+
+    Returns:
+        Dict: A dictionary representation of the connection's profile.
+    """
+    connection_profile = get_connection_profile(user_id, connection_id)
+    if not connection_profile:
+        raise ValueError(f"Connection with ID {connection_id} not found for user {user_id}")
+
+    prompt_dict = {}
+    prompt_dict["name"] = f"Connection Name: {connection_profile.name if connection_profile.name else ''}, \n"
+    prompt_dict["age"] = f"Connection Age: {connection_profile.age if connection_profile.age else 'unknown'}, \n"
+    prompt_dict["connection_profile_pic_url"] = f"Connection Profile Pic URL: {connection_profile.connection_profile_pic_url if connection_profile.connection_profile_pic_url else 'unknown'}, \n"
+    prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.name if connection_profile.name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
+
+    personality_traits = []
+    if connection_profile.personality_traits:
+        for trait_dict in connection_profile.personality_traits:
+            if isinstance(trait_dict, dict):
+                personality_traits.extend(trait_dict.values())
+
+    prompt_dict['personality_traits'] = f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n"
+    prompt_dict["connection_profile_text"] = f"Connection Profile Text: {', '.join(connection_profile.connection_profile_text) if connection_profile.connection_profile_text else ''}. \n"
+
+    return prompt_dict
 
 def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
     """
@@ -47,7 +103,7 @@ def generate_spurs(
     situation: str,
     topic: str,
     selected_spurs: Optional[list[str]] = None,
-    profile_ocr_texts: Optional[list[str]] = None,  # New parameter
+    conversation_messages: Optional[List[Dict]] = None,  # New parameter
 ) -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
@@ -82,10 +138,14 @@ def generate_spurs(
 
     # Initialize context_block first
     context_block = "***User Profile:***\n"
-    user_profile_instance = UserProfile.from_dict(user_profile_dict) # Create instance for formatting
-    user_user_context_block = user_profile_instance.to_dict_alt()
-    context_block += f"{user_user_context_block}\n\n"
+    user_prompt_profile = get_user_profile_for_prompt(user_id) # Create instance for formatting
+    context_block += "\n".join(user_prompt_profile.values()) + "\n\n"
     
+    if connection_profile and connection_id != get_null_connection_id():
+        context_block += "***Connection Profile:***\n"
+        connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id) # Create instance for formatting
+        context_block += "\n".join(connection_prompt_profile.values()) + "\n\n"
+
     conversation_obj = None
     conversation = None
     conversation_text = ""
@@ -106,34 +166,26 @@ def generate_spurs(
             if classify_confidence(situation_info["confidence"]) == "high":
                 situation = situation_info["situation"]
 
-    # Continue building context_block
 
 
     
-    if connection_profile and connection_id != get_null_connection_id():
-        context_block += "***Connection Profile:***\n"
-        connection_profile_instance = ConnectionProfile.from_dict(connection_profile.to_dict() if connection_profile else {})
-        connection_context_block = connection_profile_instance.to_dict_alt() if connection_profile else {}
-        context_block += f"{connection_context_block}\n\n"
+
 
 
     # Append OCR'd profile text if available
-    if profile_ocr_texts:
-        context_block += "***Additional Connection Profile Info (from OCR):***\n"
-        for excerpt in profile_ocr_texts:
-            context_block += f"- {excerpt}\n"
-        context_block += "\n"
+    if conversation_messages:
+        i = 1
+        context_block += "\n*** *CONVERSATION* ***\n"
+        for text, sender in conversation_messages:
+            context_block += f"**Message {i}**\n"
+            context_block += f"{sender}: {text}\n"
+            i += 1
+        context_block += "\n\n"
+        context_block += f"NOTE: You should suggest SPURs based on the conversation above. Consider the Situation, Topic, and Tone if they are included. Your suggestions should consider the User Profile and the Connection Profile, and you should tie your suggestions back to the Connection Profile only if it fits into the conversation. Your fundamental goal here is to keep the conversation engaging and relevant.\n\n"
 
 
 
-    if situation and situation.strip() != "":
-        context_block += f"***Situation:*** {situation}\n" # Added colon for clarity
-    if topic and topic.strip() != "":
-        context_block += f"***Topic:*** {topic}\n"       # Added colon for clarity
-    if tone and tone.strip() != "":
-        context_block += f"***Tone:*** {tone}"           # Added colon for clarity
-
-    logger.debug(f"Context block for prompt:\n{context_block}")
+    logger.error(f"Context block for prompt:\n{context_block}")
 
     prompt = build_prompt(selected_spurs or [], context_block)
     # ... (rest of the GPT call, parsing, and Spur object creation logic remains the same) ...
@@ -180,7 +232,7 @@ def generate_spurs(
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": current_prompt}
                 ],
-                temperature=1.3 if attempt == 0 else 0.85,
+                temperature=1.0 if attempt == 0 else 0.75,
             )
             
             ## DEBUG:
@@ -238,7 +290,7 @@ def generate_spurs(
     return []
 
 def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str,
-                         profile_ocr_texts: 'Optional[list[str]]' = None, # New parameter
+                         conversation_messages: Optional[List[Dict]] = None,  # New parameter
                          ) -> list:
     """
     Gets spurs that are formatted and content-filtered to send to the frontend. 
@@ -251,8 +303,8 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
 
     # Initial generation
     spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs_from_profile,
-                           profile_ocr_texts=profile_ocr_texts) # Pass through
-    
+                           conversation_messages=conversation_messages) # Pass through
+
     counter = 0
     max_iterations = 10 # Consider making this configurable
 
@@ -264,7 +316,7 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
         logger.info(f"Regeneration attempt {counter} for user {user_id}, variants: {spurs_needing_regeneration}")
         
         fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, spurs_needing_regeneration, # Pass only variants to regenerate
-                                     profile_ocr_texts=profile_ocr_texts)
+                                     conversation_messages=conversation_messages)
         spurs = merge_spurs(spurs, fixed_spurs)
         spurs_needing_regeneration = spurs_to_regenerate(spurs)
 
