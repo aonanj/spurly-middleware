@@ -6,7 +6,7 @@ from class_defs.profile_def import ConnectionProfile, UserProfile
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_openai_client
-from infrastructure.id_generator import generate_spur_id, get_null_connection_id
+from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
 from services.connection_service import get_connection_profile, get_active_connection_firestore
 from services.storage_service import get_conversation
 from services.user_service import get_user
@@ -143,29 +143,24 @@ def generate_spurs(
         connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id) # Create instance for formatting
         context_block += "\n".join(connection_prompt_profile.values()) + "\n\n"
 
-    conversation_obj = None
-    conversation = None
-    conversation_text = ""
-    if conversation_id:
-        conversation_obj = get_conversation(conversation_id) # Renamed to avoid conflict with conversation var above
-        if conversation_obj: # Ensure conversation_obj is not None
-            conversation_text = conversation_obj.conversation_as_string()
-            conversation = conversation_obj.to_dict() # Assuming to_dict() method exists and is appropriate here
-
+    
+    if situation and situation != "":
+        context_block += f"***Situation:*** {situation}\n\n"
+    if topic and topic != "":
+        context_block += f"***Topic:*** {topic}\n\n"
+    
+    tone_info = {}
     tone = ""
-    # Ensure 'conversation' is a dict and has 'conversation' key before accessing
-    if conversation and isinstance(conversation, dict) and "conversation" in conversation and conversation["conversation"]:
-        tone_info = infer_tone(conversation["conversation"][-1])
-        if classify_confidence(tone_info["confidence"]) == "high":
-            tone = tone_info["tone"]
-        if not situation: # Infer situation only if not provided
-            situation_info = infer_situation(conversation.get("conversation", []))
-            if classify_confidence(situation_info["confidence"]) == "high":
-                situation = situation_info["situation"]
-
-
     if conversation_messages:
         tone_info = infer_tone(conversation_messages[-1].get("text", ""))
+        if classify_confidence(tone_info["confidence"]) == "high":
+            tone = tone_info["tone"]
+            context_block += f"***Tone:*** {tone}\n\n"
+        if not situation or situation == "":  # Infer situation only if not provided
+            situation_info = infer_situation(conversation_messages)
+            if classify_confidence(situation_info["confidence"]) == "high":
+                situation = situation_info["situation"]
+                context_block += f"***Situation:*** {situation}\n\n"
         i = 1
         context_block += "\n*** *CONVERSATION* ***\n"
         for text, sender in conversation_messages:
@@ -175,31 +170,14 @@ def generate_spurs(
         context_block += "\n\n"
         context_block += f"NOTE: You should suggest SPURs based on the conversation above. Consider the Situation, Topic, and Tone if they are included. Your suggestions should consider the User Profile and the Connection Profile, and you should tie your suggestions back to the Connection Profile only if it fits into the conversation. Your fundamental goal here is to keep the conversation engaging and relevant.\n\n"
 
-
+    
+    if not conversation_id:
+        conversation_id = generate_conversation_id(user_id)
 
     logger.error(f"Context block for prompt:\n{context_block}")
 
     prompt = build_prompt(selected_spurs or [], context_block)
-    # ... (rest of the GPT call, parsing, and Spur object creation logic remains the same) ...
-    # Ensure that when creating Spur objects, conversation_id is correctly retrieved:
-    # conversation_id_for_spur = conversation.get("conversation_id", "") if isinstance(conversation, dict) else getattr(conversation_obj, "conversation_id", "")
 
-    # Placeholder for the rest of the function (OpenAI call, parsing, object creation)
-    # This part should largely remain the same, but ensure variables like `conversation` 
-    # (used for conversation_id in Spur object) are correctly scoped and typed.
-    # For example, if `conversation` is now a dict from `conversation_obj.to_dict()`:
-    current_conversation_id = ""
-    if conversation_obj and hasattr(conversation_obj, 'conversation_id'):
-        current_conversation_id = conversation_obj.conversation_id
-    elif isinstance(conversation, dict) and "conversation_id" in conversation: # Fallback if conversation_obj wasn't set but dict was
-        current_conversation_id = conversation["conversation_id"]
-
-
-    # ... inside the loop for spur_objects.append(Spur(...))
-    # spur_id=generate_spur_id(user_profile_dict.get("user_id","")), # user_profile_dict instead of user_profile
-    # conversation_id=current_conversation_id, # Use the carefully determined conversation_id
-
-    # Fallback response and try/except loop for OpenAI API call
     fallback_prompt_suffix = (
         "\nKeep all outputs safe, short, and friendly.\n"
     )
@@ -254,7 +232,7 @@ def generate_spurs(
                         Spur(
                             user_id=user_profile_dict.get("user_id", ""), # from dict
                             spur_id=generate_spur_id(user_id), # from dict
-                            conversation_id=current_conversation_id, # Use derived ID
+                            conversation_id=conversation_id, # Use derived ID
                             connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id") if connection_profile else "",
                             situation=situation or "",
                             topic=topic or "",

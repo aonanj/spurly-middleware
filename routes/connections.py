@@ -183,7 +183,12 @@ def create_connection():
             form_data = request.form.to_dict()
         connection_profile_pic_url = form_data.get("connection_profile_pic_url", "")
         form_data.update({'user_id': user_id})  # Ensure user_id is included in form data
-
+        connection_data = {
+            'user_id': user_id,
+            'connection_name': form_data.get('connection_name', ''),
+            'connection_age': form_data.get('connection_age', ''),
+            'connection_context_block': form_data.get('connection_context_block', '')
+        }
         # Process profile content images (OCR)
         profile_content_texts = []
         content_images = _extract_image_bytes_from_request('profileContentImageBytes')

@@ -88,7 +88,7 @@ def get_conversation_bp():
         return jsonify({'error': f"[{err_point}] - No conversation_id provided"}), 400
     conversation_id = data['conversation_id']
 
-    result = get_conversation(conversation_id)
+    result = get_conversation(user_id=user_id, conversation_id=conversation_id) 
     return jsonify(result)
 
 @conversations_bp.route("/delete-conversation", methods=["DELETE"])

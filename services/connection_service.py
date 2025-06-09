@@ -39,9 +39,6 @@ def create_connection_profile(
         logger.error("Error: Cannot create connection profile - missing user ID in g.user")
         return {"error": "Authentication error: User ID not available."}
 
-    if 'user_id' in data and data['user_id'] != user_id:
-        logger.warning(f"Attempt to set user_id via form data. Authenticated user_id '{user_id}' will be used.")
-    data['user_id'] = user_id
 
     connection_id = generate_connection_id(user_id)
     data['connection_id'] = connection_id

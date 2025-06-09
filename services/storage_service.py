@@ -276,8 +276,7 @@ class ConversationStorage:
             
         try:
             db = get_firestore_db()
-            doc_ref = db.collection("users").document(user_id)\
-                       .collection("conversations").document(conversation_id)
+            doc_ref = db.collection("users").document(user_id).collection("conversations").document(conversation_id)
             doc = doc_ref.get()
             
             if not doc.exists:
@@ -547,7 +546,7 @@ def save_conversation(data: Conversation) -> Dict[str, str]:
     return _storage.save_conversation(data)
 
 
-def get_conversation(conversation_id: str) -> Conversation:
+def get_conversation(user_id: str, conversation_id: str) -> Conversation:
     """
     Gets a conversation by the conversation_id.
     
@@ -560,9 +559,8 @@ def get_conversation(conversation_id: str) -> Conversation:
     Raises:
         ConversationNotFoundError: If conversation not found
     """
-    user_id = None
-    if hasattr(g, 'user_id'):
-        user_id = getattr(g, "user_id", None)
+    user_id = user_id
+
     
     if not user_id:
         raise ValueError("User not authenticated")
