@@ -69,24 +69,54 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             images_url = f"data:image/jpeg;base64,{base64_image}"
             ##encoded_imgs = json.dumps([base64_image])
 
-            prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_prompt.txt')
-            with open(prompt_file, 'r') as f:
-                prompt_template = f.read().strip()
-                image_prompt_appendix = "\nThe following images are Base64-ended. There is one person commonly shown in all images. You should infer personality traits about that one person. "
-                prompt = prompt_template.join(image_prompt_appendix)
+            prompt = """
+                You are an AI assistant tasked with inferring five personality traits based solely on visual observation of an individual's appearance in a single image. You should make judgments using visible features such as facial expression, posture, clothing, grooming, and environmental context, but avoid overanalyzing or attempting deep psychological evaluation.
+
+                Do not speculate beyond what is reasonably inferable from visual cues. Do not attempt to be comprehensive. Do not perform high-effort internal reasoning or expansive interpretation. Your role is to make shallow, high-salience observations and infer personality traits that are consistent with those cues. If the image contains subtle social cues, you're allowed to make light educated guesses, but should note the ambiguity by adjusting confidence scores downward.
+
+                You should avoid stating traits that are purely positive, purely negative, or strictly neutral. Choose balanced and grounded traits based on appearance. Your output should be in the form of a JSON object as shown below, with each trait accompanied by a confidence score from 0 to 1.
+
+                *** OUTPUT FORMAT:
+                {
+                "personality_traits": [
+                    {
+                    "personality_trait": "Trait One",
+                    "confidence_score": 0.XX
+                    },
+                    {
+                    "personality_trait": "Trait Two",
+                    "confidence_score": 0.XX
+                    },
+                    {
+                    "personality_trait": "Trait Three",
+                    "confidence_score": 0.XX
+                    },
+                    {
+                    "personality_trait": "Trait Four",
+                    "confidence_score": 0.XX
+                    },
+                    {
+                    "personality_trait": "Trait Five",
+                    "confidence_score": 0.XX
+                    }
+                ]
+                }
+                """
+
             
             chat_client = get_openai_client()
             resp = chat_client.chat.completions.create(
                 model="gpt-4o", 
                 messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": [
+                            {"type": "text", "text": "Please infer five personality traits."},
                             {"type": "image_url", "image_url": {"url": images_url}}
                         ]
                     }
-                ]
+                ],
+                max_tokens=3000,
+                temperature=0.5,
             )
 
             # 4) Parse the JSON response
