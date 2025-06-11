@@ -150,7 +150,7 @@ def ocr_scan():
 
                 # Classify the image
                 category = classify_image(image_cv2)
-                logger.info("Image at index %d (filename: %s) from user_id: %s classified as '%s'", 
+                logger.error("Image at index %d (filename: %s) from user_id: %s classified as '%s'", 
                           idx, filename, user_id, category)
 
                 if category == 'conversation':
@@ -210,7 +210,7 @@ def ocr_scan():
                 })
                 
         ## DEBUG LOGGING
-        logger.error("Batch processing completed for user_id: %s with %d images", user_id, len(batch_results))
+        logger.error("Batch processing completed for user_id: %s with %d images", user_id, batch_results)
 
         return jsonify(batch_results), 200
 
