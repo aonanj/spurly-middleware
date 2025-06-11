@@ -209,8 +209,6 @@ def ocr_scan():
                     "order_num": idx
                 })
                 
-        ## DEBUG LOGGING
-        logger.error("Batch processing completed for user_id: %s with %d images", user_id, batch_results)
 
         return jsonify(batch_results), 200
 

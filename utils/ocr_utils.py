@@ -165,8 +165,8 @@ class ConversationExtractor:
         Returns:
             True if likely a message
         """
-        # Check minimum length - reduced to catch short messages
-        if len(text) < 2:
+        # Check minimum length - reduced to catch short messages like "I refused to fail"
+        if len(text) < 1:
             return False
         
         # Check against message patterns
@@ -184,17 +184,28 @@ class ConversationExtractor:
         
         # If it's reasonably long and not matching UI patterns, likely a message
         # Reduced threshold to catch shorter messages
-        if len(text) > 8:
+        if len(text) > 6:
             return True
         
         # Check if it contains common conversational words
         conversational_words = current_app.config.get('CONVERSATIONAL_WORDS', [])
+        # DEBUG
+        logger.error(f"Did conversational words match? {conversational_words}")
+        
         text_lower = text.lower()
         if any(word in text_lower for word in conversational_words):
             return True
         
         # Check for personal pronouns and possessives
         if re.search(r'\b(i|me|my|you|your|we|our|they|their)\b', text_lower):
+            return True
+        
+        # Additional patterns for short but meaningful messages
+        # Check for common short conversation words
+        short_conversation_words = current_app.config.get('SHORT_CONVERSATIONAL_WORDS', [])
+        # DEBUG
+        logger.error(f"Did short conversation words match? {short_conversation_words}")
+        if any(word in text_lower for word in short_conversation_words):
             return True
         
         return False
@@ -278,44 +289,51 @@ class ConversationExtractor:
             messages: List of message blocks
             image_width: Width of the image
         """
-        # Skip clustering and use simple position-based assignment
-        # This is more reliable for chat interfaces
+        # Improved speaker assignment logic
         
         for msg in messages:
-            # Calculate position relative to center
+            # Calculate position relative to center and edges
             msg_center = msg.center_x
             image_center = image_width / 2
             
-            # Also check the edges - which edge is the message closer to?
+            # Check the edges - which edge is the message closer to?
             left_distance = msg.x_min
             right_distance = image_width - msg.x_max
             
             # For wrapped/long messages, check if they span most of the width
             msg_width_ratio = msg.width / image_width
             
-            # If message spans more than 60% of width, it's likely a long message
-            # In that case, use the edge it starts from
-            if msg_width_ratio > 0.6:
-                # Long message - check which edge it starts closer to
-                if left_distance < 50:  # Starting very close to left edge
+            # Debug logging for problematic messages
+            logger.debug(f"Message: '{msg.text[:50]}...' | x_min: {msg.x_min}, x_max: {msg.x_max}, width_ratio: {msg_width_ratio:.2f}, left_dist: {left_distance}, right_dist: {right_distance}")
+            
+            # Improved logic for speaker assignment
+            # Key insight: In the image, connection messages (Sara) are on the LEFT side
+            # and have profile pictures, while user messages are on the RIGHT side
+            
+            if msg_width_ratio > 0.7:
+                # Very wide message - likely spans most of the screen
+                # Check which side it's anchored to by looking at the starting position
+                if left_distance < 80:  # Starting very close to left edge (with profile pic space)
                     msg.speaker = "connection"
                 else:
                     msg.speaker = "user"
+            elif left_distance < 80:
+                # Message starts very close to left edge - likely connection with profile pic
+                msg.speaker = "connection"
+            elif right_distance < 80:
+                # Message ends very close to right edge - likely user message
+                msg.speaker = "user"
             else:
-                # Normal message - use center position
-                # Also consider the alignment - left-aligned messages have small left_distance
-                if left_distance < 100 and left_distance < right_distance:
-                    # Message is left-aligned (connection)
+                # Middle ground - use center position as fallback
+                # But be more careful about the threshold
+                # Looking at the image, connection messages start around x=22 (with profile pic)
+                # User messages are more centered/right-aligned
+                
+                # Check if message starts in the left third vs right two-thirds
+                if msg.x_min < image_width * 0.33:
                     msg.speaker = "connection"
-                elif right_distance < 100 and right_distance < left_distance:
-                    # Message is right-aligned (user)
-                    msg.speaker = "user"
                 else:
-                    # Fallback to center-based detection
-                    if msg_center < image_center:
-                        msg.speaker = "connection"
-                    else:
-                        msg.speaker = "user"
+                    msg.speaker = "user"
     
     def _clean_text(self, text: str) -> str:
         """Clean and normalize text."""
@@ -378,7 +396,7 @@ class ConversationExtractor:
             # All blocks in message_blocks are now messages
             messages = message_blocks
             
-            # Assign speakers using clustering
+            # Assign speakers using improved clustering
             if messages:
                 self._assign_speakers_by_clustering(messages, image_width)
             
