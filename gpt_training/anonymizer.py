@@ -11,8 +11,8 @@ logger = get_logger(__name__)
 
 def anonymize_conversation(original_conversation: Conversation) -> str:
 	"""
-	Replaces speaker labels with generic labels 'Person A' and 'Person B' for user and connection respectively.
-	Maintains message order and speaker attribution.
+	Replaces sender labels with generic labels 'Person A' and 'Person B' for user and connection respectively.
+	Maintains message order and sender attribution.
 
 	Args:
 		original_conversation: Conversation object including the conversation data to be anonymized
@@ -36,27 +36,27 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
 		connection_id = original_conversation.connection_id or ""
 		connection_profile = None
 				
-		if not all("text" in message and "speaker" in message for message in conversation_messages):
-			logger.error("Invalid conversation format. Keys 'text' and 'speaker' expected.")
-			raise ValueError("Invalid conversation format. Keys 'text' and 'speaker' expected.")
+		if not all("text" in message and "sender" in message for message in conversation_messages):
+			logger.error("Invalid conversation format. Keys 'text' and 'sender' expected.")
+			raise ValueError("Invalid conversation format. Keys 'text' and 'sender' expected.")
 
 		user_label = "Person A"
 		connection_label = "Person B"
 
 		anonymized_messages = []
 		for message in conversation_messages:
-			original_speaker = message.get("speaker", "").lower()
+			original_sender = message.get("sender", "").lower()
 			text = message.get("text", "").lower()
 
-			if original_speaker == "user":
-				speaker_label = user_label
-			elif original_speaker == "connection":
-				speaker_label = connection_label
+			if original_sender == "user":
+				sender_label = user_label
+			elif original_sender == "connection":
+				sender_label = connection_label
 			else:
-				speaker_label = "Unknown"
+				sender_label = "Unknown"
 
 			anonymized_messages.append({
-				"speaker": speaker_label,
+				"sender": sender_label,
 				"text": text
 			})
 			

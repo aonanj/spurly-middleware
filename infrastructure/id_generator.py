@@ -47,7 +47,7 @@ def generate_anonymous_user_id() -> str:
 	"""
 	user_id_indicator = os.getenv('USER_ID_INDICATOR') or current_app.config['USER_ID_INDICATOR']
 	anonymous_id_indicator = os.getenv('ANONYMOUS_ID_INDICATOR') or current_app.config['ANONYMOUS_ID_INDICATOR']
-	return (f"{user_id_indicator}:{uuid4().hex[:12]}:{anonymous_id_indicator}").lower()
+	return (f"{user_id_indicator}:{uuid4().hex[:12]}:{anonymous_id_indicator}")
 
 def generate_anonymous_conversation_id(anonymous_user_id) -> str:
 	"""
@@ -66,7 +66,7 @@ def generate_anonymous_conversation_id(anonymous_user_id) -> str:
 	if not anonymous_user_id:
 		anonymous_user_id = generate_anonymous_user_id()
 
-	return (f"{anonymous_user_id}:{uuid4().hex[:6]}:{conversation_id_indicator}:{anonymous_id_indicator}").lower()
+	return (f"{anonymous_user_id}:{uuid4().hex[:6]}:{conversation_id_indicator}:{anonymous_id_indicator}")
 
 def generate_anonymous_connection_id(anonymous_user_id) -> str:
 	"""
@@ -82,7 +82,7 @@ def generate_anonymous_connection_id(anonymous_user_id) -> str:
 	connection_id_indicator = current_app.config['CONNECTION_ID_INDICATOR']
 	if not anonymous_user_id:
 		anonymous_user_id = generate_anonymous_user_id()
-	return (f"{anonymous_user_id}:{uuid4().hex[:5]}:{connection_id_indicator}:{anonymous_id_indicator}").lower()	
+	return (f"{anonymous_user_id}:{uuid4().hex[:5]}:{connection_id_indicator}:{anonymous_id_indicator}")	
 
 def generate_conversation_id(user_id="") -> str:
 	"""
@@ -99,10 +99,10 @@ def generate_conversation_id(user_id="") -> str:
 	conversation_id_indicator = os.getenv('CONVERSATION_ID_INDICATOR') or current_app.config['CONVERSATION_ID_INDICATOR']
 	conversation_id_stub = _generate_random_string(6)  # 6 characters for conversation_id_stub
 	if user_id:
-		return (f"{user_id}:{conversation_id_stub}:{conversation_id_indicator}").lower()
+		return (f"{user_id}:{conversation_id_stub}:{conversation_id_indicator}")
 	else:
 		logger.error("Error: Missing user_id for conversation_id generation")
-		return (f":{conversation_id_stub}:{conversation_id_indicator}").lower()
+		return (f":{conversation_id_stub}:{conversation_id_indicator}")
 
 	 
 def generate_connection_id(user_id: str) -> str:
@@ -120,10 +120,10 @@ def generate_connection_id(user_id: str) -> str:
 	connection_id_indicator = os.getenv('CONNECTION_ID_INDICATOR') or "p"
 	connection_id_stub = _generate_random_string(6)
 	if user_id and connection_id_indicator:
-		return (f"{user_id}:{connection_id_stub}:{connection_id_indicator}").lower()
+		return (f"{user_id}:{connection_id_stub}:{connection_id_indicator}")
 	else:	
 		logger.error("Error: Missing user_id for connection_id generation")		 
-		return (f":{connection_id_stub}:{connection_id_indicator}").lower()
+		return (f":{connection_id_stub}:{connection_id_indicator}")
 	
 
 def get_null_connection_id(user_id="") -> str:
@@ -143,10 +143,10 @@ def get_null_connection_id(user_id="") -> str:
 		logger.error("Error: NULL_CONNECTION_ID is not set in config.")
 		null_connection_id = "null_connection_id_p"
 	if user_id:
-		return (f"{user_id}:{null_connection_id}").lower()
+		return (f"{user_id}:{null_connection_id}")
 	else:
 		logger.error("Error: Missing user_id for connection_id generation")		 
-		return null_connection_id.lower()
+		return null_connection_id
 
 def generate_anonymous_spur_id(anonymous_user_id) -> str:
 	"""
@@ -164,7 +164,7 @@ def generate_anonymous_spur_id(anonymous_user_id) -> str:
 	if not anonymous_user_id:
 		anonymous_user_id = generate_anonymous_user_id()
 
-	return (f"{anonymous_user_id}:{uuid4().hex[:7]}:{spur_id_indicator}:{anonymous_id_indicator}").lower()
+	return (f"{anonymous_user_id}:{uuid4().hex[:7]}:{spur_id_indicator}:{anonymous_id_indicator}")
 
 def generate_spur_id(user_id="") -> str:
 	"""
@@ -181,10 +181,10 @@ def generate_spur_id(user_id="") -> str:
 	spur_id_indicator = os.getenv('SPUR_ID_INDICATOR') or "s"
 	spur_id_stub = _generate_random_string(6)  # 7 characters for spur_id_stub
 	if user_id:
-		return (f"{user_id}:{spur_id_stub}:{spur_id_indicator}").lower()
+		return (f"{user_id}:{spur_id_stub}:{spur_id_indicator}")
 	elif not user_id:
 		logger.error("Error: Missing user_id for connection_id generation")		 
-		return (f":{spur_id_stub}:{spur_id_indicator}").lower()
+		return (f":{spur_id_stub}:{spur_id_indicator}")
 	return ""
 
 def extract_user_id_from_other_id(other_id: str) -> str:

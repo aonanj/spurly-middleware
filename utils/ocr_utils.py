@@ -83,9 +83,13 @@ class ConversationExtractor:
             r"^\s*Just now\s*$",
             r"^\s*\d+\s*(min|mins|minute|minutes|hr|hrs|hour|hours|day|days)\s*ago\s*$",
             
-            # Date patterns
+            # Date patterns - EXPANDED
             r"^\s*(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\s*$",
             r"^\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*,?\s*\d{1,2}:\d{2}\s*(AM|PM)?\s*$",
+            r"^\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*,?\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s+\d{1,2}:\d{2}\s*(AM|PM)?\s*$",
+            r"^\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*,?\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s+\d{1,2}:\d{2}\s*(AM|PM)?\s*$",
+            # Specific pattern for "Sun, May 25 12:30 PM"
+            r"^\s*\w{3}\s*,\s*\w+\s+\d{1,2}\s+\d{1,2}:\d{2}\s*(AM|PM)\s*$",
             r"^\s*(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}\s*,?\s*\d{4}\s*$",
             r"^\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\s*,?\s*\d{4}\s*$",
             r"^\s*\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\s*$",
@@ -173,7 +177,15 @@ class ConversationExtractor:
             return True
         
         # If it's reasonably long and not matching UI patterns, likely a message
-        if len(text) > 10:
+        # Increased threshold to avoid short UI elements
+        if len(text) > 15:
+            return True
+        
+        # Check if it contains common conversational words
+        conversational_words = ['bike', 'ride', 'riding', 'love', 'hate', 'want', 'need', 
+                            'think', 'feel', 'know', 'see', 'tell', 'ask', 'say']
+        text_lower = text.lower()
+        if any(word in text_lower for word in conversational_words):
             return True
         
         return False
@@ -190,11 +202,23 @@ class ConversationExtractor:
         if len(messages) < 2:
             return
         
-        # Prepare features for clustering (x-position normalized by image width)
-        features = np.array([[msg.center_x / image_width] for msg in messages])
+        # Prepare features for clustering
+        # Use both x_min and x_max to better distinguish left/right alignment
+        features = []
+        for msg in messages:
+            # Normalize positions by image width
+            left_edge = msg.x_min / image_width
+            right_edge = msg.x_max / image_width
+            # Use distance from edges as features
+            dist_from_left = left_edge
+            dist_from_right = 1.0 - right_edge
+            features.append([dist_from_left, dist_from_right])
         
-        # Use DBSCAN with appropriate epsilon (adjust based on typical message spacing)
-        clustering = DBSCAN(eps=0.15, min_samples=1).fit(features)
+        features = np.array(features)
+        
+        # Use DBSCAN with appropriate epsilon
+        # Smaller epsilon for better separation
+        clustering = DBSCAN(eps=0.1, min_samples=1).fit(features)
         
         # Assign cluster IDs
         for i, msg in enumerate(messages):
@@ -248,26 +272,25 @@ class ConversationExtractor:
         if len(cluster_stats) == 0:
             return
         
-        # Sort clusters by mean x position
-        sorted_clusters = sorted(cluster_stats.items(), key=lambda x: x[1]['mean_x'])
-        
-        # Simple case: 2 clusters
-        if len(sorted_clusters) == 2:
-            left_cluster, right_cluster = sorted_clusters[0][0], sorted_clusters[1][0]
-            for msg in messages:
-                if msg.cluster_id == left_cluster:
-                    msg.speaker = "Party B"  # Left side
-                elif msg.cluster_id == right_cluster:
-                    msg.speaker = "Party A"  # Right side
-        
-        # More complex: >2 clusters, need to merge similar ones
-        else:
-            # Group clusters into left and right based on position relative to center
-            center_x = image_width / 2
-            for cluster_id, stats in cluster_stats.items():
-                speaker = "Party B" if stats['mean_x'] < center_x else "Party A"
+        # For each cluster, determine if it's left or right aligned
+        for cluster_id, stats in cluster_stats.items():
+            # Calculate average position relative to edges
+            avg_x_min = float(np.mean([msg.x_min for msg in stats['messages']]))
+            avg_x_max = float(np.mean([msg.x_max for msg in stats['messages']]))
+            
+            # Normalize by image width
+            left_distance = avg_x_min / image_width
+            right_distance = (image_width - avg_x_max) / image_width
+            
+            # Determine alignment based on which edge the messages are closer to
+            if left_distance < right_distance:
+                # Messages are closer to left edge = connection
                 for msg in stats['messages']:
-                    msg.speaker = speaker
+                    msg.speaker = "connection"
+            else:
+                # Messages are closer to right edge = user
+                for msg in stats['messages']:
+                    msg.speaker = "user"
     
     def _clean_text(self, text: str) -> str:
         """Clean and normalize text."""
@@ -292,7 +315,7 @@ class ConversationExtractor:
             page: Google Vision API page object
             
         Returns:
-            List of message dictionaries with speaker and text
+            List of message dictionaries with sender and text
         """
         try:
             image_width = page.width
@@ -314,18 +337,21 @@ class ConversationExtractor:
                 # Create MessageBlock
                 msg_block = MessageBlock(**block_info)
                 
-                # Filter UI elements
-                if self._is_ui_element(msg_block.text, msg_block.y_min, image_height):
+                # Filter UI elements (including dates)
+                if self._is_ui_element(msg_block.text, msg_block.center_y, image_height):
                     msg_block.is_message = False
+                    continue  # Skip adding this block
                 
                 # Check if it's likely a message
-                elif not self._is_likely_message(msg_block.text):
+                if not self._is_likely_message(msg_block.text):
                     msg_block.is_message = False
+                    continue  # Skip adding this block
                 
+                # Only add blocks that passed both filters
                 message_blocks.append(msg_block)
             
-            # Filter to only messages
-            messages = [mb for mb in message_blocks if mb.is_message]
+            # All blocks in message_blocks are now messages
+            messages = message_blocks
             
             # Assign speakers using clustering
             if messages:
@@ -334,12 +360,18 @@ class ConversationExtractor:
             # Sort by vertical position
             messages.sort(key=lambda m: m.center_y)
             
-            # Convert to output format
+            # Convert to output format with "sender" key
             result = []
             for msg in messages:
                 if msg.speaker:
                     result.append({
-                        "speaker": msg.speaker,
+                        "sender": msg.speaker,
+                        "text": self._clean_text(msg.text)
+                    })
+                else:
+                    # If no speaker assigned, mark as unknown
+                    result.append({
+                        "sender": "unknown",
                         "text": self._clean_text(msg.text)
                     })
             
@@ -348,7 +380,7 @@ class ConversationExtractor:
         except Exception as e:
             logger.error(f"Error in extract_conversation: {str(e)}", exc_info=True)
             raise
-    
+        
     def _is_valid_block(self, block: Any) -> bool:
         """Check if a block has valid structure and confidence."""
         if not block.bounding_box or not block.bounding_box.vertices:
