@@ -1,4 +1,3 @@
-from flask import current_app
 from infrastructure.logger import get_logger
 from typing import Any, Union, Dict, List, Tuple, Optional
 import numpy as np
@@ -11,6 +10,7 @@ from PIL import Image
 from google.cloud import vision
 from infrastructure.clients import get_vision_client
 from google.cloud import vision
+from flask import current_app
 import io
 
 
@@ -146,12 +146,12 @@ class ConversationExtractor:
             if re.search(r'\d{1,2}:\d{2}', text) or len(text) < 3:
                 return True
         
-        # Check if it's in footer area (bottom 10%)
-        if y_position > image_height * 0.90:
+        # Check if it's in footer area (bottom 5% only)
+        # Reduced from 10% to avoid filtering legitimate messages
+        if y_position > image_height * 0.95:
             # Common footer elements
-            if re.search(r'(send|message|type|write)', text, re.IGNORECASE):
+            if re.search(r'^(send|message|type|write)\s*(a\s*message)?$', text, re.IGNORECASE):
                 return True
-            # Don't filter out other text in footer area - it might be a message
         
         return False
     
@@ -188,7 +188,7 @@ class ConversationExtractor:
             return True
         
         # Check if it contains common conversational words
-        conversational_words = current_app.config['CONVERSATIONAL_WORDS']
+        conversational_words = current_app.config.get('CONVERSATIONAL_WORDS', [])
         text_lower = text.lower()
         if any(word in text_lower for word in conversational_words):
             return True
@@ -278,34 +278,44 @@ class ConversationExtractor:
             messages: List of message blocks
             image_width: Width of the image
         """
-        # Cluster messages
-        self._cluster_messages(messages, image_width)
+        # Skip clustering and use simple position-based assignment
+        # This is more reliable for chat interfaces
         
-        # Analyze clusters
-        cluster_stats = self._analyze_message_alignment(messages)
-        
-        if len(cluster_stats) == 0:
-            return
-        
-        # For each cluster, determine if it's left or right aligned
-        for cluster_id, stats in cluster_stats.items():
-            # Calculate average position relative to edges
-            avg_x_min = float(np.mean([msg.x_min for msg in stats['messages']]))
-            avg_x_max = float(np.mean([msg.x_max for msg in stats['messages']]))
+        for msg in messages:
+            # Calculate position relative to center
+            msg_center = msg.center_x
+            image_center = image_width / 2
             
-            # Normalize by image width
-            left_distance = avg_x_min / image_width
-            right_distance = (image_width - avg_x_max) / image_width
+            # Also check the edges - which edge is the message closer to?
+            left_distance = msg.x_min
+            right_distance = image_width - msg.x_max
             
-            # Determine alignment based on which edge the messages are closer to
-            if left_distance < right_distance:
-                # Messages are closer to left edge = connection
-                for msg in stats['messages']:
+            # For wrapped/long messages, check if they span most of the width
+            msg_width_ratio = msg.width / image_width
+            
+            # If message spans more than 60% of width, it's likely a long message
+            # In that case, use the edge it starts from
+            if msg_width_ratio > 0.6:
+                # Long message - check which edge it starts closer to
+                if left_distance < 50:  # Starting very close to left edge
                     msg.speaker = "connection"
-            else:
-                # Messages are closer to right edge = user
-                for msg in stats['messages']:
+                else:
                     msg.speaker = "user"
+            else:
+                # Normal message - use center position
+                # Also consider the alignment - left-aligned messages have small left_distance
+                if left_distance < 100 and left_distance < right_distance:
+                    # Message is left-aligned (connection)
+                    msg.speaker = "connection"
+                elif right_distance < 100 and right_distance < left_distance:
+                    # Message is right-aligned (user)
+                    msg.speaker = "user"
+                else:
+                    # Fallback to center-based detection
+                    if msg_center < image_center:
+                        msg.speaker = "connection"
+                    else:
+                        msg.speaker = "user"
     
     def _clean_text(self, text: str) -> str:
         """Clean and normalize text."""
@@ -613,6 +623,7 @@ class VisualConversationExtractor:
         
         return bool(distance > threshold)
 
+
 def perform_ocr_on_screenshot(screenshot_bytes: bytes) -> List[str]:
     """
     Performs OCR on a screenshot with preprocessing to crop top/bottom regions based on specific text.
@@ -756,7 +767,7 @@ def should_crop_bottom(annotations: List, image_height: int) -> bool:
     bottom_boundary = image_height * 0.9
     target_words = ['message', 'gif', 'send', 'say', 'text']
     
-    for annotation in annotations[1:]:  # Skip first annotation (full text)
+    for annotation in annotations[1:]:  
         vertices = annotation.bounding_poly.vertices
         if not vertices:
             continue
