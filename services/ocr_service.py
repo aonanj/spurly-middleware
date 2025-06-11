@@ -315,7 +315,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
         
         logger.error(f"Successfully extracted {len(conversation_msgs)} messages for user: {user_id}")
         #DEBUG
-        logger.debug(f"Extracted messages: {conversation_msgs}")
+        logger.error(f"Extracted messages: {conversation_msgs}")
         return conversation_msgs
         
     except OCRProcessingError:
