@@ -1,4 +1,6 @@
 from flask import current_app
+from PIL import Image
+import io
 from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
 from utils.prompt_loader import load_system_prompt
@@ -10,6 +12,21 @@ from typing import List, Dict, Any
 
 
 logger = get_logger(__name__)
+
+
+
+def _downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> bytes:
+    # Load image from byte stream
+    img = Image.open(io.BytesIO(image_bytes))
+
+    # Resize while preserving aspect ratio
+    img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+
+    # Save back to bytes
+    output_buffer = io.BytesIO()
+    img.save(output_buffer, format='JPEG')  # or 'JPEG' if needed
+    return output_buffer.getvalue()
+
 
 def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
@@ -47,7 +64,8 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             continue
 
         try:
-            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+            resized_image_bytes = _downscale_image_from_bytes(image_bytes, max_dim=1024)
+            base64_image = base64.b64encode(resized_image_bytes).decode('utf-8')
             encoded_imgs = json.dumps([base64_image])
             # Construct the payload for OpenAI GPT-4V (or your chosen vision model)
             # This prompt is crucial and may need significant tuning.
@@ -58,11 +76,9 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                 f"\n\nimage: \n{encoded_imgs}"
                 prompt = prompt_template.join(image_prompt_appendix)
             
-
-            logger.info(f"Sending image to OpenAI for trait analysis...")
             chat_client = get_openai_client()
             resp = chat_client.chat.completions.create(
-                model=current_app.config['AI_MODEL'], 
+                model="gpt-4o",
                 messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
             )
     
@@ -82,9 +98,9 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                                 "confidence": float(trait_item["confidence"])
                             })
                         else:
-                            logger.warning(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
+                            logger.error(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
                 else:
-                    logger.warning(f"Unexpected response format from OpenAI (not a list) for unknown image: {traits_from_image}")
+                    logger.error(f"Unexpected response format from OpenAI (not a list) for unknown image: {traits_from_image}")
 
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse JSON from OpenAI response for unknown image: {content}", exc_info=True)
@@ -106,7 +122,8 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
     
     unique_traits_with_scores = list(final_traits_dict.values())
     
-    logger.info(f"Inferred {len(unique_traits_with_scores)} unique traits with scores from images.")
+    #DEBUG 
+    logger.error(f"Inferred {len(unique_traits_with_scores)} unique traits with scores from images.")
     return unique_traits_with_scores
 
 def infer_situation(conversation):

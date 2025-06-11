@@ -25,7 +25,10 @@ def moderate_topic(text: str) -> dict:
         return {"safe": False, "reason": "invalid_or_blank"}
 
     normalized = text.strip().lower()
-
+    if not _is_moderated_safe_with_openai(normalized):
+        err_point = __package__ or __name__
+        logger.error(f"Error: {err_point}")
+        return {"safe": False, "reason": "openai_moderation"}
     # Check static banned list
     for phrase in BANNED_PHRASES:
         if phrase in normalized:
@@ -45,12 +48,15 @@ def moderate_topic(text: str) -> dict:
 
     return {"safe": True}
 
-def moderate_with_openai(text):
+def _is_moderated_safe_with_openai(text):
     try:
-        response = get_openai_client().moderations.create(input=text)
-        flagged = response.results[0].flagged
-        return {"safe": True} if not flagged else {"safe": False, "reason": "openai_moderation"}  
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        raise e
+        chat_client = get_openai_client()
+        resp = chat_client.moderations.create(
+            input=text,
+            model="text-moderation-latest"
+        )
+        flagged = resp.results[0].flagged
+        return True if not flagged else False
+    except openai.APIError as e:
+        logger.error(f"OpenAI API error: {e}")
+        return False

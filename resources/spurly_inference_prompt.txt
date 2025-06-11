@@ -30,3 +30,5 @@ You should infer 5 personality traits that describe the individual person appear
 }
 
 *** INPUT FOR YOUR HUMAN PERSONALITY ANALYSIS:
+
+
