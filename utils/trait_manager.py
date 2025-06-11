@@ -66,22 +66,28 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
         try:
             resized_image_bytes = _downscale_image_from_bytes(image_bytes, max_dim=1024)
             base64_image = base64.b64encode(resized_image_bytes).decode('utf-8')
-            encoded_imgs = json.dumps([base64_image])
-            # Construct the payload for OpenAI GPT-4V (or your chosen vision model)
-            # This prompt is crucial and may need significant tuning.
+            images_url = f"data:image/jpeg;base64,{base64_image}"
+            ##encoded_imgs = json.dumps([base64_image])
+
             prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_prompt.txt')
             with open(prompt_file, 'r') as f:
                 prompt_template = f.read().strip()
                 image_prompt_appendix = "\nThe following images are Base64-ended. There is one person commonly shown in all images. You should infer personality traits about that one person. "
-                f"\n\nimage: \n{encoded_imgs}"
                 prompt = prompt_template.join(image_prompt_appendix)
             
             chat_client = get_openai_client()
             resp = chat_client.chat.completions.create(
-                model="gpt-4o",
-                messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
+                model="gpt-4o", 
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": images_url}}
+                        ]
+                    }
+                ]
             )
-    
 
             # 4) Parse the JSON response
             content = (resp.choices[0].message.content or "").strip()
