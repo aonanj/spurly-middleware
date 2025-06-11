@@ -95,16 +95,15 @@ class Config:
 
     LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")
     
-    AI_MODEL = os.environ.get("GPT_MODEL_NAME", "gpt-4o")
+    AI_MODEL = "chatgpt-4o-latest"
     AI_MESSAGES_ROLE_SYSTEM = "system"
     AI_MESSAGES_ROLE_USER = "user"
     AI_TEMPERATURE_INITIAL = 0.9
     AI_TEMPERATURE_RETRY = .65
-    AI_MAX_TOKENS = 600
+    AI_MAX_TOKENS = 2000
     
     ##Used as part of conversation_id to flag conversations extracted via OCR
     OCR_MARKER = "OCR"
     
     DEFAULT_LOG_LEVEL = 20
 
-    GCS_PROFILE_PICS_BUCKET = 'your-actual-gcs-bucket-name'

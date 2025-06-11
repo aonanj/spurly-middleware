@@ -284,7 +284,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
         
         validate_image_file(image_file)
         
-        logger.info(f"Processing image for user: {user_id}")
+        logger.error(f"Processing image for user: {user_id}")
         
         # Convert image to CV2 format
         with convert_image_to_cv2(image_file) as image_array:
@@ -300,7 +300,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
         
         # Check if we have valid pages
         if not response.full_text_annotation or not response.full_text_annotation.pages:
-            logger.warning(f"No text/pages found in image for user: {user_id}")
+            logger.error(f"No text/pages found in image for user: {user_id}")
             return []  # Return empty list for images with no text
         
         # Extract conversation
@@ -310,10 +310,12 @@ def process_image(user_id: str, image_file) -> List[Dict]:
         )
         
         if not conversation_msgs:
-            logger.warning(f"No conversation messages extracted for user: {user_id}")
+            logger.error(f"No conversation messages extracted for user: {user_id}")
             return []  # Return empty list instead of raising error
         
-        logger.info(f"Successfully extracted {len(conversation_msgs)} messages for user: {user_id}")
+        logger.error(f"Successfully extracted {len(conversation_msgs)} messages for user: {user_id}")
+        #DEBUG
+        logger.debug(f"Extracted messages: {conversation_msgs}")
         return conversation_msgs
         
     except OCRProcessingError:

@@ -208,6 +208,9 @@ def ocr_scan():
                     "error": "An unexpected error occurred while processing this image",
                     "order_num": idx
                 })
+                
+        ## DEBUG LOGGING
+        logger.error("Batch processing completed for user_id: %s with %d images", user_id, len(batch_results))
 
         return jsonify(batch_results), 200
 

@@ -51,7 +51,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             encoded_imgs = json.dumps([base64_image])
             # Construct the payload for OpenAI GPT-4V (or your chosen vision model)
             # This prompt is crucial and may need significant tuning.
-            prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_intro_prompt.txt')
+            prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_prompt.txt')
             with open(prompt_file, 'r') as f:
                 prompt_template = f.read().strip()
                 image_prompt_appendix = "\nThe following images are Base64-ended. There is one person commonly shown in all images. You should infer personality traits about that one person. "
@@ -206,7 +206,7 @@ def infer_personality_traits_from_pics(image_data: List[bytes]) -> List[Dict[str
     encoded_imgs = [base64.b64encode(img).decode("utf-8") for img in image_data]
 
     # 2) Build a prompt asking the model to analyze the images
-    prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_intro_prompt.txt')
+    prompt_file = os.path.join(current_app.root_path, 'resources', 'spurly_inference_prompt.txt')
     with open(prompt_file, 'r') as f:
         prompt_template = f.read().strip()
     image_prompt_appendix = "\nThe following images are Base64-ended. There is one person commonly shown in all images. You should infer personality traits about that one person. "
