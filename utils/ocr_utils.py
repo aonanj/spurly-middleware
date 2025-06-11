@@ -119,6 +119,15 @@ class ConversationExtractor:
             
             # Personal pronouns indicating conversation
             r"^(i|i'm|i've|i'll|you|you're|you've|we|we're|they|they're).*",
+            
+            # Action verbs that often start conversational messages
+            r"^(got|get|went|go|came|come|said|say|think|know|see|saw|did|do|will|would|could|should|can|cant|don't|won't).*",
+            
+            # Common conversation patterns
+            r".*\b(refused|fail|failed|trying|gonna|wanna|gotta)\b.*",
+            
+            # Patterns with "to" (like "refused to fail")
+            r".*\bto\s+(fail|go|come|see|get|do|try|be|have)\b.*",
         ]
         
         return [re.compile(p, re.IGNORECASE) for p in patterns]
@@ -165,7 +174,9 @@ class ConversationExtractor:
         Returns:
             True if likely a message
         """
-        # Check minimum length - reduced to catch short messages like "I refused to fail"
+        #DEBUG
+        logger.error(f"Analyzing text for message likelihood: {text}")
+        
         if len(text) < 1:
             return False
         
@@ -379,6 +390,9 @@ class ConversationExtractor:
                 
                 # Create MessageBlock
                 msg_block = MessageBlock(**block_info)
+                
+                # DEBUG
+                logger.error(f"Extracted block: {msg_block.text}")
                 
                 # Filter UI elements (including dates)
                 if self._is_ui_element(msg_block.text, msg_block.center_y, image_height):
