@@ -183,7 +183,7 @@ def create_connection():
         else:
             form_data = request.form.to_dict()
             logger.error(f"Form data received: {form_data}")  # Debug log for form data
-        connection_profile_pic_url = form_data.get("connection_profile_pic_url", "")
+        connection_profile_pic_url = form_data.get('connection_profile_pic_url', '')
         form_data.update({'user_id': user_id})  # Ensure user_id is included in form data
         connection_data = {
             'user_id': user_id,

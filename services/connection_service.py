@@ -55,7 +55,7 @@ def create_connection_profile(
     profile_data_to_save["personality_traits"] = get_top_n_traits(personality_traits_list or [], 5)
 
     profile_data_to_save["connection_context_block"] = data.get("connection_context_block", None)
-    profile_data_to_save["connection_profile_pic_url"] = data.get("connection_profile_pic_url", None)
+    profile_data_to_save["connection_profile_pic_url"] = connection_profile_pic_url if connection_profile_pic_url else ""
     profile_data_to_save["connection_name"] = data.get("connection_name", None) 
     profile_data_to_save["connection_age"] = data.get("connection_age", None)
 
