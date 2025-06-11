@@ -1,3 +1,4 @@
+from flask import current_app
 from infrastructure.logger import get_logger
 from typing import Any, Union, Dict, List, Tuple, Optional
 import numpy as np
@@ -142,7 +143,7 @@ class ConversationExtractor:
         # Check if it's in header area (top 10%)
         if y_position < image_height * 0.10:
             # More aggressive filtering for header area
-            if re.search(r'\d{1,2}:\d{2}', text) or len(text) < 5:
+            if re.search(r'\d{1,2}:\d{2}', text) or len(text) < 3:
                 return True
         
         # Check if it's in footer area (bottom 10%)
@@ -150,6 +151,7 @@ class ConversationExtractor:
             # Common footer elements
             if re.search(r'(send|message|type|write)', text, re.IGNORECASE):
                 return True
+            # Don't filter out other text in footer area - it might be a message
         
         return False
     
@@ -163,7 +165,7 @@ class ConversationExtractor:
         Returns:
             True if likely a message
         """
-        # Check minimum length
+        # Check minimum length - reduced to catch short messages
         if len(text) < 2:
             return False
         
@@ -176,16 +178,23 @@ class ConversationExtractor:
         if re.search(r'[.!?]$', text):
             return True
         
+        # Check for exclamation marks (like "v2!! my boo")
+        if '!' in text:
+            return True
+        
         # If it's reasonably long and not matching UI patterns, likely a message
-        # Increased threshold to avoid short UI elements
-        if len(text) > 15:
+        # Reduced threshold to catch shorter messages
+        if len(text) > 8:
             return True
         
         # Check if it contains common conversational words
-        conversational_words = ['bike', 'ride', 'riding', 'love', 'hate', 'want', 'need', 
-                            'think', 'feel', 'know', 'see', 'tell', 'ask', 'say']
+        conversational_words = current_app.config['CONVERSATIONAL_WORDS']
         text_lower = text.lower()
         if any(word in text_lower for word in conversational_words):
+            return True
+        
+        # Check for personal pronouns and possessives
+        if re.search(r'\b(i|me|my|you|your|we|our|they|their)\b', text_lower):
             return True
         
         return False
@@ -200,6 +209,12 @@ class ConversationExtractor:
             image_width: Width of the image
         """
         if len(messages) < 2:
+            # For single message, try to determine side by position
+            if len(messages) == 1:
+                msg = messages[0]
+                left_distance = msg.x_min / image_width
+                right_distance = (image_width - msg.x_max) / image_width
+                msg.cluster_id = 0 if left_distance < right_distance else 1
             return
         
         # Prepare features for clustering
@@ -217,8 +232,8 @@ class ConversationExtractor:
         features = np.array(features)
         
         # Use DBSCAN with appropriate epsilon
-        # Smaller epsilon for better separation
-        clustering = DBSCAN(eps=0.1, min_samples=1).fit(features)
+        # Increased epsilon slightly to be more inclusive
+        clustering = DBSCAN(eps=0.15, min_samples=1).fit(features)
         
         # Assign cluster IDs
         for i, msg in enumerate(messages):
@@ -380,7 +395,7 @@ class ConversationExtractor:
         except Exception as e:
             logger.error(f"Error in extract_conversation: {str(e)}", exc_info=True)
             raise
-        
+    
     def _is_valid_block(self, block: Any) -> bool:
         """Check if a block has valid structure and confidence."""
         if not block.bounding_box or not block.bounding_box.vertices:
@@ -803,21 +818,21 @@ def extract_text_blocks(annotations: List) -> List[str]:
     return text_blocks
 
 
-# Example usage:
-if __name__ == "__main__":
-    # Note: Ensure that init_clients() has been called before using this function
-    # This would typically be done during Flask app initialization
+# # Example usage:
+# if __name__ == "__main__":
+#     # Note: Ensure that init_clients() has been called before using this function
+#     # This would typically be done during Flask app initialization
     
-    # Load screenshot bytes
-    with open("path/to/your/screenshot.png", "rb") as f:
-        screenshot_data = f.read()
+#     # Load screenshot bytes
+#     with open("path/to/your/screenshot.png", "rb") as f:
+#         screenshot_data = f.read()
     
-    try:
-        text_blocks = perform_ocr_on_screenshot(screenshot_data)
+#     try:
+#         text_blocks = perform_ocr_on_screenshot(screenshot_data)
         
-        print("Detected text blocks:")
-        for i, text in enumerate(text_blocks, 1):
-            print(f"{i}. {text}")
+#         print("Detected text blocks:")
+#         for i, text in enumerate(text_blocks, 1):
+#             print(f"{i}. {text}")
             
-    except Exception as e:
-        print(f"Error: {e}")
+#     except Exception as e:
+#         print(f"Error: {e}")
