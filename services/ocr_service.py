@@ -1,6 +1,7 @@
 from typing import List, Dict, Optional, Tuple, Generator, Any
 from flask import jsonify
 from google.cloud import vision
+from google.api_core import retry, exceptions as core_exceptions
 from infrastructure.clients import get_vision_client
 from infrastructure.logger import get_logger
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
@@ -8,6 +9,7 @@ import cv2
 import numpy as np
 import io
 from contextlib import contextmanager
+import time
 
 
 logger = get_logger(__name__)
@@ -123,9 +125,115 @@ def prepare_image_for_ocr(image_array: np.ndarray) -> bytes:
         raise OCRProcessingError(f"Image preparation failed: {str(e)}")
 
 
+def perform_ocr_with_retry(content: bytes, client: vision.ImageAnnotatorClient, max_retries: int = 3) -> vision.AnnotateImageResponse:
+    """
+    Performs OCR with retry logic for transient errors.
+    
+    Args:
+        content: Encoded image bytes
+        client: Google Vision API client
+        max_retries: Maximum number of retry attempts
+        
+    Returns:
+        AnnotateImageResponse: OCR response from Google Vision API
+        
+    Raises:
+        OCRProcessingError: If OCR fails after all retries
+    """
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            # If this is a retry, wait with exponential backoff
+            if attempt > 0:
+                wait_time = min(2 ** attempt, 10)  # Max 10 seconds
+                logger.info(f"Retrying OCR after {wait_time} seconds (attempt {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            
+            # Create a fresh client for each retry to avoid stale connections
+            if attempt > 0:
+                client = get_vision_client()
+                if not client:
+                    raise OCRProcessingError("Failed to reinitialize Vision client")
+            
+            image = vision.Image(content=content)
+            
+            # Use annotate_image for better performance and features
+            request = {
+                'image': image,
+                'features': [
+                    {'type_': vision.Feature.Type.DOCUMENT_TEXT_DETECTION},
+                ]
+            }
+            
+            # Configure retry policy for the API call itself
+            retry_config = retry.Retry(
+                initial=0.1,
+                maximum=60.0,
+                multiplier=2.0,
+                predicate=retry.if_exception_type(
+                    core_exceptions.ServiceUnavailable,
+                    core_exceptions.DeadlineExceeded,
+                ),
+                deadline=60.0
+            )
+            
+            response = client.annotate_image(request, retry=retry_config)
+            
+            if response.error.message:
+                # API returned an error in the response
+                error_msg = f"Google Vision API error: {response.error.message}"
+                logger.error(error_msg)
+                
+                # Don't retry for permanent errors
+                if "InvalidArgument" in response.error.message or "InvalidImage" in response.error.message:
+                    raise OCRProcessingError(error_msg)
+                
+                # For other errors, treat as retryable
+                last_error = OCRProcessingError(error_msg)
+                continue
+            
+            # Validate response has text
+            if not response.full_text_annotation or not response.full_text_annotation.pages:
+                logger.warning("No text detected in image")
+                # This is not necessarily an error - image might genuinely have no text
+                # Return the response anyway and let the caller handle it
+                return response
+            
+            # Success!
+            return response
+            
+        except (core_exceptions.ServiceUnavailable, core_exceptions.DeadlineExceeded) as e:
+            # These are transient errors that should be retried
+            logger.warning(f"Transient error during OCR (attempt {attempt + 1}): {str(e)}")
+            last_error = e
+            continue
+            
+        except core_exceptions.InvalidArgument as e:
+            # This is a permanent error, don't retry
+            raise OCRProcessingError(f"Invalid request: {str(e)}")
+            
+        except Exception as e:
+            # Unexpected error
+            logger.error(f"Unexpected error during OCR: {str(e)}", exc_info=True)
+            last_error = e
+            
+            # If it looks like a connection error, retry
+            error_str = str(e).lower()
+            if any(term in error_str for term in ['timeout', 'connection', 'goaway', 'unavailable']):
+                continue
+            
+            # Otherwise, don't retry
+            raise OCRProcessingError(f"OCR processing failed: {str(e)}")
+    
+    # All retries exhausted
+    raise OCRProcessingError(f"OCR failed after {max_retries} attempts. Last error: {str(last_error)}")
+
+
 def perform_ocr(content: bytes, client: vision.ImageAnnotatorClient) -> vision.AnnotateImageResponse:
     """
     Performs OCR on the prepared image content.
+    This is a wrapper that maintains backward compatibility while adding retry logic.
     
     Args:
         content: Encoded image bytes
@@ -137,32 +245,7 @@ def perform_ocr(content: bytes, client: vision.ImageAnnotatorClient) -> vision.A
     Raises:
         OCRProcessingError: If OCR fails
     """
-    try:
-        image = vision.Image(content=content)
-        
-        # Use annotate_image for better performance and features
-        request = {
-            'image': image,
-            'features': [
-                {'type_': vision.Feature.Type.DOCUMENT_TEXT_DETECTION},
-            ]
-        }
-        
-        response = client.annotate_image(request)
-        
-        if response.error.message:
-            raise OCRProcessingError(f"Google Vision API error: {response.error.message}")
-        
-        # Validate response has text
-        if not response.full_text_annotation or not response.full_text_annotation.pages:
-            raise OCRProcessingError("No text detected in image")
-        
-        return response
-        
-    except Exception as e:
-        if isinstance(e, OCRProcessingError):
-            raise
-        raise OCRProcessingError(f"OCR processing failed: {str(e)}")
+    return perform_ocr_with_retry(content, client)
 
 
 def process_image(user_id: str, image_file) -> List[Dict]:
@@ -214,6 +297,11 @@ def process_image(user_id: str, image_file) -> List[Dict]:
             raise OCRProcessingError("Vision client not initialized")
             
         response = perform_ocr(content, client)
+        
+        # Check if we have valid pages
+        if not response.full_text_annotation or not response.full_text_annotation.pages:
+            logger.warning(f"No text/pages found in image for user: {user_id}")
+            return []  # Return empty list for images with no text
         
         # Extract conversation
         conversation_msgs = extract_conversation(
