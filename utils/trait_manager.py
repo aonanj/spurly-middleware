@@ -121,8 +121,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
 
             # 4) Parse the JSON response
             content = (resp.choices[0].message.content or "").strip()
-            traits: List[Dict[str, float]] = json.loads(content)
-            
+                       
             # Attempt to parse the JSON from the response content
             try:
                 traits_from_image = json.loads(content)
