@@ -117,7 +117,9 @@ def generate_connection_id(user_id: str) -> str:
 		connection_id: Connection ID, beginning with "u:" and ending with ":p"
 			str
 	"""
-	connection_id_indicator = os.getenv('CONNECTION_ID_INDICATOR') or "p"
+	connection_id_indicator = current_app.config.get('CONNECTION_ID_INDICATOR')
+	if not connection_id_indicator or connection_id_indicator == "":
+		connection_id_indicator = "p"
 	connection_id_stub = _generate_random_string(6)
 	if user_id and connection_id_indicator:
 		return (f"{user_id}:{connection_id_stub}:{connection_id_indicator}")

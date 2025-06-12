@@ -95,10 +95,10 @@ def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
 
 def generate_spurs(
     user_id: str,
-    connection_id: str,
-    conversation_id: str,
-    situation: str,
-    topic: str,
+    connection_id: Optional[str],
+    conversation_id: Optional[str],
+    situation: Optional[str],
+    topic: Optional[str],
     selected_spurs: Optional[list[str]] = None,
     conversation_messages: Optional[List[Dict]] = None,  # New parameter
 ) -> list:
@@ -126,11 +126,11 @@ def generate_spurs(
         selected_spurs = user_profile_dict['selected_spurs']
     
     connection_profile = None
-    if connection_id and connection_id != get_null_connection_id():
+    if connection_id and connection_id != get_null_connection_id(user_id):
         connection_profile = get_connection_profile(user_id, connection_id)
     else:
         active_connection_id = get_active_connection_firestore(user_id)
-        if active_connection_id and active_connection_id != get_null_connection_id():
+        if active_connection_id and active_connection_id != get_null_connection_id(user_id):
             connection_profile = get_connection_profile(user_id, active_connection_id)
 
     # Initialize context_block first
@@ -138,7 +138,7 @@ def generate_spurs(
     user_prompt_profile = get_user_profile_for_prompt(user_id) # Create instance for formatting
     context_block += "\n".join(user_prompt_profile.values()) + "\n\n"
     
-    if connection_profile and connection_id != get_null_connection_id():
+    if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
         context_block += "***Connection Profile:***\n"
         connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id) # Create instance for formatting
         context_block += "\n".join(connection_prompt_profile.values()) + "\n\n"
