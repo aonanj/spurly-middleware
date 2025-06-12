@@ -67,7 +67,6 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             resized_image_bytes = _downscale_image_from_bytes(image_bytes, max_dim=1024)
             base64_image = base64.b64encode(resized_image_bytes).decode('utf-8')
             images_url = f"data:image/jpeg;base64,{base64_image}"
-            ##encoded_imgs = json.dumps([base64_image])
 
             prompt = """
                 You are an AI assistant tasked with inferring five personality traits based solely on visual observation of an individual's appearance in a single image. You should make judgments using visible features such as facial expression, posture, clothing, grooming, and environmental context, but avoid overanalyzing or attempting deep psychological evaluation.
@@ -125,18 +124,25 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                        
             # Attempt to parse the JSON from the response content
             try:
-                traits_from_image = json.loads(content)
-                if isinstance(traits_from_image, list):
-                    for trait_item in traits_from_image:
-                        if isinstance(trait_item, dict) and "trait" in trait_item and "confidence" in trait_item:
-                            all_inferred_traits_with_scores.append({
-                                "trait": str(trait_item["trait"]),
-                                "confidence": float(trait_item["confidence"])
-                            })
-                        else:
-                            logger.error(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
+                parsed_response = json.loads(content)
+                
+                # Check if the response has the expected structure
+                if isinstance(parsed_response, dict) and "personality_traits" in parsed_response:
+                    traits_from_image = parsed_response["personality_traits"]
+                    
+                    if isinstance(traits_from_image, list):
+                        for trait_item in traits_from_image:
+                            if isinstance(trait_item, dict) and "personality_trait" in trait_item and "confidence_score" in trait_item:
+                                all_inferred_traits_with_scores.append({
+                                    "trait": str(trait_item["personality_trait"]),
+                                    "confidence": float(trait_item["confidence_score"])
+                                })
+                            else:
+                                logger.error(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
+                    else:
+                        logger.error(f"Unexpected personality_traits format from OpenAI (not a list) for unknown image: {traits_from_image}")
                 else:
-                    logger.error(f"Unexpected response format from OpenAI (not a list) for unknown image: {traits_from_image}")
+                    logger.error(f"Unexpected response structure from OpenAI for unknown image: {parsed_response}")
 
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse JSON from OpenAI response for unknown image: {content}", exc_info=True)
