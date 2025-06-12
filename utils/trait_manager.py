@@ -72,9 +72,10 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             prompt = """
                 You are an AI assistant tasked with inferring five personality traits based solely on visual observation of an individual's appearance in a single image. You should make judgments using visible features such as facial expression, posture, clothing, grooming, and environmental context, but avoid overanalyzing or attempting deep psychological evaluation.
 
-                Do not speculate beyond what is reasonably inferable from visual cues. Do not attempt to be comprehensive. Do not perform high-effort internal reasoning or expansive interpretation. Your role is to make shallow, high-salience observations and infer personality traits that are consistent with those cues. If the image contains subtle social cues, you're allowed to make light educated guesses, but should note the ambiguity by adjusting confidence scores downward.
+                Reasonably infer from visual cues, but do not attempt to be comprehensive. Do not perform high-effort internal reasoning or expansive interpretation. Your role is to make shallow observations and infer personality traits that are consistent with those observations. If the image contains subtle social cues, you're allowed to make light educated guesses, but should note the ambiguity by adjusting confidence scores downward.
 
-                You should avoid stating traits that are purely positive, purely negative, or strictly neutral. Choose balanced and grounded traits based on appearance. Your output should be in the form of a JSON object as shown below, with each trait accompanied by a confidence score from 0 to 1.
+                You should avoid stating traits that are purely positive, purely negative, or strictly neutral. Choose balanced and grounded traits based on appearance. Your ONLY output should be in the form of a JSON object as shown below, with each trait accompanied by a confidence score from 0 to 1. YOU MUST NOT include any other text or commentary in your response.
+                The traits should be concise, descriptive, and relevant to the visual cues present in the image. Each trait should be a single word or a short phrase that captures the essence of the inferred personality characteristic. "I am unable to infer personality traits from this image" is NOT an acceptable response. If no person is visible in the image, you should return an empty list.
 
                 *** OUTPUT FORMAT:
                 {
