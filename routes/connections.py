@@ -232,11 +232,12 @@ def create_connection():
                 
                 # Get personality traits
                 trait_list = infer_personality_traits_from_openai_vision([image_dict])
-                if trait_list and len(trait_list) > 0:
-                    personality_traits.append({
-                        "trait": trait_list[0].get("trait", ""),
-                        "confidence": trait_list[0].get("confidence", 0.0)
-                    })
+                if trait_list:
+                    for trait_item in trait_list:
+                        personality_traits.append({
+                            "trait": trait_item.get("trait", ""),
+                            "confidence": trait_item.get("confidence", 0.0)
+                        })
             except Exception as e:
                 logger.error(f"Error processing profile pic for user {user_id}: {e}", exc_info=True)
         
