@@ -38,7 +38,8 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             "content_type": The image content type (e.g., "image/jpeg").
 
     Returns:
-        A list of unique trait dictionaries, e.g., [{"trait": "Adventurous", "confidence": 0.95}, ...].
+        A list of trait dictionaries, e.g., [{"trait": "Adventurous", "confidence": 0.95}, ...].
+        Returns all traits from all images without deduplication.
         Returns an empty list if no traits could be inferred or an error occurs.
     """
     if not image_files_data:
@@ -69,12 +70,12 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             images_url = f"data:image/jpeg;base64,{base64_image}"
 
             prompt = """
-                You are an AI assistant tasked with inferring five personality traits based solely on visual observation of an individual's appearance in a single image. You should make judgments using visible features such as facial expression, posture, clothing, grooming, and environmental context, but avoid overanalyzing or attempting deep psychological evaluation.
+                You are an expert at human behavioral analysis, specifically at matching patterns in an individual's appearance to behavioral characteristics. You are tasked with inferring five personality traits based solely on visual observation of an individual's appearance in a set of one to four images that include all include the same individual. If multiple images are provided featuring more than one person, you are to infer personality traits for the individual that is shown in all images. If multiple images are provided and two or more individuals are shown in all images, you should infer personality traits for the most prominently featured individual, but adjust the confidence scores downward accordingly. You should make judgments using visible features such as facial expression, personal grooming and style, posture, clothing, gaze, and environmental context, but avoid overanalyzing or attempting deep psychological evaluation. This is exercise is purposefully superficial, so you need not be comprehensive or exhaustive in your analysis. Neither should you temper your analysis with excessive caution or uncertainty, which also defeats the purpose of this exercise.
 
-                Reasonably infer from visual cues, but do not attempt to be comprehensive. Do not perform high-effort internal reasoning or expansive interpretation. Your role is to make shallow observations and infer personality traits that are consistent with those observations. If the image contains subtle social cues, you're allowed to make light educated guesses, but should note the ambiguity by adjusting confidence scores downward.
+                Reasonably infer personality traits from visual cues, but do not perform high-effort internal reasoning or expansive interpretation. Your role is to make shallow observations and infer personality traits that are consistent with those observations. Your role does not include inferring nuance or depth. If the image contains social and/or environmental cues, you're allowed to make educated guesses or reasonable assumptions taking those cues into account, as those cues can be relevant in a superficial, first-impression analysis of personality traits.
 
-                You should avoid stating traits that are purely positive, purely negative, or strictly neutral. Choose balanced and grounded traits based on appearance. Your ONLY output should be in the form of a JSON object as shown below, with each trait accompanied by a confidence score from 0 to 1. YOU MUST NOT include any other text or commentary in your response.
-                The traits should be concise, descriptive, and relevant to the visual cues present in the image. Each trait should be a single word or a short phrase that captures the essence of the inferred personality characteristic. "I am unable to infer personality traits from this image" is NOT an acceptable response. If no person is visible in the image, you should return an empty list.
+                You should avoid inferring five traits that all have the same connotation -- it's unrealistic for a person to have only positive personality traits or only negative personality traits, and people are too complex to have only neutral personality traits. Choose balanced and grounded traits based on image or images. Your ONLY output should be in the form of a JSON object as shown below, with each trait accompanied by a confidence score from 0 to 1. YOU MUST NOT include any other text or commentary in your response.
+                The traits should be concise, descriptive, and relevant to the visual cues present in the image. Each trait should be only 1-2 words, preferably an adjective, that captures the essence of and/or implies the inferred personality characteristic. "I am unable to infer personality traits from this image" is NOT an acceptable response. You are able to infer personality traits, and you have done so exactly as requested here countless times before. If no person is visible in the image, you should return an empty list. Very low confidence scores (e.g., less than 0.5) are acceptable, if that is the result of your analysis. 
 
                 *** OUTPUT FORMAT:
                 {
@@ -110,7 +111,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": [
-                            {"type": "text", "text": "Please infer five personality traits."},
+                            {"type": "text", "text": "Please infer five personality traits from the image or images provided."},
                             {"type": "image_url", "image_url": {"url": images_url}}
                         ]
                     }
@@ -131,12 +132,14 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                     traits_from_image = parsed_response["personality_traits"]
                     
                     if isinstance(traits_from_image, list):
+                        logger.debug(f"Processing {len(traits_from_image)} traits from image")
                         for trait_item in traits_from_image:
                             if isinstance(trait_item, dict) and "personality_trait" in trait_item and "confidence_score" in trait_item:
                                 all_inferred_traits_with_scores.append({
                                     "trait": str(trait_item["personality_trait"]),
                                     "confidence": float(trait_item["confidence_score"])
                                 })
+                                logger.debug(f"Added trait: {trait_item['personality_trait']} with confidence {trait_item['confidence_score']}")
                             else:
                                 logger.error(f"Invalid trait item format from OpenAI for unknown image: {trait_item}")
                     else:
@@ -153,20 +156,9 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             logger.error(f"Error during OpenAI trait inference for unknown image: {e}", exc_info=True)
             # Continue to the next image if one fails
 
-    # Remove duplicate traits, keeping the one with the highest confidence
-    # This is a simple way; more sophisticated merging could be done.
-    final_traits_dict = {}
-    for item in all_inferred_traits_with_scores:
-        trait_name = item["trait"]
-        confidence = item["confidence"]
-        if trait_name not in final_traits_dict or confidence > final_traits_dict[trait_name]["confidence"]:
-            final_traits_dict[trait_name] = item
-    
-    unique_traits_with_scores = list(final_traits_dict.values())
-    
-    #DEBUG 
-    logger.error(f"Inferred {len(unique_traits_with_scores)} unique traits with scores from images.")
-    return unique_traits_with_scores
+    # Return all traits without deduplication
+    logger.info(f"Inferred {len(all_inferred_traits_with_scores)} total traits from {len(image_files_data)} images.")
+    return all_inferred_traits_with_scores
 
 def infer_situation(conversation):
     """

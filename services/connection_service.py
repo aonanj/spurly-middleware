@@ -10,20 +10,12 @@ from infrastructure.id_generator import generate_connection_id, get_null_connect
 logger = get_logger(__name__)
 
 def get_top_n_traits(traits_with_scores: List[Dict[str, Any]], n: int = 5) -> List[Dict[str, Any]]:
-    """Sorts traits by confidence and returns the top N unique traits."""
+    """Sorts traits by confidence and returns the top N traits WITHOUT deduplication."""
     if not traits_with_scores:
         return []
     
-    # Ensure uniqueness by trait name, keeping the highest confidence for duplicates
-    unique_traits_map = {}
-    for item in traits_with_scores:
-        trait_name = item.get("trait")
-        confidence = item.get("confidence", 0.0)
-        if trait_name:
-            if trait_name not in unique_traits_map or confidence > unique_traits_map[trait_name]["confidence"]:
-                unique_traits_map[trait_name] = {"trait": trait_name, "confidence": confidence}
-    
-    sorted_traits = sorted(list(unique_traits_map.values()), key=lambda x: x["confidence"], reverse=True)
+    # Sort by confidence without deduplication to preserve all 5 traits
+    sorted_traits = sorted(traits_with_scores, key=lambda x: x.get("confidence", 0.0), reverse=True)
     return sorted_traits[:n]
 
 def create_connection_profile(
@@ -291,35 +283,21 @@ def update_connection_profile(
             if current_profile_data.get("connection_profile_text") != connection_profile_text:
                 update_payload["connection_profile_text"] = connection_profile_text
         
-            
-            combined_traits = current_profile_data.get("personality_traits", [])
-            if updated_personality_traits is not None:
-                combined_traits.append(updated_personality_traits)
+        # Update personality traits if provided
+        if updated_personality_traits is not None:
+            combined_traits = current_profile_data.get("personality_traits", []).copy()  # Make a copy
+            combined_traits.extend(updated_personality_traits)  # Use extend, not append!
             
             if combined_traits and len(combined_traits) > 5:
-                # If more than 5 traits, keep only the top 5 by confidence
+                # Keep only the top 5 by confidence
                 update_payload["personality_traits"] = get_top_n_traits(combined_traits, 5)
-    except Exception as e:
-        logger.error(f"Error updating conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
-        return {"error": f"Cannot update connection profile: {str(e)}"}
+            else:
+                update_payload["personality_traits"] = combined_traits
 
-    
-    # Note: The logic for comparing new traits with existing ones and merging to keep top 5
-    # needs to be clarified. The current interpretation is:
-    # - If new images are provided, traits are derived SOLELY from these new images.
-    # - If no new images (`profile_pics_raw_files` is None), traits are not touched by this part of the logic.
-    # - If `profile_pics_raw_files` is an empty list, it means "remove traits derived from photos".
-    # If "compare the confidence scores, and save the highest 5" meant combining traits derived from
-    # *old* images (currently stored) with traits from *new* images, then we'd need to fetch
-    # `current_profile_data.get("personality_traits", [])`, merge with `new_photo_traits_with_scores`,
-    # then apply `get_top_n_traits`.
-    # Given "When ... called with new profile images", it suggests the new images are the source.
+        if not update_payload:
+            logger.info(f"No effective update data provided for conn {connection_id}, user {user_id}.")
+            return {"warning": "no effective update data provided for connection profile", "connection_id": connection_id}
 
-    if not update_payload:
-        logger.info(f"No effective update data provided for conn {connection_id}, user {user_id}.")
-        return {"warning": "no effective update data provided for connection profile", "connection_id": connection_id}
-
-    try:
         doc_ref.update(update_payload)
         logger.info(f"Conn profile {connection_id} for user {user_id} updated with keys: {list(update_payload.keys())}.")
         return {"success": "connection profile updated", "connection_id": connection_id}
