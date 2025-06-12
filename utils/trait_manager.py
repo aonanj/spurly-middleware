@@ -1,4 +1,5 @@
 from flask import current_app
+import re
 from PIL import Image
 import io
 from infrastructure.clients import get_openai_client
@@ -26,6 +27,15 @@ def _downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> byte
     output_buffer = io.BytesIO()
     img.save(output_buffer, format='JPEG')  # or 'JPEG' if needed
     return output_buffer.getvalue()
+
+def _extract_json_block(text):
+    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if match:
+        return match.group(1)
+    raise ValueError("No JSON code block found.")
+
+
+
 
 
 def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -122,10 +132,11 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
 
             # 4) Parse the JSON response
             content = (resp.choices[0].message.content or "").strip()
+            json_parsed_content = _extract_json_block(content)
                        
             # Attempt to parse the JSON from the response content
             try:
-                parsed_response = json.loads(content)
+                parsed_response = json.loads(json_parsed_content)
                 
                 # Check if the response has the expected structure
                 if isinstance(parsed_response, dict) and "personality_traits" in parsed_response:
