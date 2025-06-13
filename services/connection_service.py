@@ -9,6 +9,25 @@ from infrastructure.id_generator import generate_connection_id, get_null_connect
 
 logger = get_logger(__name__)
 
+def _join_ocr_subwords(subwords: List[str]) -> str:
+    """Joins OCR subwords into a coherent string, handling spaces appropriately."""
+    no_space_before = {".", ",", "!", "?", ":", ";", ")", "]", "}", "%"}
+    no_space_after = {"(", "[", "{", "$", "“", '"', "‘"}
+
+    result = ""
+    for i, subword in enumerate(subwords):
+        if i == 0:
+            result += subword
+        else:
+            prev = subwords[i - 1]
+            if subword in no_space_before:
+                result += subword
+            elif prev in no_space_after:
+                result += subword
+            else:
+                result += " " + subword
+    return result
+
 def get_top_n_traits(traits_with_scores: List[Dict[str, Any]], n: int = 5) -> List[Dict[str, Any]]:
     """Sorts traits by confidence and returns the top N traits WITHOUT deduplication."""
     if not traits_with_scores:
@@ -23,7 +42,8 @@ def create_connection_profile(
     # images: Optional[List[bytes]] = None, # This was for the old trait system from generic images
     # links: Optional[List[str]] = None,    # This is being removed
     connection_profile_text: Optional[List[str]] = None,
-    personality_traits_list: Optional[List[Dict[str, Any]]] = None, connection_profile_pic_url: str = "") -> Dict:
+    personality_traits_list: Optional[List[Dict[str, Any]]] = None, 
+    connection_profile_pic_url: str = "") -> Dict:
     
     
     user_id = data['user_id']
@@ -39,7 +59,10 @@ def create_connection_profile(
     profile_data_to_save = profile.to_dict()
 
     # OCR'd text content
-    profile_data_to_save["connection_profile_text"] = connection_profile_text if connection_profile_text is not None else []
+    if connection_profile_text is not None and isinstance(connection_profile_text, list):
+        # Join subwords into coherent strings
+        joined_texts = _join_ocr_subwords(connection_profile_text) 
+        profile_data_to_save["connection_profile_text"] = joined_texts
 
     # Personality traits from profile pictures (using OpenAI Vision)
 
@@ -280,9 +303,9 @@ def update_connection_profile(
             update_payload["connection_context_block"] = None # Explicitly set to None if empty string
 
         # Update OCR'd text content if provided (None means no change, [] means clear)
-        if connection_profile_text is not None:
-            if current_profile_data.get("connection_profile_text") != connection_profile_text:
-                update_payload["connection_profile_text"] = connection_profile_text
+        if connection_profile_text is not None and isinstance(connection_profile_text, list):
+            joined_texts = _join_ocr_subwords(connection_profile_text)
+            update_payload["connection_profile_text"] = joined_texts
         
         # Update personality traits if provided
         if updated_personality_traits is not None:

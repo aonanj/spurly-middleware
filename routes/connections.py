@@ -292,6 +292,7 @@ def update_connection():
                 try:
                     extracted_text = perform_ocr(image_bytes)
                     if extracted_text:
+                        
                         profile_content_texts.extend(extracted_text)
                 except Exception as e:
                     logger.error(f"Error processing content image: {e}", exc_info=True)
