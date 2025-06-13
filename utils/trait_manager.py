@@ -32,7 +32,12 @@ def _extract_json_block(text):
     match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         return match.group(1)
-    raise ValueError("No JSON code block found.")
+    elif text.strip().startswith('{') and text.strip().endswith('}'):
+        return text.strip()
+
+    else:
+        logger.error(f"No JSON code block found in text: {text}")
+        raise ValueError(f"No JSON code block found. GPT response: {text}")
 
 
 
@@ -212,7 +217,8 @@ Conversation:
         )
 
         output = (response.choices[0].message.content or "").strip()
-        return json.loads(output)
+        
+        return json.loads(_extract_json_block(output))
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
@@ -242,7 +248,7 @@ Message:
             messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
         )
         output = (response.choices[0].message.content or "").strip()
-        return json.loads(output)
+        return json.loads(_extract_json_block(output))
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
