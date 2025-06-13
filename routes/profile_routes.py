@@ -78,7 +78,7 @@ def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
     if not user:
         return None
     else:
-        return user.to_dict_alt()
+        return user.to_dict()
 
 @profile_bp.route('/<user_id>', methods=['GET'])
 @handle_errors

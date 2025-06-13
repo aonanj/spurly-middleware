@@ -334,7 +334,8 @@ def update_connection():
             connection_id=connection_id,
             data=connection_context_block if connection_context_block else None,
             connection_profile_text=profile_content_texts,
-            updated_personality_traits=personality_traits
+            updated_personality_traits=personality_traits,
+            updated_profile_pic_url=form_data.get("connection_profile_pic_url")
         )
         
         return jsonify(result)
@@ -447,7 +448,9 @@ def fetch_single_connection():
             
         connection_id = request.args.get("connection_id")
         if not connection_id:
-            return jsonify({"error": "Missing connection_id parameter"}), 400
+            connection_id = get_active_connection_firestore(user_id)
+            if not connection_id:
+                return jsonify({"error": "Missing connection_id parameter"}), 400
             
         profile = get_connection_profile(user_id, connection_id)
         if profile:

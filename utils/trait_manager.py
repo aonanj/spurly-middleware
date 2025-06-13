@@ -122,7 +122,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             
             chat_client = get_openai_client()
             resp = chat_client.chat.completions.create(
-                model="gpt-4o", 
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": prompt},
                     {"role": "user", "content": [

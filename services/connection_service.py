@@ -254,7 +254,8 @@ def update_connection_profile(
     connection_id: str, 
     data: Optional[str] = None, 
     connection_profile_text: Optional[List[str]] = None, 
-    updated_personality_traits: Optional[List[Dict[str, Any]]] = None 
+    updated_personality_traits: Optional[List[Dict[str, Any]]] = None,
+    updated_profile_pic_url: Optional[str] = None 
 ) -> Dict:
     null_suffix = current_app.config.get('NULL_CONNECTION_ID_SUFFIX', '_null')
     if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_suffix)):
@@ -293,6 +294,10 @@ def update_connection_profile(
                 update_payload["personality_traits"] = get_top_n_traits(combined_traits, 5)
             else:
                 update_payload["personality_traits"] = combined_traits
+        
+        if updated_profile_pic_url is not None and updated_profile_pic_url.startswith("http"):
+            if current_profile_data.get("connection_profile_pic_url") != updated_profile_pic_url:
+                update_payload["connection_profile_pic_url"] = updated_profile_pic_url
 
         if not update_payload:
             logger.info(f"No effective update data provided for conn {connection_id}, user {user_id}.")

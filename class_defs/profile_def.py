@@ -163,8 +163,6 @@ class ConnectionProfile:
                     d[f.name] = f.default_factory()
             elif isinstance(value, datetime):
                 d[f.name] = value.isoformat()
-            elif f.name.strip().lower() == "selected_spurs" and value and isinstance(value, list):
-                d[f.name] = ", ".join(value)
             elif isinstance(value, Dict) and not value and callable(f.default_factory):
                 d[f.name] = f.default_factory()
             elif isinstance(value, List) and not value and callable(f.default_factory):

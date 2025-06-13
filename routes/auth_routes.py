@@ -190,7 +190,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
             name=firebase_user.get('name', ''),# Use Firebase UID as provider ID
         )
     
-    return user_profile.to_dict_alt()  # Convert to dict for response
+    return user_profile.to_dict()  # Convert to dict for response
 # Routes
 
 @auth_bp.route('/firebase/register', methods=['POST'])

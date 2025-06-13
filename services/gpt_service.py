@@ -121,7 +121,7 @@ def generate_spurs(
     user = get_user(user_id)
     if not user:
         raise ValueError(f"User with ID {user_id} not found")
-    user_profile_dict = user.to_dict_alt() # Renamed for clarity
+    user_profile_dict = user.to_dict() # Renamed for clarity
     if not selected_spurs:
         selected_spurs = user_profile_dict['selected_spurs']
     

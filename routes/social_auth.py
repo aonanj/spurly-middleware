@@ -333,8 +333,8 @@ def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email
             auth_provider_id=provider_user_id,
             name=name,
         )
-    
-    return user_profile.to_dict_alt() 
+
+    return user_profile.to_dict()  # Convert to dict for response
 
 # Routes
 
