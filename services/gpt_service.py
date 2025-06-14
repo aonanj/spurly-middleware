@@ -152,6 +152,8 @@ def generate_spurs(
     tone_info = {}
     tone = ""
     if conversation_messages:
+        if not conversation_id:
+            conversation_id = generate_conversation_id(user_id)
         tone_info = infer_tone(conversation_messages[-1].get("text", ""))
         if classify_confidence(tone_info["confidence"]) == "high":
             tone = tone_info["tone"]
@@ -171,8 +173,7 @@ def generate_spurs(
         context_block += f"NOTE: You should suggest SPURs based on the conversation above. Consider the Situation, Topic, and Tone if they are included. Your suggestions should consider the User Profile and the Connection Profile, and you should tie your suggestions back to the Connection Profile only if it fits into the conversation. Your fundamental goal here is to keep the conversation engaging and relevant.\n\n"
 
     
-    if not conversation_id:
-        conversation_id = generate_conversation_id(user_id)
+
 
 
     prompt = build_prompt(selected_spurs or [], context_block)
@@ -229,9 +230,9 @@ def generate_spurs(
                 if spur_text: # Ensure spur_text is not empty
                     spur_objects.append(
                         Spur(
-                            user_id=user_profile_dict.get("user_id", ""), # from dict
-                            spur_id=generate_spur_id(user_id), # from dict
-                            conversation_id=conversation_id, # Use derived ID
+                            user_id=user_profile_dict.get("user_id", ""), 
+                            spur_id=generate_spur_id(user_id), 
+                            conversation_id=conversation_id or "",
                             connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id") if connection_profile else "",
                             situation=situation or "",
                             topic=topic or "",

@@ -11,6 +11,7 @@ from functools import wraps
 import requests
 import jwt
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
+from services.connection_service import clear_active_connection_firestore
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -298,10 +299,11 @@ def firebase_login():
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
         setattr(g, "user_id", firebase_user['user_id']) 
-              
+        
+                      
         # Create or update user in your database
         user_data = get_user(firebase_user['user_id'])
- 
+
         if not user_data:
             raise AuthError("User not found. Please register first.", 404)
 
@@ -311,6 +313,9 @@ def firebase_login():
             name=user_data.name if user_data.name else None
         )
         
+        clear_active_connection = clear_active_connection_firestore(user_data.user_id)
+        setattr(g, "active_connection_id", clear_active_connection.get("connection_id"))
+
         # Log successful login
         logger.info(f"User logged in via Firebase: {user_data.user_id}")
 
@@ -331,6 +336,59 @@ def firebase_login():
     except Exception as e:
         logger.error(f"Firebase login error: {str(e)}")
         raise AuthError("Unable to authenticate", 500)
+
+@auth_bp.route('/logout', methods=['POST'])
+@handle_auth_errors
+def logout():
+    """Logout user and invalidate tokens"""
+    # Get token from Authorization header
+    data = request.get_json()
+    if not data:
+        raise ValidationError("Request body is required")
+    
+    firebase_id_token_1 = data.get('firebase_id_token')
+    if not firebase_id_token_1:
+        firebase_id_token = data.get('access_token', '').strip()
+    else:
+        firebase_id_token = firebase_id_token_1.strip()
+    if not firebase_id_token:
+        raise ValidationError("Firebase ID token is required")
+    
+    try:
+        # Decode token to get JTI
+        payload = jwt.decode(firebase_id_token, options={"verify_signature": False})
+        jti = payload.get('jti')
+        
+        # TODO: Add token to blacklist
+        # blacklist_token(jti, expires_at=payload.get('exp'))
+        
+        # Log logout
+        
+                    # Store user info in g for use in route
+        user_id = ""
+        if 'user_id' in payload:
+            user_id = payload.get('user_id')
+        elif 'sub' in payload:
+            user_id = payload.get('sub')
+        elif 'uid' in payload:
+            user_id = payload.get('uid')
+        
+        logger.info(f"User logged out: {user_id}")
+
+        clear_active_connection_firestore(user_id)
+
+        setattr(g, "user_id", None)
+        setattr(g, "email", None)
+        setattr(g, "name", None)
+        setattr(g, "auth_provider", None)
+        setattr(g, "auth_provider_id", None)
+        setattr(g, "active_connection_id", None)
+        
+        return jsonify({"message": "Successfully logged out"}), 200
+        
+    except jwt.InvalidTokenError:
+        # Even if token is invalid, return success for logout
+        return jsonify({"message": "Successfully logged out"}), 200
 
 # Legacy routes (keep for backward compatibility during migration)
 

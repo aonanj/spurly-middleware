@@ -39,16 +39,7 @@ def verify_token(f):
             if payload.get('type') != 'access':
                 raise AuthError("Invalid token type")
             
-            # Store user info in g for use in route
-            user_id = ""
-            if 'user_id' in payload:
-                user_id = payload.get('user_id')
-            elif 'sub' in payload:
-                user_id = payload.get('sub')
-            elif 'uid' in payload:
-                user_id = payload.get('uid')
-            setattr(g, "user_id", user_id)
-            setattr(g, "user_email", payload.get('email'))
+
 
             return f(*args, **kwargs)
             

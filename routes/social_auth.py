@@ -14,6 +14,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from services.user_service import get_user, update_user, create_user
+from services.connection_service import clear_active_connection_firestore
 
 # Create blueprint
 social_auth_bp = Blueprint('social_auth_bp', __name__, url_prefix='/api/social_auth')
@@ -616,8 +617,26 @@ def logout():
         # blacklist_token(jti, expires_at=payload.get('exp'))
         
         # Log logout
-        user_id = payload.get('user_id')
+        
+                    # Store user info in g for use in route
+        user_id = ""
+        if 'user_id' in payload:
+            user_id = payload.get('user_id')
+        elif 'sub' in payload:
+            user_id = payload.get('sub')
+        elif 'uid' in payload:
+            user_id = payload.get('uid')
+        
         logger.info(f"User logged out: {user_id}")
+
+        clear_active_connection_firestore(user_id)
+
+        setattr(g, "user_id", None)
+        setattr(g, "email", None)
+        setattr(g, "name", None)
+        setattr(g, "auth_provider", None)
+        setattr(g, "auth_provider_id", None)
+        setattr(g, "active_connection_id", None)
         
         return jsonify({"message": "Successfully logged out"}), 200
         
