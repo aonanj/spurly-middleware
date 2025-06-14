@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, g
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, save_spur
+from class_defs.spur_def import Spur
 
 
 logger = get_logger(__name__)
@@ -55,6 +56,8 @@ def save_spur_bp():
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
         return jsonify({'error': f"[{err_point}] - Error:"}), 400
+    
+    
 
     result = save_spur(user_id, data)
     return jsonify(result)

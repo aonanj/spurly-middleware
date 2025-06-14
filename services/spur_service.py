@@ -1,43 +1,60 @@
 import firebase_admin
+from datetime import datetime, timezone
 from class_defs.spur_def import Spur
 from flask import g
 from google.cloud import firestore
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger
-from infrastructure.id_generator import generate_spur_id
+from infrastructure.id_generator import generate_spur_id, get_null_connection_id
 
 logger = get_logger(__name__)
 
-def save_spur(user_id, spur: Spur):
+def save_spur(user_id, spur: dict) -> dict:
+    """
+    Save a spur to Firestore.
+    
+    Args:
+        user_id (str): The ID of the user saving the spur.
+        spur (dict): A dictionary containing spur details.
+    Returns:
+        dict: A dictionary indicating success or failure.
+        
+    """
     try:
         if not user_id:
-            logger.error("Error: Missing user ID in save_spur")
+            err_point = __package__ or __name__
+            logger.error("Error in [%s]: Missing user ID in save_spur", err_point)
             raise ValueError("Error: Missing user ID in save_spur")
 
-        if not spur or not isinstance(spur, Spur):
-            logger.error("Error: Missing user ID in save_spur")
+        if not spur or not isinstance(spur, dict):
+            err_point = __package__ or __name__
+            logger.error("Error in [%s]: Missing user ID in save_spur", err_point)
             raise ValueError("Error: Missing user ID in save_spur")
 
         user_id = user_id
         if not user_id:
-            logger.error("Error: No user_id found in flask context")
+            err_point = __package__ or __name__
+            logger.error("Error in [%s]: No user_id found in flask context", err_point)
             raise ValueError("Error: No user_id found in flask context")
         
-        spur_dict = spur.to_dict()
-        if spur_dict.get("spur_id"):
-            spur_id = spur_dict.get("spur_id")
-        else:
+        spur_dict = spur
+        if 'user_id' not in spur_dict:
+            spur_dict['user_id'] = user_id
+        if 'spur_id' not in spur_dict:
             spur_id = generate_spur_id(user_id)
+            spur_dict['spur_id'] = spur_id
+        else:
+            spur_id = spur_dict['spur_id']
+            
+        if 'connection_id' not in spur_dict:
+            spur_dict['connection_id'] = get_null_connection_id(user_id)
+        if 'created_at' not in spur_dict:
+            spur_dict['created_at'] = datetime.now(timezone.utc)
 
-        conversation_id = spur_dict.get("conversation_id", "")
-        connection_id = spur_dict.get("connection_id", "")
-        situation = spur_dict.get("situation", "")
-        topic = spur_dict.get("topic","")
-        variant = spur_dict.get("varint", "")
-        tone = spur_dict.get("tone", "")
-        text = spur_dict.get("text", "")
-        created_at = spur_dict.get("created_at", None)
+        if 'text' not in spur_dict or not spur_dict['text']:
+            logger.error("Error: Spur text is required")
+            raise ValueError("Error: Spur text is required")
         
         
         
@@ -45,16 +62,16 @@ def save_spur(user_id, spur: Spur):
         doc_ref = db.collection("users").document(user_id).collection("spurs").document(spur_id)
         doc_data = {
             "user_id": user_id,
-            "spur_id": spur,
-            "conversation_id": conversation_id,
-            "connection_id": connection_id,
-            "situation": situation,
-            "topic": topic,
-            "variant": variant,
-            "tone": tone,
-            "text": text,
-            "created_at": created_at
-            }
+            "spur_id": spur_id,
+            "conversation_id": spur_dict.get("conversation_id", ""),
+            "connection_id": spur_dict.get("connection_id", ""),
+            "situation": spur_dict.get("situation", ""),
+            "topic": spur_dict.get("topic", ""),
+            "variant": spur_dict.get("variant", ""),
+            "tone": spur_dict.get("tone", ""),
+            "text": spur_dict.get("text", ""),
+            "created_at": spur_dict.get("created_at", datetime.now(timezone.utc))
+        }
 
         doc_ref.set(doc_data)
         
@@ -62,7 +79,8 @@ def save_spur(user_id, spur: Spur):
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
-        return f"error: {err_point} - Error: {str(e)}", 500
+        return {"error": f"{err_point} - Error: {str(e)}", "status_code": 500}
+
 
 def get_saved_spurs(user_id, filters=None):
     if not user_id:

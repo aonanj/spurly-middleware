@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(
     name="spurly",
-    version="0.1.0",
-    description="AI‑powered conversational message assistant for dating apps",
+    version="0.2.5",
+    description="Conversational messaging AI assistant with contextual awareness.",
     author="phaeton order llc",
     author_email="admin@spurly.io",
     url="https://github.com/aonanj/spurly",

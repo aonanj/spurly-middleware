@@ -35,7 +35,15 @@ def require_firebase_auth(fn):
             return jsonify({"error": "Invalid ID token"}), 401
 
         # 3. Stash in request context
-        setattr(g, "user_id", decoded["user_id"])
+        user_id = ""
+        if 'user_id' in decoded:
+            user_id = decoded.get('user_id')
+        elif 'sub' in decoded:
+            user_id = decoded.get('sub')
+        elif 'uid' in decoded:
+            user_id = decoded.get('uid')
+        setattr(g, "user_id", user_id)
+        setattr(g, "user_email", decoded.get("email"))
         setattr(g, "auth_claims", decoded)
         return fn(*args, **kwargs)
     return wrapper

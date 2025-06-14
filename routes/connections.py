@@ -249,6 +249,7 @@ def create_connection():
             connection_profile_pic_url=connection_profile_pic_url
         )
 
+        setattr(g, "active_connection_id", result.get("connection_id"))
         set_active_connection_firestore(user_id, result.get("connection_id"))
 
         return jsonify(result)
@@ -393,6 +394,7 @@ def set_active_connection():
         if not connection_id:
             return jsonify({"error": "Missing connection_id"}), 400
             
+        setattr(g, "active_connection_id", connection_id)
         result = set_active_connection_firestore(user_id, connection_id)
         return jsonify(result)
         
@@ -428,8 +430,10 @@ def clear_active_connection():
         user_id = getattr(g, "user_id", None)
         if not user_id:
             return jsonify({"error": "Authentication error"}), 401
-            
+        
+        
         result = clear_active_connection_firestore(user_id)
+        setattr(g, "active_connection_id", result.get("connection_id"))    
         return jsonify(result)
         
     except Exception as e:
@@ -481,8 +485,14 @@ def delete_connection():
         connection_id = data.get("connection_id")
         if not connection_id:
             return jsonify({"error": "Missing connection_id"}), 400
-            
+        
         result = delete_connection_profile(user_id, connection_id)
+        
+        if connection_id == get_active_connection_firestore(user_id):
+            clear_result = clear_active_connection_firestore(user_id)
+            setattr(g, "active_connection_id", clear_result.get("connection_id"))
+            
+        
         return jsonify(result)
         
     except Exception as e:

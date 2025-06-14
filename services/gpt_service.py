@@ -245,11 +245,11 @@ def generate_spurs(
                 return spur_objects
 
         except openai.APIError as e:
-            logger.warning(f"[Attempt {attempt+1}] OpenAI API error during GPT generation for user {user_id}: {e}")
+            logger.error(f"[Attempt {attempt+1}] OpenAI API error during GPT generation for user {user_id}: {e}")
             if attempt == 2:
                  logger.error(f"Final GPT attempt failed for user {user_id} due to API error.", exc_info=True)
         except Exception as e:
-            logger.warning(f"[Attempt {attempt+1}] GPT generation failed for user {user_id} — Error: {e}", exc_info=True)
+            logger.error(f"[Attempt {attempt+1}] GPT generation failed for user {user_id} — Error: {e}", exc_info=True)
             if attempt == 2:
                 logger.error(f"Final GPT attempt failed for user {user_id} — returning fallback.")
     

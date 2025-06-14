@@ -214,7 +214,7 @@ def get_active_connection_firestore(user_id: str) -> str:
             logger.debug(f"Retrieved active connection_id '{active_cid}' for user '{user_id}'.")
             return active_cid if active_cid is not None else get_null_connection_id(user_id) # Ensure null if db has None
         else:
-            logger.info(f"No active conn for user '{user_id}'. Setting/returning null.")
+            logger.error(f"No active conn for user '{user_id}'. Setting/returning null.")
             active_connection_id = get_null_connection_id(user_id)
             set_active_connection_firestore(user_id, active_connection_id) 
             return active_connection_id
@@ -241,8 +241,8 @@ def clear_active_connection_firestore(user_id: str) -> dict:
         return {'error': f"Error clearing active connection: {str(e)}"}
 
 def get_connection_profile(user_id: str, connection_id: str) -> Optional[ConnectionProfile]:
-    null_suffix = current_app.config.get('NULL_CONNECTION_ID_SUFFIX', '_null')
-    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_suffix)):
+    null_connection_id = current_app.config.get('NULL_CONNECTION_ID', 'null_connection_id_p')
+    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_connection_id)):
         logger.warning(f"Attempt to get profile with invalid IDs. User:'{user_id}', Conn:'{connection_id}'")
         return None 
 
@@ -280,8 +280,8 @@ def update_connection_profile(
     updated_personality_traits: Optional[List[Dict[str, Any]]] = None,
     updated_profile_pic_url: Optional[str] = None 
 ) -> Dict:
-    null_suffix = current_app.config.get('NULL_CONNECTION_ID_SUFFIX', '_null')
-    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_suffix)):
+    null_connection_id = current_app.config.get('NULL_CONNECTION_ID', 'null_connection_id_p')
+    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_connection_id)):
         logger.error("Cannot update conn profile: invalid IDs. User:'%s', Conn:'%s'", user_id, connection_id)
         return {"error": "Cannot update connection profile: Missing or invalid user ID or connection ID."}
 
@@ -335,8 +335,8 @@ def update_connection_profile(
 
 
 def delete_connection_profile(user_id: str, connection_id:str) -> dict:
-    null_suffix = current_app.config.get('NULL_CONNECTION_ID_SUFFIX', '_null')
-    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_suffix)):
+    null_connection_id = current_app.config.get('NULL_CONNECTION_ID', 'null_connection_id_p')
+    if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_connection_id)):
         logger.error("Cannot delete conn profile: invalid IDs. User:'%s', Conn:'%s'", user_id, connection_id)
         return {"error": "Cannot delete connection profile: Missing or invalid user ID or connection ID."}
     

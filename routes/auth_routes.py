@@ -131,12 +131,27 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             raise AuthError("Firebase Admin SDK is not initialized", 500)
 
         decoded_token = firebase_admin_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
-        setattr(g, "user_id", decoded_token['uid'])  # Store token in Flask global for later use
+        user_id = ""
+        if 'user_id' in decoded_token:
+            user_id = decoded_token.get('user_id')
+        elif 'sub' in decoded_token:
+            user_id = decoded_token.get('sub')
+        elif 'uid' in decoded_token:
+            user_id = decoded_token.get('uid')
+        setattr(g, "user_id", user_id)
+        
+        user_email = ""
+        if 'email' in decoded_token:
+            user_email = decoded_token.get('email')
+        elif 'user_email' in decoded_token:
+            user_email = decoded_token.get('user_email')
+        setattr(g, "user_email", user_email)
+        setattr(g, "auth_claims", decoded_token)
         return {
-            'user_id': decoded_token['uid'],
-            'email': decoded_token.get('email'),
+            'user_id': user_id,
+            'email': user_email,
             'name': decoded_token.get('name'),
-            'provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
+            'auth_provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         }
     except firebase_admin_auth.ExpiredIdTokenError as e:
         logger.error(f"Firebase token has expired: {str(e)}")
