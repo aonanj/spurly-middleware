@@ -1,5 +1,5 @@
 from datetime import datetime
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 from infrastructure.token_validator import verify_token, handle_errors
 from infrastructure.logger import get_logger
 from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, save_spur
@@ -16,9 +16,10 @@ spurs_bp = Blueprint("spurs", __name__)
 def fetch_saved_spurs_bp():
     user_id = getattr(g, "user_id", None)
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                return jsonify({"error": "Authentication error"}), 401
 
     filters = {}
     for field in ["variant", "situation"]:
@@ -53,9 +54,10 @@ def save_spur_bp():
     data = request.get_json()
     user_id = getattr(g, "user_id", None)
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                return jsonify({"error": "Authentication error"}), 401
     
     
 
@@ -70,9 +72,10 @@ def delete_saved_spurs_bp():
     user_id = getattr(g, "user_id", None)
 
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"[{err_point}] - Error:"}), 400
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                return jsonify({"error": "Authentication error"}), 401
     
     data = request.get_json()
     spur_id = data.get("spur_id")
@@ -83,16 +86,15 @@ def delete_saved_spurs_bp():
     result = delete_saved_spur(user_id, spur_id)
     return jsonify(result)
 
-@spurs_bp.route("/get-spur", methods=["GET"])
+@spurs_bp.route("/get-spur/<spur_id>", methods=["GET"])
 @verify_token
 @handle_errors
-def get_spur_bp():
+def get_spur_bp(spur_id):
     user_id = getattr(g, "user_id", None)
     if not user_id:
-        err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
-        return jsonify({'error': f"{err_point} - Error:"}), 400
-    spur_id = request.args.get("spur_id")
+        user_id = current_app.config.get("user_id", None)
+        if not user_id:
+            return jsonify({"error": "Authentication error"}), 401
     if not spur_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")

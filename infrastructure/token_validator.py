@@ -1,6 +1,6 @@
 import jwt
 from functools import wraps
-from flask import request, g, jsonify
+from flask import request, g, jsonify, current_app
 from infrastructure.logger import get_logger
 import os
 
@@ -39,7 +39,15 @@ def verify_token(f):
             if payload.get('type') != 'access':
                 raise AuthError("Invalid token type")
             
-
+            user_id = ""
+            if 'user_id' in payload:
+                user_id = payload.get('user_id')
+            elif 'sub' in payload:
+                user_id = payload.get('sub')
+            elif 'uid' in payload:
+                user_id = payload.get('uid')
+            setattr(g, "user_id", user_id)
+            current_app.config['user_id'] = user_id
 
             return f(*args, **kwargs)
             

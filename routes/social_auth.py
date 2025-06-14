@@ -303,6 +303,10 @@ def create_jwt_token(user_id: str, email: str, name: Optional[str] = None,
     access_token = jwt.encode(access_payload, secret_key, algorithm='HS256')
     refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
     
+    setattr(g, "user_id", user_id)
+    current_app.config['user_id'] = user_id
+    setattr(g, "email", email)
+    
     return access_token, refresh_token
 
 def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email: str, 
@@ -313,6 +317,8 @@ def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email
     # from services.user_service import UserService
 
     user_id = user_id
+    setattr(g, "user_id", user_id)
+    current_app.config['user_id'] = user_id
 
     user = get_user(user_id)
     if user:

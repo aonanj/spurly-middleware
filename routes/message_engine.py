@@ -33,28 +33,26 @@ def generate():
         logger.warning("No JSON data received in /generate request.")
         return jsonify({'error': "Request must be JSON"}), 400
 
-    user_id_from_g = getattr(g, 'user_id', None)     
-    if not user_id_from_g:
-        logger.error("User ID not found in g.user for /generate route.")
-        return jsonify({'error': "Authentication error: User ID not available."}), 401
-    
-    user_id = user_id_from_g # Use the authenticated user_id
+    user_id = getattr(g, 'user_id', None) 
+        
+    if not user_id:
+        user_id = data.get("user_id", None)
+        if not user_id:
+            logger.error("User ID not found in g.user for /generate route.")
+            return jsonify({'error': "Authentication error: User ID not available."}), 401
 
-    conversation_id = data.get("conversation_id", "")
+    conversation_id = data.get("conversation_id", None)
     if not conversation_id or conversation_id.strip() == "":
         conversation_id = generate_conversation_id(user_id)  # Generate a new conversation ID if not provided
         
     conversation_messages = data.get("conversation_messages", None)
-    connection_id = data.get("connection_id", "") # Client should provide this
-
-
+    connection_id = data.get("connection_id", None) # Client should provide this
 
     if not connection_id:
         # Fallback to active connection if not provided by client; consider if this is desired
         # If OCR data is connection-specific, client should always provide connection_id.
-        logger.info(f"No connection_id provided for user {user_id}, attempting to get active connection.")
+        logger.error(f"No connection_id provided for user {user_id}, attempting to get active connection.")
         connection_id = get_active_connection_firestore(user_id)
-        connection_id = get_null_connection_id(user_id)
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
 
