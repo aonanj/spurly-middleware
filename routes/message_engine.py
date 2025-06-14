@@ -5,6 +5,8 @@ from infrastructure.id_generator import get_null_connection_id, generate_convers
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, sanitize_topic
+from class_defs.conversation_def import Conversation
+from services.storage_service import ConversationStorage
 
 generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)
@@ -22,6 +24,8 @@ def generate():
 
     Expected JSON fields:
     - conversation_id (str)
+    - conversation_messages (list[dict]): List of message dicts with 'role' and 'content'.
+    - user_id (str, optional): If not provided, extracted from auth token.
     - connection_id (str)
     - situation (str)
     - topic (str)
@@ -40,25 +44,44 @@ def generate():
         if not user_id:
             logger.error("User ID not found in g.user for /generate route.")
             return jsonify({'error': "Authentication error: User ID not available."}), 401
-
-    conversation_id = data.get("conversation_id", None)
-    if not conversation_id or conversation_id.strip() == "":
-        conversation_id = generate_conversation_id(user_id)  # Generate a new conversation ID if not provided
-        
-    conversation_messages = data.get("conversation_messages", None)
-    connection_id = data.get("connection_id", None) # Client should provide this
+    
+    connection_id = data.get("connection_id", None) 
 
     if not connection_id:
-        # Fallback to active connection if not provided by client; consider if this is desired
-        # If OCR data is connection-specific, client should always provide connection_id.
         logger.error(f"No connection_id provided for user {user_id}, attempting to get active connection.")
         connection_id = get_active_connection_firestore(user_id)
+
+    conversation_id = data.get("conversation_id", None)
+
+    situation = data.get("situation", "")
+    topic = data.get("topic", "")
+    
+    conversation_messages = data.get("conversation_messages", None)
+    if conversation_messages:
+        if not conversation_id or conversation_id.strip() == "":
+            conversation_id = generate_conversation_id(user_id)
+        conversation_dict = {
+            "user_id": user_id,
+            "conversation_id": conversation_id,
+            "connection_id": connection_id,
+            "conversation": conversation_messages,
+        }
+        if situation and situation.strip() != "":
+            conversation_dict["situation"] = situation
+        if topic and topic.strip() != "":
+            conversation_dict["topic"] = topic
+        conversation_obj = Conversation.from_dict(conversation_dict)
+        storage = ConversationStorage()
+        storage.save_conversation(conversation=conversation_obj)
+        
+        
+
+
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
 
 
-    situation = data.get("situation", "")
-    topic = data.get("topic", "")
+
 
     spur_objs = get_spurs_for_output(
         user_id=user_id,
