@@ -175,7 +175,7 @@ def save_spur_bp():
         return jsonify({'error': f"[{err_point}] - Invalid spur format"}), 400
     spur = Spur.from_dict(spur_dict)
 
-    result = save_spur(user_id, spur)
+    result = save_spur(user_id, spur_dict)
     return jsonify(result)
 
 
