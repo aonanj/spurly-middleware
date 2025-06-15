@@ -29,7 +29,7 @@ steps:
       '--platform', 'managed',
       '--allow-unauthenticated',
       '--port', '8080',
-      '--memory', '512Mi',
+      '--memory', '1GiB',
       '--cpu', '1',
       '--max-instances', '10',
       '--timeout', '300',

@@ -59,15 +59,25 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
     prompt_dict["age"] = f"Connection Age: {connection_profile.connection_age if connection_profile.connection_age else 'unknown'}, \n"
     prompt_dict["connection_profile_pic_url"] = f"Connection Profile Pic URL: {connection_profile.connection_profile_pic_url if connection_profile.connection_profile_pic_url else 'unknown'}, \n"
     prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.connection_name if connection_profile.connection_name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
-
+    
     personality_traits = []
     if connection_profile.personality_traits:
         for trait_dict in connection_profile.personality_traits:
             if isinstance(trait_dict, dict):
-                personality_traits.extend(trait_dict.values())
+                for k, v in trait_dict.items():
+                    personality_traits.append(f"{k}: {v}")
 
-    prompt_dict['personality_traits'] = f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n"
-    prompt_dict["connection_profile_text"] = f"Connection Profile Text: {', '.join(connection_profile.connection_profile_text) if connection_profile.connection_profile_text else ''}. \n"
+    prompt_dict['personality_traits'] = (f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
+    
+    text = connection_profile.connection_profile_text
+    if isinstance(text, list):
+        joined_text = ', '.join(text)
+    elif isinstance(text, str):
+        joined_text = text
+    else:
+        joined_text = ''
+    	
+    prompt_dict["connection_profile_text"] = f"\nConnection Profile Text: {joined_text}. \n"
 
     return prompt_dict
 
