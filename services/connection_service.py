@@ -380,7 +380,7 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
 
         doc_ref.delete()
         logger.info(f"Conn profile {connection_id} for user {user_id} deleted successfully.")
-        # TODO: Consider deleting associated images from GCS if required. This needs careful thought on cascading deletes.
+        # TODO: Delete associated images off firebase storage. 
         return {"success": "connection profile deleted", "connection_id": connection_id}
     except Exception as e:
         logger.error(f"Error deleting conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
