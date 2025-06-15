@@ -456,18 +456,23 @@ def fetch_single_connection():
         if not user_id:
             user_id = current_app.config.get("user_id", None)
             if not user_id:
+                logger.error
                 return jsonify({"error": "Authentication error"}), 401
             
         connection_id = request.args.get("connection_id")
         if not connection_id:
             connection_id = get_active_connection_firestore(user_id)
             if not connection_id:
+                logger.error("No connection_id provided and no active connection set")
                 return jsonify({"error": "Missing connection_id parameter"}), 400
             
         profile = get_connection_profile(user_id, connection_id)
         if profile:
+            # DEBUG 
+            logger.error(f"Fetched profile: {profile.to_dict()}")  # Debug log for fetched profile
             return jsonify(profile.to_dict())
         else:
+            logger.error(f"Connection profile not found for user {user_id} and connection {connection_id}")
             return jsonify({"error": "Connection profile not found"}), 404
             
     except Exception as e:
