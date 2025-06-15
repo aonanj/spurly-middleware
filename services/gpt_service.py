@@ -65,7 +65,11 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
         for trait_dict in connection_profile.personality_traits:
             if isinstance(trait_dict, dict):
                 for k, v in trait_dict.items():
-                    personality_traits.append(f"{k}: {v}")
+                    if isinstance(v, (int, float)):
+                        v_str = f"{v:.2f}"
+                    else:
+                        v_str = str(v)
+                    personality_traits.append(f"{k}: {v_str}")
 
     prompt_dict['personality_traits'] = (f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
     
