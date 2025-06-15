@@ -43,6 +43,51 @@ class ValidationError(Exception):
         self.status_code = status_code
         super().__init__(self.message)
 
+def verify_token(f):
+    """Decorator to verify JWT token"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            raise AuthError("Authorization header is required")
+        
+        parts = auth_header.split()
+        if parts[0].lower() != 'bearer' or len(parts) != 2:
+            raise AuthError("Invalid authorization header format")
+        
+        token = parts[1]
+        secret_key = os.environ.get('JWT_SECRET_KEY')
+
+        if not secret_key:
+            raise AuthError("JWT configuration missing", 500)
+        
+        try:
+            payload = jwt.decode(token, secret_key, algorithms=['HS256'])
+            
+            # Verify token type
+            if payload.get('type') != 'access':
+                raise AuthError("Invalid token type")
+            
+            user_id = ""
+            if 'user_id' in payload:
+                user_id = payload.get('user_id')
+            elif 'sub' in payload:
+                user_id = payload.get('sub')
+            elif 'uid' in payload:
+                user_id = payload.get('uid')
+            setattr(g, "user_id", user_id)
+            current_app.config['user_id'] = user_id
+
+            return f(*args, **kwargs)
+            
+        except jwt.ExpiredSignatureError:
+            raise AuthError("Token has expired")
+        except jwt.InvalidTokenError:
+            raise AuthError("Invalid token")
+            
+    return decorated_function
+
 def handle_auth_errors(f):
     """Decorator to handle authentication errors"""
     @wraps(f)
@@ -338,43 +383,22 @@ def firebase_login():
         raise AuthError("Unable to authenticate", 500)
 
 @auth_bp.route('/logout', methods=['POST'])
+@verify_token
 @handle_auth_errors
 def logout():
     """Logout user and invalidate tokens"""
-    # Get token from Authorization header
-    data = request.get_json()
-    if not data:
-        raise ValidationError("Request body is required")
     
-    firebase_id_token_1 = data.get('firebase_id_token')
-    if not firebase_id_token_1:
-        firebase_id_token = data.get('access_token', '').strip()
-    else:
-        firebase_id_token = firebase_id_token_1.strip()
-    if not firebase_id_token:
-        raise ValidationError("Firebase ID token is required")
-    
-    try:
-        # Decode token to get JTI
-        payload = jwt.decode(firebase_id_token, options={"verify_signature": False})
-        jti = payload.get('jti')
-        
-        # TODO: Add token to blacklist
-        # blacklist_token(jti, expires_at=payload.get('exp'))
-        
-        # Log logout
-        
-                    # Store user info in g for use in route
-        user_id = ""
-        if 'user_id' in payload:
-            user_id = payload.get('user_id')
-        elif 'sub' in payload:
-            user_id = payload.get('sub')
-        elif 'uid' in payload:
-            user_id = payload.get('uid')
-        
-        logger.info(f"User logged out: {user_id}")
+    user_id = getattr(g, "user_id", None)
+    if not user_id:
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                data = request.get_json()
+                user_id = data.get('user_id', None)
+                if not user_id:
+                    return jsonify({"error": "Authentication error"}), 401
 
+    try:
         clear_active_connection_firestore(user_id)
 
         setattr(g, "user_id", None)
@@ -385,10 +409,11 @@ def logout():
         setattr(g, "active_connection_id", None)
         
         return jsonify({"message": "Successfully logged out"}), 200
-        
-    except jwt.InvalidTokenError:
-        # Even if token is invalid, return success for logout
-        return jsonify({"message": "Successfully logged out"}), 200
+    except Exception as e:
+        logger.error(f"Logout error for user {user_id}: {str(e)}")
+        logger.error(f"Active connection ID not cleared for user {user_id}")
+        raise AuthError("Unable to logout", 500)
+
 
 # Legacy routes (keep for backward compatibility during migration)
 
