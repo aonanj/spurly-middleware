@@ -60,30 +60,34 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
     prompt_dict["connection_profile_pic_url"] = f"Connection Profile Pic URL: {connection_profile.connection_profile_pic_url if connection_profile.connection_profile_pic_url else 'unknown'}, \n"
     prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.connection_name if connection_profile.connection_name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
     
-    personality_traits = []
-    if connection_profile.personality_traits:
-        for trait_dict in connection_profile.personality_traits:
-            if isinstance(trait_dict, dict):
-                for k, v in trait_dict.items():
-                    if isinstance(v, (int, float)):
-                        v_str = f"{v:.2f}"
-                    else:
-                        v_str = str(v)
-                    personality_traits.append(f"{k}: {v_str}")
+    try:
+        personality_traits = []
+        if connection_profile.personality_traits:
+            for trait_dict in connection_profile.personality_traits:
+                if isinstance(trait_dict, dict):
+                    for k, v in trait_dict.items():
+                        if isinstance(v, (int, float)):
+                            v_str = f"{v:.2f}"
+                        else:
+                            v_str = str(v)
+                        personality_traits.append(f"{k}: {v_str}")
 
-    prompt_dict['personality_traits'] = (f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
-    
-    text = connection_profile.connection_profile_text
-    if isinstance(text, list):
-        joined_text = ', '.join(text)
-    elif isinstance(text, str):
-        joined_text = text
-    else:
-        joined_text = ''
-    	
-    prompt_dict["connection_profile_text"] = f"\nConnection Profile Text: {joined_text}. \n"
+        prompt_dict['personality_traits'] = (f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
+        
+        text = connection_profile.connection_profile_text
+        if isinstance(text, list):
+            joined_text = ', '.join(text)
+        elif isinstance(text, str):
+            joined_text = text
+        else:
+            joined_text = ''
+            
+        prompt_dict["connection_profile_text"] = f"\nConnection Profile Text: {joined_text}. \n"
 
-    return prompt_dict
+        return prompt_dict
+    except Exception as e:
+        logger.error(f"Error processing connection profile in get_connection_profile_for_prompt: {e}")
+        raise ValueError(f"Error processing connection profile for user {user_id}, connection {connection_id}: {e}")
 
 def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
     """
