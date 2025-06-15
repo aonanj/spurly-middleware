@@ -115,14 +115,17 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
     current_app.config['user_id'] = getattr(g, "user_id")
 
     user = get_user(getattr(g, "user_id"))
+    
+    provider = firebase_user.get('auth_provider', 'password')
+    
     if user:
         user_data = {}
         user_data['user_id'] = getattr(g, "user_id")
-        if firebase_user['name'] and firebase_user['name'] != user.name:
+        if firebase_user.get('name') and firebase_user.get('name') != user.name:
             user_data['name'] = firebase_user['name']
-        user_data['auth_provider'] = "password"
-        user_data['auth_provider_id'] = getattr(g, "user_id")  # Use Firebase UID as provider ID
-        if firebase_user['email'] and firebase_user['email'] != user.email:
+        user_data['auth_provider'] = provider
+        user_data['auth_provider_id'] = getattr(g, "user_id")
+        if firebase_user.get('email') and firebase_user.get('email') != user.email:
             user_data['email'] = firebase_user['email']
         user_profile = update_user(**user_data)
     else:
@@ -130,7 +133,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
         user_profile = create_user(
             user_id=getattr(g, "user_id"),
             email=firebase_user['email'],
-            auth_provider='password',
+            auth_provider=provider,
             auth_provider_id=getattr(g, "user_id"),  # Use Firebase UID as provider ID
             name=firebase_user.get('name', ''),# Use Firebase UID as provider ID
         )
@@ -198,10 +201,11 @@ def firebase_register():
         access_token, refresh_token = create_jwt_token(
             user_id=user_data['user_id'],
             email=user_data['email'],
+            provider=user_data.get('auth_provider', 'password')
         )
         
         # Log successful registration
-        logger.info(f"New user registered via Firebase: {user_data['user_id']}")
+        logger.error(f"New user registered via Firebase: {user_data['user_id']}")
         
         return jsonify({
             "access_token": access_token,
@@ -213,8 +217,10 @@ def firebase_register():
         }), 201
         
     except ValidationError:
+        logger.error("Firebase registration validation error", exc_info=True)
         raise
     except AuthError:
+        logger.error("Firebase registration token authentication error", exc_info=True)
         raise
     except Exception as e:
         logger.error(f"Firebase registration error: {str(e)}")

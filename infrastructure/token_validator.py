@@ -73,27 +73,10 @@ def handle_auth_errors(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         data = request.get_json(silent=True)
-        #DEBUGSTART
+  
         try:
-            if not data:
-                data = request.form.to_dict()
-                logger.error(f"handle_auth_errors called for function: {f.__name__}, with data: {data}")
-        except Exception as e:
-            logger.error(f"Failed to parse request data: {e}")
-        # DEBUG END
-        
-        
-        try:
-            logger.error("1st try block entered of handle_auth_errors")
-            logger.error(f" Function: {f.__name__}, Args: {args}"); 
-            logger.error(f" Kwargs: {kwargs}")
             return f(*args, **kwargs)
         except AuthError as e:
-            #DEBUG: 
-            logger.error("1st exception block entered of handle_auth_errors")
-            logger.error(f" Auth error: {f.__name__}, e message: {e.message}, e status: {e.status_code}"); 
-
-            logger.warning(f"Authentication error in {f.__name__}: {e.message}")
             return jsonify({"error": e.message}), e.status_code
         except ValidationError as e:
             #DEBUG: 
