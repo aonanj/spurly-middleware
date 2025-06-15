@@ -16,7 +16,6 @@ from routes.auth_routes import auth_bp
 from routes.social_auth import social_auth_bp
 from routes.profile_routes import profile_bp
 from dotenv import load_dotenv
-from infrastructure.firebase_auth import init_firebase
 
 def create_app():
     app = Flask(__name__)
@@ -26,7 +25,6 @@ def create_app():
     def health():
         return {'status': 'healthy'}, 200
     load_dotenv()
-    init_firebase(app)
     app.config.from_object("config.Config")
     app.register_blueprint(auth_bp)
     app.register_blueprint(social_auth_bp)

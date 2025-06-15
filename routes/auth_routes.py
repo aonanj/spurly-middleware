@@ -10,7 +10,7 @@ from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
 import requests
 import jwt
-from infrastructure.token_validator import verify_token
+from infrastructure.token_validator import verify_token, handle_auth_errors, create_jwt_token, AuthError, ValidationError
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
 
@@ -30,120 +30,12 @@ logger = logging.getLogger(__name__)
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 
-class AuthError(Exception):
-    """Custom authentication error"""
-    def __init__(self, message: str, status_code: int = 401):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(self.message)
 
-class ValidationError(Exception):
-    """Custom validation error"""
-    def __init__(self, message: str, status_code: int = 400):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(self.message)
-
-def handle_auth_errors(f):
-    """Decorator to handle authentication errors"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        data = request.get_json(silent=True)
-        #DEBUGSTART
-        try:
-            if not data:
-                data = request.form.to_dict()
-                logger.error(f"handle_auth_errors called for function: {f.__name__}, with data: {data}")
-        except Exception as e:
-            logger.error(f"Failed to parse request data: {e}")
-        # DEBUG END
-        
-        
-        try:
-            [ ] DEBUG: 
-            logger.error("1st try block entered of handle_auth_errors")
-            logger.error(f" Function: {f.__name__}, Args: {args}"); 
-            logger.error(f" Kwargs: {kwargs}")
-            return f(*args, **kwargs)
-        except AuthError as e:
-            #DEBUG: 
-            logger.error("1st exception block entered of handle_auth_errors")
-            logger.error(f" Auth error: {f.__name__}, e message: {e.message}, e status: {e.status_code}"); 
-
-            logger.warning(f"Authentication error in {f.__name__}: {e.message}")
-            return jsonify({"error": e.message}), e.status_code
-        except ValidationError as e:
-            #DEBUG: 
-            logger.error("2nd exception block entered of handle_auth_errors")
-            logger.error(f" Validation error: {f.__name__}, e message: {e.message}, e status: {e.status_code}"); 
-            logger.warning(f"Validation error in {f.__name__}: {e.message}")
-            return jsonify({"error": e.message}), e.status_code
-        except jwt.ExpiredSignatureError:
-            #DEBUG: 
-            logger.error("3rd exception block entered of handle_auth_errors")
-            logger.error(f" Expired token error"); 
-            return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError as e:
-            #DEBUG: 
-            logger.error("4th exception block entered of handle_auth_errors")
-            logger.error(f" Invalid token error: {f.__name__}, e message: {e.message}, e status: {e.status_code}"); 
-            logger.warning(f"Invalid token in {f.__name__}: {str(e)}")
-            return jsonify({"error": "Invalid token"}), 401
-        except requests.RequestException as e:
-            #DEBUG:
-            logger.error("5th exception block entered of handle_auth_errors")
-            logger.error(f"Requests.Requests exception in {f.__name__}: {str(e)}")
-            return jsonify({"error": "External service temporarily unavailable"}), 503
-        except Exception as e:
-            #DEBUG:
-            logger.error("6th exception block entered of handle_auth_errors")
-            logger.error(f"Unexpected error in {f.__name__}: {str(e)}")
-            logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")
-            return jsonify({"error": "Internal server error"}), 500
-    return decorated_function
 
 def validate_email(email: str) -> bool:
     """Validate email format"""
     return bool(EMAIL_REGEX.match(email))
 
-def _get_user_id_from_token(id_token):
-    decoded_token = firebase_admin_auth.verify_id_token(id_token)
-    return decoded_token['uid']
-
-def create_jwt_token(user_id: str, email: str, name: Optional[str] = None, 
-                    provider: Optional[str] = None) -> Tuple[str, str]:
-    """Create JWT access and refresh tokens"""
-    secret_key = os.environ.get('JWT_SECRET_KEY')
-    if not secret_key:
-       raise AuthError("JWT configuration missing", 500)
-    
-    now = datetime.now(timezone.utc)
-    
-    # Access token payload (short-lived)
-    access_payload = {
-        'user_id': user_id,
-        'email': email,
-        'name': name,
-        'provider': provider,
-        'type': 'access',
-        'iat': now,
-        'exp': now + timedelta(hours=3),
-        'jti': os.urandom(16).hex()  # Unique token ID
-    }
-    
-    # Refresh token payload (long-lived)
-    refresh_payload = {
-        'user_id': user_id,
-        'type': 'refresh',
-        'iat': now,
-        'exp': now + timedelta(days=30),
-        'jti': os.urandom(16).hex()
-    }
-    
-    access_token = jwt.encode(access_payload, secret_key, algorithm='HS256')
-    refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
-    
-    return access_token, refresh_token
 
 def verify_firebase_token(id_token: str) -> Dict[str, Any]:
     """
@@ -184,12 +76,11 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             user_email = decoded_token.get('user_email')
         setattr(g, "user_email", user_email)
         setattr(g, "auth_claims", decoded_token)
-        auth_provider = 'password'
+        auth_provider = decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
         return {
             'user_id': user_id,
             'email': user_email,
             'name': decoded_token.get('name'),
-            #DEBUG: 'auth_provider': decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
             'auth_provider': auth_provider
         }
     except firebase_admin_auth.ExpiredIdTokenError as e:

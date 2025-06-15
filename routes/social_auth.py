@@ -13,6 +13,8 @@ from flask import Blueprint, request, jsonify, current_app, g
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
+from infrastructure.token_validator import AuthError, ValidationError, handle_auth_errors, create_jwt_token
+
 from services.user_service import get_user, update_user, create_user
 from services.connection_service import clear_active_connection_firestore
 
@@ -48,44 +50,6 @@ def _jwk_to_rsa_public_key(jwk: Dict[str, str]) -> RSAPublicKey:
         raise ValueError("Expected an RSA *public* key, got a private key.")
     return key
 
-class AuthError(Exception):
-    """Custom authentication error"""
-    def __init__(self, message: str, status_code: int = 401):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(self.message)
-
-class ValidationError(Exception):
-    """Custom validation error"""
-    def __init__(self, message: str, status_code: int = 400):
-        self.message = message
-        self.status_code = status_code
-        super().__init__(self.message)
-
-def handle_auth_errors(f):
-    """Decorator to handle authentication errors"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except AuthError as e:
-            logger.warning(f"Authentication error in {f.__name__}: {e.message}")
-            return jsonify({"error": e.message}), e.status_code
-        except ValidationError as e:
-            logger.warning(f"Validation error in {f.__name__}: {e.message}")
-            return jsonify({"error": e.message}), e.status_code
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError as e:
-            logger.warning(f"Invalid token in {f.__name__}: {str(e)}")
-            return jsonify({"error": "Invalid token"}), 401
-        except requests.RequestException as e:
-            logger.error(f"External API error in {f.__name__}: {str(e)}")
-            return jsonify({"error": "External service temporarily unavailable"}), 503
-        except Exception as e:
-            logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")
-            return jsonify({"error": "Internal server error"}), 500
-    return decorated_function
 
 @lru_cache(maxsize=128)
 def get_google_public_keys() -> Dict[str, Any]:
@@ -270,45 +234,6 @@ def verify_facebook_token(access_token: str) -> Tuple[Dict[str, Any], bool]:
     
     return user_data, has_email
 
-def create_jwt_token(user_id: str, email: str, name: Optional[str] = None, 
-                    provider: Optional[str] = None) -> Tuple[str, str]:
-    """Create JWT access and refresh tokens"""
-    secret_key = os.environ.get('JWT_SECRET_KEY')
-    if not secret_key:
-       raise AuthError("JWT configuration missing", 500)
-    
-    now = datetime.now(timezone.utc)
-    
-    # Access token payload (short-lived)
-    access_payload = {
-        'user_id': user_id,
-        'email': email,
-        'name': name,
-        'provider': provider,
-        'type': 'access',
-        'iat': now,
-        'exp': now + timedelta(hours=3),
-        'jti': os.urandom(16).hex()  # Unique token ID
-    }
-    
-    # Refresh token payload (long-lived)
-    refresh_payload = {
-        'user_id': user_id,
-        'type': 'refresh',
-        'iat': now,
-        'exp': now + timedelta(days=30),
-        'jti': os.urandom(16).hex()
-    }
-    
-    access_token = jwt.encode(access_payload, secret_key, algorithm='HS256')
-    refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
-    
-    setattr(g, "user_id", user_id)
-    current_app.config['user_id'] = user_id
-    setattr(g, "email", email)
-    
-    return access_token, refresh_token
-
 def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email: str, 
                       name: Optional[str] = None) -> Dict[str, Any]:
     """Get or create user in database"""
@@ -327,7 +252,7 @@ def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email
         if name and name != user.name:
             user_data['name'] = name
         user_data['auth_provider'] = provider
-        user_data['auth_provider_id'] = provider_user_id  # Use Firebase UID as provider ID
+        user_data['auth_provider_id'] = provider_user_id  
         if email and email != user.email:
             user_data['email'] = email
         user_profile = update_user(**user_data)
