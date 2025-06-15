@@ -3,6 +3,7 @@ from flask import Flask, current_app
 from flask_cors import CORS
 from infrastructure.clients import init_clients
 from infrastructure.logger import setup_logger
+from dotenv import load_dotenv
 from routes.connections import connection_bp
 from routes.context_route import context_bp
 from routes.conversations import conversations_bp
@@ -15,7 +16,7 @@ from routes.user_management import user_management_bp
 from routes.auth_routes import auth_bp
 from routes.social_auth import social_auth_bp
 from routes.profile_routes import profile_bp
-from dotenv import load_dotenv
+
 
 def create_app():
     app = Flask(__name__)
@@ -24,8 +25,14 @@ def create_app():
     @app.route('/health')
     def health():
         return {'status': 'healthy'}, 200
+    
     load_dotenv()
+    
     app.config.from_object("config.Config")
+    
+    with app.app_context():
+        init_clients(app)
+    
     app.register_blueprint(auth_bp)
     app.register_blueprint(social_auth_bp)
     app.register_blueprint(profile_bp)
@@ -46,6 +53,4 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    with app.app_context():
-        init_clients(app)
     app.run(host="0.0.0.0", port=8080)
