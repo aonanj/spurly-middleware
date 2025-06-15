@@ -227,6 +227,8 @@ def firebase_register():
     else:
         firebase_id_token = firebase_id_token_1.strip()
     if not firebase_id_token:
+        #DEBUG
+        logger.error(f"NO firebase ID token. Request data: {data}")
         raise ValidationError("Firebase ID token is required")
     
     try:
@@ -236,7 +238,8 @@ def firebase_register():
         
         # Validate that this is a new registration (not a social login)
         if firebase_user['provider'] != 'password':
-            raise ValidationError("Please use the appropriate social login endpoint")
+            logger.error(f"Attempted registration with unsupported provider: {firebase_user['provider']}") # DEBUG 
+        ##    raise ValidationError("Please use the appropriate social login endpoint")
         
         # Check if user already exists in your database
         email = firebase_user.get('email', '').strip().lower()
