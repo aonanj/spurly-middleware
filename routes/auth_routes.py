@@ -130,6 +130,8 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
 
         admin_app = firebase_admin.get_app() # Get the default initialized Firebase app
         if not admin_app:
+            #DEBUG
+            logger.error("Firebase Admin SDK is not initialized")
             raise AuthError("Firebase Admin SDK is not initialized", 500)
 
         decoded_token = firebase_admin_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
@@ -215,15 +217,25 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
 def firebase_register():
     """Register new user with Firebase ID token"""
     if not request.is_json:
+        #DEBUG
+        logger.error(f"Request is not JSON. Content-Type: {request.content_type}")
+        logger.error(f"Request headers: {request.headers}")
+        logger.error(f"Request data: {request.data}")
         raise ValidationError("Content-Type must be application/json")
     
     data = request.get_json()
     if not data:
+        #DEBUG
+        logger.error(f"Request JSON body is empty. Request data: {data}")
         raise ValidationError("Request body is required")
     
     firebase_id_token_1 = data.get('firebase_id_token')
+    #DEBUG
+    logger.debug(f"Received firebase_id_token_1: {firebase_id_token_1}")    
     if not firebase_id_token_1:
         firebase_id_token = data.get('access_token', '').strip()
+        #DEBUG
+        logger.debug(f"Received access_token: {firebase_id_token}")
     else:
         firebase_id_token = firebase_id_token_1.strip()
     if not firebase_id_token:
@@ -233,9 +245,14 @@ def firebase_register():
     
     try:
         # Verify Firebase token
+        #DEBUG
+        logger.debug(f"Verifying Firebase ID token: {firebase_id_token}")
         firebase_user = verify_firebase_token(firebase_id_token)
+        #DEBUG
+        logger.debug(f"Verified Firebase user: {firebase_user}")
         setattr(g, "user_id", firebase_user['user_id']) 
-        
+        #DEBUG
+        logger.debug(f"Set g.user_id: {getattr(g, 'user_id')}")
         # Validate that this is a new registration (not a social login)
         if firebase_user['provider'] != 'password':
             logger.error(f"Attempted registration with unsupported provider: {firebase_user['provider']}") # DEBUG 
