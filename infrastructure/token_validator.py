@@ -6,6 +6,8 @@ import os
 import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
+import firebase_admin
+from firebase_admin import auth as firebase_admin_auth
 
 logger = get_logger(__name__)
 

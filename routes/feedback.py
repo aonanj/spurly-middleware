@@ -23,7 +23,7 @@ def feedback():
 
     result = []
     if feedback_type == "thumbs_up":
-        result = save_spur(user_id, spur_obj)
+        result = save_spur(user_id, spur_obj.to_dict())
         anonymize_spur(spur_obj, True)
     elif feedback_type == "thumbs_down":
         anonymize_spur(spur_obj, False)
