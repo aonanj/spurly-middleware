@@ -29,12 +29,35 @@ def _join_ocr_subwords(subwords: List[str]) -> str:
     return result
 
 def get_top_n_traits(traits_with_scores: List[Dict[str, Any]], n: int = 5) -> List[Dict[str, Any]]:
-    """Sorts traits by confidence and returns the top N traits WITHOUT deduplication."""
+    """
+    Sorts traits by confidence, deduplicates by trait name keeping the highest confidence score,
+    and returns the top N traits.
+    """
     if not traits_with_scores:
         return []
+
+    # Use a dictionary to track the trait with the highest confidence score, ensuring uniqueness.
+    unique_traits = {}
+    for trait in traits_with_scores:
+        # Ensure the trait dictionary has the expected 'trait' key.
+        trait_name = trait.get("trait")
+        if not trait_name:
+            continue
+        
+        # Normalize the trait name to handle minor variations like whitespace or casing.
+        normalized_name = trait_name.strip().lower()
+        current_confidence = trait.get("confidence", 0.0)
+        
+        # If the trait is new, or if this instance has a higher confidence, store it.
+        if (normalized_name not in unique_traits or 
+                current_confidence > unique_traits[normalized_name].get("confidence", 0.0)):
+            unique_traits[normalized_name] = trait
+
+    # Convert the dictionary of unique traits back to a list.
+    deduplicated_list = list(unique_traits.values())
     
-    # Sort by confidence without deduplication to preserve all 5 traits
-    sorted_traits = sorted(traits_with_scores, key=lambda x: x.get("confidence", 0.0), reverse=True)
+    # Finally, sort the unique traits by confidence and return the top N.
+    sorted_traits = sorted(deduplicated_list, key=lambda x: x.get("confidence", 0.0), reverse=True)
     return sorted_traits[:n]
 
 def create_connection_profile(
@@ -75,11 +98,19 @@ def create_connection_profile(
     profile_data_to_save["connection_age"] = data.get("connection_age", None)
 
     try:
-        db = get_firestore_db()  # Ensure Firestore client is initialized
-        db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
-        logger.info(f"Connection profile {connection_id} created for user {user_id}.")
-        saved_profile_object = ConnectionProfile.from_dict(profile_data_to_save)
-        return profile_data_to_save
+       db = get_firestore_db()
+       db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
+       logger.info(f"Connection profile {connection_id} created for user {user_id}.")
+       
+       response_data = profile_data_to_save.copy()
+       if response_data.get('personality_traits'):
+           response_data['personality_traits'] = [t.copy() for t in response_data['personality_traits']]
+           for trait in response_data['personality_traits']:
+               if 'confidence' in trait and isinstance(trait['confidence'], float):
+                   trait['confidence'] = f"{trait['confidence']:.2f}"
+
+       return response_data
+
     except Exception as e:
         logger.error("Error creating connection profile in Firestore for user %s: %s", user_id, e, exc_info=True)
         return {"error": f"Cannot create connection profile due to storage error: {str(e)}"}

@@ -140,6 +140,12 @@ class ConnectionProfile:
         # Convert datetime objects to ISO format strings
         data['created_at'] = self.created_at.isoformat()
         data['updated_at'] = self.updated_at.isoformat()
+        
+        if data.get('personality_traits'):
+            for trait in data['personality_traits']:
+                if 'confidence' in trait and isinstance(trait['confidence'], float):
+                    trait['confidence'] = f"{trait['confidence']:.2f}"
+                    
         return data
     
     @classmethod
@@ -154,28 +160,13 @@ class ConnectionProfile:
         filtered_data = {k: v for k, v in data.items() if k in profile_fields}
         return cls(**filtered_data)
 
-    def to_dict_alt(self) -> Dict[str, Any]:
-        # Ensure default_factory lists are included even if empty
-        d = {}
-        for f in fields(self):
-            value = getattr(self, f.name)
-            if isinstance(value, list) and not value and callable(f.default_factory):
-                    d[f.name] = f.default_factory()
-            elif isinstance(value, datetime):
-                d[f.name] = value.isoformat()
-            elif isinstance(value, Dict) and not value and callable(f.default_factory):
-                d[f.name] = f.default_factory()
-            elif isinstance(value, List) and not value and callable(f.default_factory):
-                d[f.name] = f.default_factory()
-            elif value:
-                d[f.name] = value
-        return d
     
     @classmethod
     def get_attr_as_str(cls, profile_instance: "ConnectionProfile", attr_key: str) -> str:
         """
         Retrieve the value of an attribute from a given ConnectionProfile instance
-        and return it as a string.
+        and return it as a string. For 'personality_traits', it converts confidence
+        scores to strings before serializing the list to a JSON string.
 
         Args:
             profile_instance (ConnectionProfile): The profile object to inspect.
@@ -186,10 +177,31 @@ class ConnectionProfile:
                  the attribute does not exist or is None.
         """
         value = getattr(profile_instance, attr_key, None)
+
+        if value is None:
+            return ""
+
+        # Special handling for personality_traits to format it as a JSON string
+        # with confidence scores converted from float to string.
+        if attr_key == 'personality_traits' and isinstance(value, list):
+            if not value:
+                return "[]"
+            
+            # Create a copy to avoid modifying the original object's data
+            traits_copy = [item.copy() for item in value if isinstance(item, dict)]
+            
+            for trait in traits_copy:
+                if 'confidence' in trait and isinstance(trait.get('confidence'), float):
+                    trait['confidence'] = f"{trait['confidence']:.2f}"
+            
+            return json.dumps(traits_copy, indent=4)
+
         if isinstance(value, list):
+            # General list handling for other attributes
             str_list = [str(item) for item in value if item is not None]
             return ", ".join(str_list) if str_list else ""
-        elif isinstance(value, Dict):
+        elif isinstance(value, dict):
+            # General dictionary handling
             return json.dumps(value, indent=4) if value else ""
         else:
-            return "" if value is None else str(value)
+            return str(value)

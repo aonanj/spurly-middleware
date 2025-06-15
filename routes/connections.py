@@ -213,33 +213,34 @@ def create_connection():
 
         # Process profile pictures (personality traits)
         personality_traits = []
-        pic_images = _extract_image_bytes_from_request('connectionPicsImageBytes')
-        
-        for image_bytes in pic_images:
+        pic_images_bytes = _extract_image_bytes_from_request('connectionPicsImageBytes')
+        image_data_list = []
+
+        for image_bytes in pic_images_bytes:
             if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
                 logger.warning(f"Skipping oversized profile pic for user {user_id}")
                 continue
-                
+            
             try:
-                # Get image format
+                # Prepare all valid images for a single API call
                 img = Image.open(io.BytesIO(image_bytes))
                 content_type = f"image/{img.format.lower()}" if img.format else "image/jpeg"
-                
-                image_dict = {
+                image_data_list.append({
                     "bytes": image_bytes,
                     "content_type": content_type
-                }
-                
-                # Get personality traits
-                trait_list = infer_personality_traits_from_openai_vision([image_dict])
-                if trait_list:
-                    for trait_item in trait_list:
-                        personality_traits.append({
-                            "trait": trait_item.get("trait", ""),
-                            "confidence": trait_item.get("confidence", 0.0)
-                        })
+                })
             except Exception as e:
-                logger.error(f"Error processing profile pic for user {user_id}: {e}", exc_info=True)
+                logger.error(f"Error preparing profile pic for user {user_id}: {e}", exc_info=True)
+
+        # Make a single, efficient call to the AI model if there are any valid images
+        if image_data_list:
+            try:
+                trait_list = infer_personality_traits_from_openai_vision(image_data_list)
+                if trait_list:
+                    # The function now returns the list directly in the desired format
+                    personality_traits = trait_list
+            except Exception as e:
+                logger.error(f"Error inferring personality traits for user {user_id}: {e}", exc_info=True)
         
         # Create the connection profile
         result = create_connection_profile(
@@ -627,9 +628,14 @@ def analyze_connection_photos():
         }
         
         if personality_traits:
-            response_data["personality_traits"] = personality_traits
+            response_traits = [t.copy() for t in personality_traits]
+            for trait in response_traits:
+                if 'confidence' in trait and isinstance(trait['confidence'], float):
+                    trait['confidence'] = f"{trait['confidence']:.2f}"
+            response_data["personality_traits"] = response_traits
         
         return jsonify(response_data)
+
         
     except Exception as e:
         logger.error(f"Error in analyze_connection_photos: {e}", exc_info=True)
