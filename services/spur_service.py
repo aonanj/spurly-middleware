@@ -2,12 +2,14 @@ import firebase_admin
 from dataclasses import fields
 from datetime import datetime, timezone
 from class_defs.spur_def import Spur
+from class_defs.profile_def import ConnectionProfile
 from flask import g
 from google.cloud import firestore
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id
+from services.connection_service import get_connection_profile
 
 logger = get_logger(__name__)
 
@@ -50,6 +52,12 @@ def save_spur(user_id, spur: dict) -> dict:
             
         if 'connection_id' not in spur_dict:
             spur_dict['connection_id'] = get_null_connection_id(user_id)
+        elif spur_dict.get('connection_id'):
+            connection_id = spur_dict['connection_id']
+            connection = get_connection_profile(user_id, connection_id)
+            if connection: 
+                spur_dict['connection_name'] = ConnectionProfile.get_attr_as_str(connection, "connection_name")
+                
         if 'created_at' not in spur_dict:
             spur_dict['created_at'] = datetime.now(timezone.utc)
 
@@ -66,6 +74,7 @@ def save_spur(user_id, spur: dict) -> dict:
             "spur_id": spur_id,
             "conversation_id": spur_dict.get("conversation_id", ""),
             "connection_id": spur_dict.get("connection_id", ""),
+            "connection_name": spur_dict.get("connection_name", ""),
             "situation": spur_dict.get("situation", ""),
             "topic": spur_dict.get("topic", ""),
             "variant": spur_dict.get("variant", ""),
@@ -83,11 +92,11 @@ def save_spur(user_id, spur: dict) -> dict:
         return {"error": f"{err_point} - Error: {str(e)}", "status_code": 500}
 
 
-def get_saved_spurs(user_id, filters=None):
+def get_saved_spurs(user_id: str) -> list[Spur]:
     if not user_id:
         err_point = __package__ or __name__
         logger.error(f"Error: {err_point}")
-        return f"error - {err_point} - Error:", 400
+        return []
     try:
         db = get_firestore_db()
         ref = db.collection("users").document(user_id).collection("spurs")

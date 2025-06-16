@@ -27,6 +27,7 @@ class Spur:
     created_at: datetime
     conversation_id: Optional[str] = None
     connection_id: Optional[str] = None
+    connection_name: Optional[str] = None
     situation: Optional[str] = None
     topic: Optional[str] = None
     variant: Optional[str] = None
@@ -38,6 +39,7 @@ class Spur:
             "user_id": self.user_id,
             "spur_id": self.spur_id,
             "conversation_id": self.conversation_id,
+            "connection_name": self.connection_name,
             "connection_id": self.connection_id,
             "situation": self.situation,
             "topic": self.topic,
@@ -56,6 +58,7 @@ class Spur:
             spur_id=data["spur_id"],
             conversation_id=data.get("conversation_id"),
             connection_id=data.get("connection_id"),
+            connection_name=data.get("connection_name"),
             situation=data.get("situation"),
             topic=data.get("topic"),
             variant=data.get("variant"),

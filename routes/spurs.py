@@ -20,32 +20,46 @@ def fetch_saved_spurs_bp():
             user_id = current_app.config.get("user_id", None)
             if not user_id:
                 return jsonify({"error": "Authentication error"}), 401
-
-    filters = {}
-    for field in ["variant", "situation"]:
-        value = request.args.get(field)
-        if value:
-            filters[field] = value
-
-    for date_field in ["date_from", "date_to"]:
-        date_str = request.args.get(date_field)
-        if date_str:
+    
+    spurs_list = get_saved_spurs(user_id)
+    
+    spurs_data = []
+    for spur in spurs_list:
+        if spur:
             try:
-                filters[date_field] = datetime.fromisoformat(date_str)
-            except ValueError as e:
+                spurs_data.append(spur.to_dict())
+            except Exception as e:
                 err_point = __package__ or __name__
-                logger.error(f"Error: {err_point}")
-                return jsonify({'error': f"[{err_point}] - Error:"}), 400
+                logger.error(f"Error converting spur to dict: {err_point} - {e}")
+                continue
+    return jsonify(spurs_data)
 
-    if request.args.get("keyword"):
-        filters["keyword"] = request.args.get("keyword")
 
-    sort = request.args.get("sort", "desc")
-    if sort in ["asc", "desc"]:
-        filters["sort"] = sort
+    # filters = {}
+    # for field in ["variant", "situation"]:
+    #     value = request.args.get(field)
+    #     if value:
+    #         filters[field] = value
 
-    result = get_saved_spurs(user_id, filters)
-    return jsonify(result)
+    # for date_field in ["date_from", "date_to"]:
+    #     date_str = request.args.get(date_field)
+    #     if date_str:
+    #         try:
+    #             filters[date_field] = datetime.fromisoformat(date_str)
+    #         except ValueError as e:
+    #             err_point = __package__ or __name__
+    #             logger.error(f"Error: {err_point}")
+    #             return jsonify({'error': f"[{err_point}] - Error:"}), 400
+
+    # if request.args.get("keyword"):
+    #     filters["keyword"] = request.args.get("keyword")
+
+    # sort = request.args.get("sort", "desc")
+    # if sort in ["asc", "desc"]:
+    #     filters["sort"] = sort
+
+    # result = get_saved_spurs(user_id, filters)
+    # return jsonify(result)
 
 @spurs_bp.route("/save-spur", methods=["POST"])
 @verify_token
