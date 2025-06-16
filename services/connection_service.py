@@ -304,6 +304,8 @@ def get_connection_profile(user_id: str, connection_id: str) -> Optional[Connect
 def update_connection_profile(
     user_id: str, 
     connection_id: str, 
+    connection_name: Optional[str] = None,
+    connection_age: Optional[int] = None,
     data: Optional[str] = None, 
     connection_profile_text: Optional[List[str]] = None, 
     updated_personality_traits: Optional[List[Dict[str, Any]]] = None,
@@ -324,6 +326,11 @@ def update_connection_profile(
         
         current_profile_data = current_profile_doc.to_dict()
         update_payload = {} # Build payload with only the fields to change
+        
+        if connection_name is not None and connection_name != current_profile_data.get("connection_name"):
+            update_payload["connection_name"] = connection_name
+        if connection_age is not None and connection_age != current_profile_data.get("connection_age"):
+            update_payload["connection_age"] = connection_age
 
         # Update basic form data fields
         if data is not None:

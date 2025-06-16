@@ -149,7 +149,7 @@ def fetch_saved_spurs_bp():
         filters["sort"] = sort
 
 
-    result = get_saved_spurs(user_id, filters)
+    result = get_saved_spurs(user_id)
     return jsonify(result)
 
 @conversations_bp.route("/save-spur", methods=["POST"])

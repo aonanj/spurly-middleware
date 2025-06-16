@@ -280,6 +280,24 @@ def update_connection():
         connection_id = form_data.get("connection_id")
         if not connection_id:
             return jsonify({"error": "Missing connection_id"}), 400
+        
+        name = None
+        if 'connection_name' in form_data:
+            name = form_data.get("connection_name", "").strip()
+        
+        age = None
+        if 'connection_age' in form_data:
+            age_value = form_data.get("connection_age")
+            if isinstance(age_value, str):
+                if age_value.strip():
+                    try:
+                        age = int(age_value)
+                    except (ValueError, TypeError):
+                        logger.warning(f"Invalid age value: {age_value}")
+                        age = None
+            elif isinstance(age_value, int):
+                age = age_value
+            # For any other type (including None), age remains None
 
         # Process profile content images if provided
         profile_content_texts = None
@@ -336,6 +354,8 @@ def update_connection():
         result = update_connection_profile(
             user_id=user_id,
             connection_id=connection_id,
+            connection_name = name, 
+            connection_age = age,
             data=connection_context_block if connection_context_block else None,
             connection_profile_text=profile_content_texts,
             updated_personality_traits=personality_traits,
