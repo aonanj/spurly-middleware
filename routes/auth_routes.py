@@ -13,6 +13,7 @@ import jwt
 from infrastructure.token_validator import verify_token, handle_auth_errors, create_jwt_token, AuthError, ValidationError
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
+from class_defs.profile_def import UserProfile
 
 # Create blueprint
 auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
@@ -28,9 +29,6 @@ logger = logging.getLogger(__name__)
 
 # Email validation regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-
-
-
 
 def validate_email(email: str) -> bool:
     """Validate email format"""
@@ -55,8 +53,6 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
 
         admin_app = firebase_admin.get_app() # Get the default initialized Firebase app
         if not admin_app:
-            #DEBUG
-            logger.error("Firebase Admin SDK is not initialized")
             raise AuthError("Firebase Admin SDK is not initialized", 500)
 
         decoded_token = firebase_admin_auth.verify_id_token(id_token, check_revoked=True, app=admin_app)
@@ -69,20 +65,37 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
             user_id = decoded_token.get('uid')
         setattr(g, "user_id", user_id)
         
+        json_dict = { 'user_id': user_id }
+        
         user_email = ""
         if 'email' in decoded_token:
             user_email = decoded_token.get('email')
         elif 'user_email' in decoded_token:
             user_email = decoded_token.get('user_email')
-        setattr(g, "user_email", user_email)
-        setattr(g, "auth_claims", decoded_token)
-        auth_provider = decoded_token.get('firebase', {}).get('sign_in_provider', 'password')
-        return {
-            'user_id': user_id,
-            'email': user_email,
-            'name': decoded_token.get('name'),
-            'auth_provider': auth_provider
-        }
+        
+        if user_email != "":
+            setattr(g, "email", user_email)
+            json_dict['email'] = user_email
+            
+        name = ""
+        if 'name' in decoded_token:
+            name = decoded_token.get('name')
+        elif 'user_name' in decoded_token:
+            name = decoded_token.get('user_name')
+        
+        if name != "":
+            setattr(g, "name", name)
+            json_dict['name'] = name
+        
+        auth_provider = ""    
+        if 'auth_claims' in decoded_token:
+            auth_provider = decoded_token.get('auth_claims', {}).get('auth_provider')
+            setattr(g, 'auth_provider', auth_provider)
+            json_dict['auth_provider'] = auth_provider
+
+        return json_dict
+
+    
     except firebase_admin_auth.ExpiredIdTokenError as e:
         logger.error(f"Firebase token has expired: {str(e)}")
         raise AuthError("Firebase token has expired", 401)
@@ -90,8 +103,6 @@ def verify_firebase_token(id_token: str) -> Dict[str, Any]:
         logger.error(f"Firebase token has been revoked: {str(e)}")
         raise AuthError("Firebase token has been revoked", 401)
     except firebase_admin_auth.InvalidIdTokenError as e: 
-        # This is the key exception for "invalid token" issues.
-        # The error message 'e' often contains the specific reason.
         logger.error(f"FIREBASE_TOKEN_IS_INVALID: {str(e)}") 
         raise AuthError(f"Invalid Firebase token: {str(e)}", 401)
     except Exception as e: # Catch any other unexpected errors during verification
@@ -116,14 +127,14 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
 
     user = get_user(getattr(g, "user_id"))
     
-    provider = firebase_user.get('auth_provider', 'password')
+    auth_provider = firebase_user.get('auth_provider', 'password')
     
     if user:
         user_data = {}
         user_data['user_id'] = getattr(g, "user_id")
         if firebase_user.get('name') and firebase_user.get('name') != user.name:
             user_data['name'] = firebase_user['name']
-        user_data['auth_provider'] = provider
+        user_data['auth_provider'] = auth_provider
         user_data['auth_provider_id'] = getattr(g, "user_id")
         if firebase_user.get('email') and firebase_user.get('email') != user.email:
             user_data['email'] = firebase_user['email']
@@ -133,9 +144,9 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
         user_profile = create_user(
             user_id=getattr(g, "user_id"),
             email=firebase_user['email'],
-            auth_provider=provider,
-            auth_provider_id=getattr(g, "user_id"),  # Use Firebase UID as provider ID
-            name=firebase_user.get('name', ''),# Use Firebase UID as provider ID
+            auth_provider=auth_provider,
+            auth_provider_id=getattr(g, "user_id"),  # Use Firebase UID as auth_provider ID
+            name=firebase_user.get('name', ''),# Use Firebase UID as auth_provider ID
         )
     
     return user_profile.to_dict()  # Convert to dict for response
@@ -146,48 +157,36 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
 def firebase_register():
     """Register new user with Firebase ID token"""
     if not request.is_json:
-        #DEBUG
-        logger.error(f"Request is not JSON. Content-Type: {request.content_type}")
-        logger.error(f"Request headers: {request.headers}")
-        logger.error(f"Request data: {request.data}")
         raise ValidationError("Content-Type must be application/json")
     
     data = request.get_json()
     if not data:
-        #DEBUG
         logger.error(f"Request JSON body is empty. Request data: {data}")
         raise ValidationError("Request body is required")
     
     firebase_id_token_1 = data.get('firebase_id_token')
-    #DEBUG
-    logger.debug(f"Received firebase_id_token_1: {firebase_id_token_1}")    
     if not firebase_id_token_1:
         firebase_id_token = data.get('access_token', '').strip()
-        #DEBUG
-        logger.debug(f"Received access_token: {firebase_id_token}")
     else:
         firebase_id_token = firebase_id_token_1.strip()
     if not firebase_id_token:
-        #DEBUG
         logger.error(f"NO firebase ID token. Request data: {data}")
         raise ValidationError("Firebase ID token is required")
     
     try:
-        # Verify Firebase token
-        #DEBUG
-        logger.debug(f"Verifying Firebase ID token: {firebase_id_token}")
         firebase_user = verify_firebase_token(firebase_id_token)
-        #DEBUG
-        logger.debug(f"Verified Firebase user: {firebase_user}")
         setattr(g, "user_id", firebase_user['user_id']) 
-        #DEBUG
-        logger.debug(f"Set g.user_id: {getattr(g, 'user_id')}")
         # Validate that this is a new registration (not a social login)
-        if firebase_user['provider'] != 'password':
-            logger.error(f"Attempted registration with unsupported provider: {firebase_user['provider']}") # DEBUG 
-        ##    raise ValidationError("Please use the appropriate social login endpoint")
-        
-        # Check if user already exists in your database
+        if firebase_user.get('auth_provider'):
+            auth_provider = firebase_user['auth_provider']
+        elif data.get('auth_provider'):
+            auth_provider = data.get('auth_provider')
+        elif data.get('auth_provider'):
+            auth_provider = data.get('auth_provider')
+        else:
+            auth_provider = "password"
+
+
         email = firebase_user.get('email', '').strip().lower()
         existing_user = get_user_by_email(email)
 
@@ -201,7 +200,7 @@ def firebase_register():
         access_token, refresh_token = create_jwt_token(
             user_id=user_data['user_id'],
             email=user_data['email'],
-            provider=user_data.get('auth_provider', 'password')
+            provider=auth_provider
         )
         
         # Log successful registration
@@ -237,52 +236,90 @@ def firebase_login():
     if not data:
         raise ValidationError("Request body is required")
     
-    firebase_id_token_1 = data.get('firebase_id_token')
-    if not firebase_id_token_1:
+    if data.get('firebase_id_token'):
+        firebase_id_token = data.get('firebase_id_token', '').strip()
+    elif data.get('access_token'):
         firebase_id_token = data.get('access_token', '').strip()
     else:
-        firebase_id_token = firebase_id_token_1.strip()
-        
-    email = data.get('email', '').strip().lower()  # Optional, for reference
-    
-    if not firebase_id_token:
         raise ValidationError("Firebase ID token is required")
     
     try:
         # Verify Firebase token
         firebase_user = verify_firebase_token(firebase_id_token)
-        setattr(g, "user_id", firebase_user['user_id']) 
+        user_id = ""
+        if firebase_user.get('user_id'):
+            user_id = firebase_user.get('user_id', '').strip()
+        elif data.get('user_id'):
+            user_id = data.get('user_id', '').strip()
+        elif getattr(g, "user_id", None):
+            user_id = getattr(g, "user_id", None)
+        else:
+            raise ValidationError("User ID is required")
+        
+        setattr(g, "user_id", user_id)
+        current_app.config['user_id'] = user_id
+        
+        email = ""
+        if firebase_user.get('email'):
+            email = firebase_user.get('email', '').strip().lower()
+            setattr(g, "email", email)
+        elif data.get('email'):
+            email = data.get('email', '').strip().lower()  
+            setattr(g, "email", email)
+        elif getattr(g, "user_email", None):
+            email = getattr(g, "user_email", None)
+            
+        auth_provider = firebase_user.get('auth_provider', 'password')
+        setattr(g, "auth_provider", auth_provider)
         
                       
         # Create or update user in your database
         user_data = get_user(firebase_user['user_id'])
 
         if not user_data:
-            raise AuthError("User not found. Please register first.", 404)
+            user_data = create_or_update_user_from_firebase(firebase_user, firebase_id_token)
+        
+        user_dict = user_data.to_dict() if isinstance(user_data, UserProfile) else user_data
+
+        if not user_id:
+            raise ValidationError("User ID is required for token creation")
+
+        if not email:
+            raise ValidationError("Email is required for token creation")
+        
 
         access_token, refresh_token = create_jwt_token(
-            user_id=user_data.user_id,
-            email=user_data.email,
-            name=user_data.name if user_data.name else None
+            user_id=user_id,
+            email=email,
+            provider=auth_provider
         )
         
-        clear_active_connection = clear_active_connection_firestore(user_data.user_id)
+        clear_active_connection = clear_active_connection_firestore(user_id)
         setattr(g, "active_connection_id", clear_active_connection.get("connection_id"))
-
-        # Log successful login
-        logger.info(f"User logged in via Firebase: {user_data.user_id}")
-
-        name = user_data.name if user_data.name else ""
-
-        return jsonify({
+        
+        
+        
+        if user_dict.get('name') and user_dict['name'] != '':
+            setattr(g, "name", user_dict['name'])
+            name = user_dict['name']
+    
+        json_response = {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 3600,
-            "user_id": user_data.user_id,
-            "email": user_data.email,
-            "name": name    
-        }), 200
+            "user_id": user_id,
+            "email": email
+        }
+        if user_dict.get('name'):
+            json_response['name'] = user_dict['name']
+
+
+        # Log successful login
+        logger.error(f"User logged in via Firebase: {user_id}")
+
+
+        return json_response, 200
         
     except AuthError:
         raise
@@ -328,6 +365,29 @@ def logout():
             "message": f"Failed to clear active connection for user {user_id}"
         }), 500
         
+@auth_bp.route('/check-email', methods=['POST'])
+@handle_auth_errors
+def check_email_availability():
+    """Check if an email is already registered"""
+    if not request.is_json:
+        raise ValidationError("Content-Type must be application/json")
+    
+    data = request.get_json()
+    email = data.get('email', '').strip().lower()
+    
+    if not email:
+        raise ValidationError("Email is required")
+    
+    if not validate_email(email):
+        raise ValidationError("Invalid email format")
+    
+    # Check if user exists with this email
+    existing_user = get_user_by_email(email)
+    
+    return jsonify({
+        "available": existing_user is None,
+        "email": email
+    }), 200
 
 
 # Legacy routes (keep for backward compatibility during migration)
