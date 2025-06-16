@@ -183,15 +183,13 @@ def get_user_connections(user_id:str) -> list[ConnectionProfile]:
         return [] 
 
     try:
-        db = get_firestore_db()  # Ensure Firestore client is initialized
+        db = get_firestore_db()  
         connections_ref = db.collection("users").document(user_id).collection("connections")
         connections_stream = connections_ref.stream()
         connection_list = []
         for connection_doc in connections_stream:
             if connection_doc.exists:
                 connection_data = connection_doc.to_dict()
-                # Ensure all fields are present for ConnectionProfile.from_dict
-                # This is important if documents might have missing fields from older versions.
                 complete_data = {}
                 for f_info in fields(ConnectionProfile):
                     if f_info.name in connection_data:

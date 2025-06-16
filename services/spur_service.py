@@ -1,4 +1,5 @@
 import firebase_admin
+from dataclasses import fields
 from datetime import datetime, timezone
 from class_defs.spur_def import Spur
 from flask import g
@@ -90,43 +91,65 @@ def get_saved_spurs(user_id, filters=None):
     try:
         db = get_firestore_db()
         ref = db.collection("users").document(user_id).collection("spurs")
-        query = ref
-
-        if filters:
-            if "variant" in filters:
-                query = query.where("variant", "==", filters["variant"])
-            if "situation" in filters:
-                query = query.where("situation", "==", filters["situation"])
-            if "date_from" in filters:
-                query = query.where("date_saved", ">=", filters["date_from"])
-            if "date_to" in filters:
-                query = query.where("date_saved", "<=", filters["date_to"])
-            sort_order = filters.get("sort", "desc")
-            direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
-            query = query.order_by("date_saved", direction=direct)
-
-        keyword = filters.get("keyword", "").lower() if filters else ""
-
-        docs = query.stream()
-        result = []
-        for doc in docs:
-            data = doc.to_dict()
-            if keyword and keyword not in data.get("text", "").lower():
-                continue  # Skip if keyword not in text
-
-            result.append({
-                "spur_id": doc.id,
-                "variant": data.get("variant"),
-                "text": data.get("text"),
-                "situation": data.get("situation"),
-                "date_saved": data.get("date_saved")
-            })
-
-        return result
+        spurs_stream = ref.stream()
+        spurs_list = []
+        for spur_doc in spurs_stream:
+            if spur_doc.exists:
+                spurs_data = spur_doc.to_dict()
+                complete_data = {}
+                for f_info in fields(Spur):
+                    if f_info.name in spurs_data:
+                        complete_data[f_info.name] = spurs_data[f_info.name]
+                    elif callable(f_info.default_factory):
+                        complete_data[f_info.name] = f_info.default_factory()
+                    else:
+                        complete_data[f_info.name] = None
+                        
+                spur = Spur.from_dict(complete_data)
+                spurs_list.append(spur)
+        return spurs_list
     except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
-        return f"error - {err_point} - Error: {str(e)}", 500
+        err_point = __package__ or "spur_service"
+        logger.error("[%s] Error getting spurs for user %s: %s", err_point, user_id, e, exc_info=True)
+        return []         
+        
+        # query = ref        
+
+        # if filters:
+        #     if "variant" in filters:
+        #         query = query.where("variant", "==", filters["variant"])
+        #     if "situation" in filters:
+        #         query = query.where("situation", "==", filters["situation"])
+        #     if "date_from" in filters:
+        #         query = query.where("date_saved", ">=", filters["date_from"])
+        #     if "date_to" in filters:
+        #         query = query.where("date_saved", "<=", filters["date_to"])
+        #     sort_order = filters.get("sort", "desc")
+        #     direct = firestore.Query.ASCENDING if sort_order == "asc" else firestore.Query.DESCENDING
+        #     query = query.order_by("date_saved", direction=direct)
+
+        # keyword = filters.get("keyword", "").lower() if filters else ""
+
+        # docs = query.stream()
+        # result = []
+        # for doc in docs:
+        #     data = doc.to_dict()
+        #     if keyword and keyword not in data.get("text", "").lower():
+        #         continue  # Skip if keyword not in text
+
+    #         result.append({
+    #             "spur_id": doc.id,
+    #             "variant": data.get("variant"),
+    #             "text": data.get("text"),
+    #             "situation": data.get("situation"),
+    #             "date_saved": data.get("date_saved")
+    #         })
+
+    #     return result
+    # except Exception as e:
+    #     err_point = __package__ or __name__
+    #     logger.error("[%s] Error: %s", err_point, e)
+    #     return f"error - {err_point} - Error: {str(e)}", 500
 
 
 def delete_saved_spur(user_id, spur_id):
