@@ -66,7 +66,7 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
         spur_instructions += "\n\n### SPUR VARIANTS AND DESCRIPTIONS ###\n"
 
         spur_instructions += "\n".join(
-            f"{idx + 1}. {current_app.config['SPUR_VARIANT_DESCRIPTIONS'][v]}"
+            f"{idx + 1}. {v}: {current_app.config['SPUR_VARIANT_DESCRIPTIONS'][v]}"
             for idx, v in enumerate(valid_spurs)
         )
 
