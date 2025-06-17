@@ -27,7 +27,7 @@ def handle_errors(f):
         try:
             return f(*args, **kwargs)
         except AuthError as e:
-            logger.warning(f"Auth error in {f.__name__}: {e.message}")
+            logger.error(f"Auth error in {f.__name__}: {e.message}")
             return jsonify({"error": e.message}), e.status_code
         except Exception as e:
             logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")

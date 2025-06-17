@@ -45,7 +45,7 @@ def validate_profile(f):
                 raise ValueError
         except (ValueError, TypeError):
             err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
+            logger.error(f"Error in validate_profile decorator of middleware.py: {err_point}")
             return jsonify({"error": "User age must be at least 18"}), 400
 
         if "age" in connection_profile:
@@ -55,7 +55,7 @@ def validate_profile(f):
                     raise ValueError
             except (ValueError, TypeError):
                 err_point = __package__ or __name__
-                logger.error(f"Error: {err_point}")
+                logger.error(f"Error in validate_profile decorator of middleware.py: {err_point}")
                 return jsonify({"error": "connection age must be at least 18 if provided"}), 400
 
         return f(*args, **kwargs)
@@ -72,7 +72,7 @@ def enrich_context(f):
                 inferred = trait_manager.infer_situation(conversation)
             except Exception as e:
                 err_point = __package__ or __name__
-                logger.error("[%s] Error: %s", err_point, e)
+                logger.error("[%s] Error in enrich_context decorator of middleware.py: %s", err_point, e)
                 inferred = {"situation": "cold_open", "confidence": "low"}
             data["situation"] = inferred.get("situation", "cold_open")
             data["situation_confidence"] = inferred.get("confidence", "low")

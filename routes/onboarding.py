@@ -98,7 +98,7 @@ def onboarding():
             from services.user_service import update_spur_preferences
             update_spur_preferences(user_id, selected_spurs)
         
-        logger.info(f"Onboarding completed for user: {user_id}")
+        logger.error(f"LOG.INFO: Onboarding completed for user: {user_id}")
         
         # Return success response
         # Note: We don't return new tokens here because the user already has valid tokens

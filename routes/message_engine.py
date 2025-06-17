@@ -34,7 +34,7 @@ def generate():
     """
     data = request.get_json()
     if not data:
-        logger.warning("No JSON data received in /generate request.")
+        logger.error("No JSON data received in /generate request.")
         return jsonify({'error': "Request must be JSON"}), 400
 
     user_id = getattr(g, 'user_id', None) 
@@ -78,7 +78,7 @@ def generate():
 
 
     
-    logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
+    logger.error(f"LOG.INFO: Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
 
 
 

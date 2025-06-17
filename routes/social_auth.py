@@ -318,7 +318,7 @@ def google_auth():
     )
     
     # Log successful authentication
-    logger.info(f"Successful Google authentication for user: {user_data['user_id']}")
+    logger.error(f"LOG.INFO: Successful Google authentication for user: {user_data['user_id']}")
     
     return jsonify({
         "access_token": access_token,
@@ -389,7 +389,7 @@ def apple_auth():
     )
     
     # Log successful authentication
-    logger.info(f"Successful Apple authentication for user: {user_data['user_id']}")
+    logger.error(f"LOG.INFO: Successful Apple authentication for user: {user_data['user_id']}")
     
     return jsonify({
         "access_token": access_token,
@@ -451,7 +451,7 @@ def facebook_auth():
     )
     
     # Log successful authentication
-    logger.info(f"Successful Facebook authentication for user: {user_data['user_id']}")
+    logger.error(f"LOG.INFO: Successful Facebook authentication for user: {user_data['user_id']}")
     
     return jsonify({
         "access_token": access_token,
@@ -558,7 +558,7 @@ def logout():
         elif 'uid' in payload:
             user_id = payload.get('uid')
         
-        logger.info(f"User logged out: {user_id}")
+        logger.error(f"LOG.INFO: User logged out: {user_id}")
 
         clear_active_connection_firestore(user_id)
 

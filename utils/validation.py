@@ -56,9 +56,9 @@ def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
     return spurs_to_retry
 
 CONFIDENCE_THRESHOLDS = {
-    "high": 0.75,
-    "medium": 0.5,
-    "low": 0.3
+    "high": 0.65,
+    "medium": 0.4,
+    "low": 0.25
 }
 
 def classify_confidence(score):

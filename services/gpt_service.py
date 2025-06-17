@@ -167,9 +167,13 @@ def generate_spurs(
     if topic and topic != "":
         context_block += f"***Topic:*** {topic}\n\n"
     
+    #DEBUG
+    logger.error("LOG.INFO: gpt_service.generate_spurs called with parameters:")
+    logger.error(f"LOG.INFO: Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
+    
     tone_info = {}
     tone = ""
-    if conversation_messages:
+    if conversation_messages and len(conversation_messages) > 0:
         if not conversation_id:
             conversation_id = generate_conversation_id(user_id)
         tone_info = infer_tone(conversation_messages[-1].get("text", ""))
@@ -196,6 +200,9 @@ def generate_spurs(
 
     prompt = build_prompt(selected_spurs or [], context_block)
 
+    #DEBUG
+    logger.error("LOG.INFO: gpt_service.generate_spurs called with parameters:")
+    logger.error(f"LOG.INFO: Generated prompt for user {user_id}: {prompt}")
     fallback_prompt_suffix = (
         "\nKeep all outputs safe, short, and friendly.\n"
     )
@@ -294,14 +301,14 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
                            conversation_messages=conversation_messages) # Pass through
 
     counter = 0
-    max_iterations = 10 # Consider making this configurable
+    max_iterations = 3 
 
     # Iterative regeneration for spurs that fail validation/filtering
     spurs_needing_regeneration = spurs_to_regenerate(spurs) # This function returns list of variants (strings)
 
     while spurs_needing_regeneration and counter < max_iterations:
         counter += 1
-        logger.info(f"Regeneration attempt {counter} for user {user_id}, variants: {spurs_needing_regeneration}")
+        logger.error(f"LOG.INFO: Regeneration attempt {counter} for user {user_id}, variants: {spurs_needing_regeneration}")
         
         fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, spurs_needing_regeneration, # Pass only variants to regenerate
                                      conversation_messages=conversation_messages)
@@ -309,6 +316,6 @@ def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str,
         spurs_needing_regeneration = spurs_to_regenerate(spurs)
 
     if counter >= max_iterations and spurs_needing_regeneration:
-        logger.warning(f"Max regeneration attempts reached for user {user_id}. Some spurs may not meet quality standards.")
+        logger.error(f"Max regeneration attempts reached for user {user_id}. Some spurs may not meet quality standards.")
 
     return spurs

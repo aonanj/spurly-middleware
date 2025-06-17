@@ -63,7 +63,7 @@ def _process_image_file(file_obj: FileStorage, max_size: int,
     # Check extension
     if not ('.' in file_obj.filename and 
             file_obj.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
-        logger.warning(f"Invalid file extension: {file_obj.filename}")
+        logger.error(f"Invalid file extension: {file_obj.filename}")
         return None
     
     # Read file
@@ -73,7 +73,7 @@ def _process_image_file(file_obj: FileStorage, max_size: int,
     
     # Check size
     if not image_bytes or len(image_bytes) > max_size:
-        logger.warning(f"Invalid file size: {len(image_bytes) if image_bytes else 0} bytes")
+        logger.error(f"Invalid file size: {len(image_bytes) if image_bytes else 0} bytes")
         return None
         
     return image_bytes
@@ -147,7 +147,7 @@ def save_connection():
 
         # Ensure user_id from auth is used
         if 'user_id' in data and data['user_id'] != user_id:
-            logger.warning(f"User ID mismatch. Authenticated: {user_id}, Provided: {data['user_id']}")
+            logger.error(f"User ID mismatch. Authenticated: {user_id}, Provided: {data['user_id']}")
             return jsonify({"error": "User ID mismatch"}), 403
         
         data['user_id'] = user_id
@@ -199,7 +199,7 @@ def create_connection():
         
         for image_bytes in content_images:
             if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES:
-                logger.warning(f"Skipping oversized content image for user {user_id}")
+                logger.error(f"Skipping oversized content image for user {user_id}")
                 continue
                 
             try:
@@ -219,7 +219,7 @@ def create_connection():
 
         for image_bytes in pic_images_bytes:
             if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
-                logger.warning(f"Skipping oversized profile pic for user {user_id}")
+                logger.error(f"Skipping oversized profile pic for user {user_id}")
                 continue
             
             try:
@@ -293,7 +293,7 @@ def update_connection():
                     try:
                         age = int(age_value)
                     except (ValueError, TypeError):
-                        logger.warning(f"Invalid age value: {age_value}")
+                        logger.error(f"Invalid age value: {age_value}")
                         age = None
             elif isinstance(age_value, int):
                 age = age_value
@@ -568,14 +568,14 @@ def analyze_connection_photos():
             return jsonify({"error": "No photos provided"}), 400
         
         if len(connection_photo_images) > 4:
-            logger.warning(f"User {user_id} uploaded {len(connection_photo_images)} photos, limiting to 4")
+            logger.error(f"User {user_id} uploaded {len(connection_photo_images)} photos, limiting to 4")
             connection_photo_images = connection_photo_images[:4]
 
         # Validate image sizes
         valid_images = []
         for i, image_bytes in enumerate(connection_photo_images):
             if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
-                logger.warning(f"Skipping oversized photo {i} for connection {connection_id}")
+                logger.error(f"Skipping oversized photo {i} for connection {connection_id}")
                 continue
             valid_images.append(image_bytes)
         
@@ -606,9 +606,9 @@ def analyze_connection_photos():
                 trait_results = infer_personality_traits_from_openai_vision(image_data_list)
                 if trait_results:
                     personality_traits = trait_results
-                    logger.info(f"Analyzed {len(image_data_list)} photos and extracted {len(personality_traits)} traits")
+                    logger.error(f"LOG.INFO: Analyzed {len(image_data_list)} photos and extracted {len(personality_traits)} traits")
                 else:
-                    logger.warning(f"No personality traits extracted from {len(image_data_list)} photos")
+                    logger.error(f"No personality traits extracted from {len(image_data_list)} photos")
             
         except Exception as e:
             logger.error(f"Error analyzing photos for personality traits: {e}", exc_info=True)
@@ -639,7 +639,7 @@ def analyze_connection_photos():
                 
                 doc_ref.update(update_data)
                 
-                logger.info(f"Updated connection {connection_id} with personality traits")
+                logger.error(f"LOG.INFO: Updated connection {connection_id} with personality traits")
                 
             except Exception as e:
                 logger.error(f"Error updating connection profile: {e}", exc_info=True)
@@ -732,7 +732,7 @@ def upload_face_photo():
             
             doc_ref.update(update_data)
             
-            logger.info(f"Successfully uploaded face photo for connection {connection_id}")
+            logger.error(f"LOG.INFO: Successfully uploaded face photo for connection {connection_id}")
             
             return jsonify({
                 "success": True,
@@ -797,7 +797,7 @@ def delete_profile_photo():
             
             doc_ref.update(update_data)
             
-            logger.info(f"Removed profile photo from connection {connection_id}")
+            logger.error(f"LOG.INFO: Removed profile photo from connection {connection_id}")
             
             # TODO: Optionally delete the actual file from GCS
             # This would require parsing the GCS path from the URL

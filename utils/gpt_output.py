@@ -31,7 +31,7 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
             for key in sanitized_output
         }
         
-        logger.info({
+        logger.error({
             "event": "spurly_generation_log",
             "fallback_flags": fallback_flags,
             "input_profile_summary": {
@@ -46,7 +46,7 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
 
     except (json.JSONDecodeError, TypeError) as e:
         err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+        logger.error("[%s] Error in gpt_ouput.parse_gpt_output: %s", err_point, e)
         return {
             "main_spur": "",
             "warm_spur": "",

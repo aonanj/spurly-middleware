@@ -68,7 +68,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
         for image_data in image_files_data:
             image_bytes = image_data.get("bytes")
             if not image_bytes:
-                logger.warning("Skipping image due to missing bytes.")
+                logger.error("Skipping image due to missing bytes.")
                 continue
 
             resized_image_bytes = _downscale_image_from_bytes(image_bytes, max_dim=1024)
@@ -81,7 +81,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             })
 
         if not image_parts:
-            logger.warning("No valid images to process.")
+            logger.error("No valid images to process.")
             return []
 
         prompt = """
@@ -170,7 +170,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
 
     return []
 
-def infer_situation(conversation):
+def infer_situation(conversation) -> dict:
     """
     Uses GPT to infer the messaging situation from a list of conversation turns.
 
@@ -181,41 +181,60 @@ def infer_situation(conversation):
         dict: {"situation": "cta_setup", "confidence": 0.89}
     """
 
-    prompt = f"""You're a messaging assistant. Analyze the situation of the conversation below.
-Respond ONLY with a JSON object like this:
-{{"situation": "cta_setup", "confidence": 0.85}}
-
+    system_prompt = """
+    You are a conversation analyst. Your task is to infer the situational context or intent behind a given text message. Focus on what the sender is trying to accomplish in the conversation. This might include recovering from a misstep, shifting the topic, escalating or de-escalating intimacy, prompting action, testing interest, expressing vulnerability, or managing face. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges. Be attuned to subtext, indirect cues, and soft pivots.
+    
 Valid situations:
-- cold_open
-- recovery
-- follow_up_no_response
-- cta_setup
-- cta_response
-- message_refinement
-- topic_pivot
-- re_engagement
-
-Conversation:
-{json.dumps(conversation, indent=2)}
+- "cold_open": The conversation is just starting, no context yet.
+- "recovery": The conversation has gone off track, possibly because the user said something unintentionally offensive or offputting, and the user is trying to get it back on track.
+- "follow_up_no_response": The user has sent a message but received no response, seemingly because the other person is not interested.
+- "cta_setup": The user is trying to set up a call to action (CTA) like a date or phone call.
+- "cta_response": The user has received a response to a CTA, like a date or phone call.
+- "message_refinement": The user is trying to refine a message they sent, possibly because it was misunderstood or not well received.
+- "topic_pivot": The user is trying to change the topic of conversation, possibly because the current topic is not going well.
+- "re_engagement": The user is trying to re-engage the other person after a lull in conversation.
 """
 
-    try:
-        system_prompt = load_system_prompt()
-        chat_client=get_openai_client()
-        response = chat_client.chat.completions.create(
-            model=current_app.config['AI_MODEL'],
-            messages=[
-                {"role": current_app.config['AI_MESSAGES_ROLE_SYSTEM'], "content": system_prompt},
-                {"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}
-                ], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
-        )
+    prompt = f"""You're an expert messaging assistant. Analyze the following message and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action, changing the subject, seeking validation, escalating or de-escalating intimacy, testing interest, etc.
+Respond ONLY with a JSON object like this:
+{{"situation": "<situation>", "confidence": 0.85}}. For example, if you infer the situation is "cold_open" with 85% confidence, you would respond:
+{{"situation": "cold_open", "confidence": 0.85}}.
 
-        output = (response.choices[0].message.content or "").strip()
-        
-        return json.loads(_extract_json_block(output))
+
+Conversation:
+{json.dumps(conversation, indent=3)}
+"""
+
+    if not conversation or conversation.isEmpty() or conversation.count == 0:
+        logger.error("No conversation provided for situation inference.")
+        return {"situation": "cold_open", "confidence": 0.0}
+
+    #DEBUG
+    logger.error("DEBUG: trait_manager.infer_situation: Inferring situation from conversation: %s", json.dumps(conversation, indent=3))
+
+    openai_client = get_openai_client()
+    if not openai_client:
+        logger.error("OpenAI client not available for inferring situation.")
+        return {"situation": "cold_open", "confidence": 0.0}
+    
+    try:
+        #DEBUG
+        logger.error("DEBUG: trait_manager.infer_situation: Sending prompt to OpenAI: %s", prompt)
+        response = openai_client.chat.completions.create(
+            model="chatgpt-4o-latest",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+                ],
+            max_tokens=3000,
+            temperature=0.6
+            )
+        content = (response.choices[0].message.content or "").strip()
+        json_parsed_content = _extract_json_block(content)
+        return json.loads(_extract_json_block(json_parsed_content))
     except Exception as e:
         err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+        logger.error("[%s] Error in infer_situation decorator of middleware.py: %s", err_point, e)
         return {"situation": "cold_open", "confidence": 0.0}
 
 
@@ -229,25 +248,55 @@ def infer_tone(message):
     Returns:
         dict: {"tone": "warm", "confidence": 0.82}
     """
-    prompt = f"""Analyze the tone of the message below. Respond only with a JSON object like:
-{{"tone": "banter", "confidence": 0.84}}
 
-Message:
+    system_prompt = """You are a communication analyst. Your task is to infer the tone of a text message, based on word choice, punctuation, style, and implicit emotional signals. The tone may include categories such as: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges. Be attuned to subtext, indirect cues, and soft pivots. Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis should focus on the emotional intent behind the message, rather than its literal meaning. Inferred tone should be 1-2 words. Output a JSON object with the inferred tone and a confidence score from 0 to 1:
+    {"tone": "<tone>", "confidence": 0.XX}  
+    """
+    prompt = f"""Analyze the tone of the following Text Message. Identify the emotional intent (e.g., friendly, annoyed, flirtatious, sarcastic, indifferent, enthusiastic, formal, passive-aggressive, etc.). Respond only with a JSON object like:
+{{"tone": "<tone>", "confidence": 0.84}}. For example, if you infer the tone is "friendly" with 84% confidence, you would respond:
+{{"tone": "friendly", "confidence": 0.84}}. 
+
+Text Message: 
 {message}"""
 
-    try:
-        chat_client = get_openai_client()
-        response = chat_client.chat.completions.create(
-            model=current_app.config['AI_MODEL'],
-            messages=[{"role": current_app.config['AI_MESSAGES_ROLE_USER'], "content": prompt}], temperature=current_app.config['AI_TEMPERATURE_RETRY'],
-        )
-        output = (response.choices[0].message.content or "").strip()
-        return json.loads(_extract_json_block(output))
-    except Exception as e:
-        err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+    if not message or message.strip() == "":
+        logger.error("No message provided for tone inference.")
         return {"tone": "neutral", "confidence": 0.0}
 
+    #DEBUG
+    logger.error("DEBUG: trait_manager.infer_tone: Inferring situation from conversation: %s", message)
+    
+    openai_client = get_openai_client()
+    if not openai_client:
+        logger.error("OpenAI client not available for inferring tone.")
+        return  {"tone": "neutral", "confidence": 0.0}
+    
+    
+    
+    try:
+        #DEBUG
+        logger.error("DEBUG: trait_manager.infer_tone: Sending prompt to OpenAI: %s", prompt)
+        response = openai_client.chat.completions.create(
+            model="chatgpt-4o-latest",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+                ],
+            max_tokens=3000,
+            temperature=0.5
+            )
+        content = (response.choices[0].message.content or "").strip()
+        json_parsed_content = _extract_json_block(content)
+        return json.loads(_extract_json_block(json_parsed_content))
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] Error in infer_tone decorator of trait_manager.py: %s", err_point, e)
+        return {"tone": "neutral", "confidence": 0.0}
+
+
+## DEPRECATED: This function is no longer used, but kept for reference.
+# It was replaced by infer_personality_traits_from_openai_vision() which uses a single
+# OpenAI vision call to infer personality traits from multiple images at once.
 def infer_personality_traits_from_pics(image_data: List[bytes]) -> List[Dict[str, float]]:
     """
     Infer personality traits from one or more pictures of a connection.

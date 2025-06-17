@@ -120,7 +120,7 @@ def upload_profile_image(user_id: str, connection_id: str, image_bytes: bytes,
         blob = bucket.blob(gcs_path)
         blob.upload_from_string(image_bytes, content_type=content_type)
         
-        logger.info(f"Uploaded profile picture for user={user_id}, connection={connection_id}: {gcs_path}")
+        logger.error(f"LOG.INFO: Uploaded profile picture for user={user_id}, connection={connection_id}: {gcs_path}")
         return blob.public_url
         
     except Exception as e:
@@ -181,12 +181,12 @@ class ConversationStorage:
                     
                 index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
                 if not index_name:
-                    logger.warning("Algolia index name not configured")
+                    logger.error("Algolia index name not configured")
                     return
                 
                 payload = self._prepare_algolia_payload(conversation, conversation_text)
                 algolia_client.save_object(index_name, payload)
-                logger.info(f"Indexed conversation {conversation.conversation_id} to Algolia")
+                logger.error(f"LOG.INFO: Indexed conversation {conversation.conversation_id} to Algolia")
                 
             except Exception as e:
                 logger.error(f"Failed to index to Algolia: {e}", exc_info=True)
@@ -227,7 +227,7 @@ class ConversationStorage:
                 try:
                     conversation.created_at = conversation.created_at
                 except ValueError:
-                    logger.warning(f"Invalid created_at format, using current time")
+                    logger.error(f"Invalid created_at format, using current time")
                     conversation.created_at = datetime.now(timezone.utc)
             
             # Get conversation text for indexing
@@ -240,7 +240,7 @@ class ConversationStorage:
             doc_data = conversation.to_dict()
             doc_ref.set(doc_data)
             
-            logger.info(f"Saved conversation {conversation.conversation_id} to Firestore")
+            logger.error(f"LOG.INFO: Saved conversation {conversation.conversation_id} to Firestore")
             
             # Index to Algolia in background thread
             self._index_to_algolia_background(conversation, conversation_text)
@@ -317,7 +317,7 @@ class ConversationStorage:
                        .collection("conversations").document(conversation_id)
             doc_ref.delete()
             
-            logger.info(f"Deleted conversation {conversation_id} from Firestore")
+            logger.error(f"LOG.INFO: Deleted conversation {conversation_id} from Firestore")
             
             # Delete from Algolia in background
             def _delete_from_algolia():
@@ -330,7 +330,7 @@ class ConversationStorage:
                             index_name=index_name, 
                             object_id=conversation_id
                         )
-                        logger.info(f"Deleted conversation {conversation_id} from Algolia")
+                        logger.error(f"LOG.INFO: Deleted conversation {conversation_id} from Algolia")
                 except Exception as e:
                     logger.error(f"Failed to delete from Algolia: {e}", exc_info=True)
             
@@ -369,7 +369,7 @@ class ConversationStorage:
         index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
         
         if not algolia_client or not index_name:
-            logger.warning("Algolia not available, falling back to Firestore")
+            logger.error("Algolia not available, falling back to Firestore")
             return self._search_with_firestore(params)
         
         try:

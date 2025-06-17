@@ -315,7 +315,7 @@ class ConversationExtractor:
             msg_width_ratio = msg.width / image_width
             
             # Debug logging for problematic messages
-            logger.debug(f"Message: '{msg.text[:50]}...' | x_min: {msg.x_min}, x_max: {msg.x_max}, width_ratio: {msg_width_ratio:.2f}, left_dist: {left_distance}, right_dist: {right_distance}")
+            logger.error(f"Message: '{msg.text[:50]}...' | x_min: {msg.x_min}, x_max: {msg.x_max}, width_ratio: {msg_width_ratio:.2f}, left_dist: {left_distance}, right_dist: {right_distance}")
             
             # Improved logic for speaker assignment
             # Key insight: In the image, connection messages (Sara) are on the LEFT side
@@ -625,11 +625,11 @@ class VisualConversationExtractor:
             
             # If there's a significant color difference, use it to refine speaker assignment
             if self._colors_are_different(left_colors, right_colors):
-                logger.info("Detected distinct color patterns for speakers")
+                logger.error("LOG.INFO: Detected distinct color patterns for speakers")
                 # This information can be used to validate or correct speaker assignments
                 
         except Exception as e:
-            logger.warning(f"Visual analysis failed, using text-only extraction: {str(e)}")
+            logger.error(f"Visual analysis failed, using text-only extraction: {str(e)}")
     
     def _get_dominant_colors(self, image_region: np.ndarray, k: int = 3) -> np.ndarray:
         """Get dominant colors in an image region using k-means."""

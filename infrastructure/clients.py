@@ -32,7 +32,7 @@ def init_clients(app):
     Args:
         app: Flask app object providing configuration.
     """
-    logger.info("Initializing external clients...")
+    logger.error("LOG.INFO: Initializing external clients...")
     global _firestore_db
 
     # --- Firebase Admin ---
@@ -43,9 +43,9 @@ def init_clients(app):
                  raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716-a5.firebasestorage.app'})
-            logger.info("Firebase Admin initialized.")
+            logger.error("LOG.INFO: Firebase Admin initialized.")
         else:
-             logger.info("Firebase Admin already initialized.")
+             logger.error("LOG.INFO: Firebase Admin already initialized.")
     except Exception as e:
         logger.error("Failed to initialize Firebase Admin: %s", e, exc_info=True)
         raise RuntimeError("Firebase Admin client has not been initialized.")
@@ -58,7 +58,7 @@ def init_clients(app):
         firestore_creds = service_account.Credentials.from_service_account_file(firestore_cred_path)
         # Ensure project_id is correctly inferred or explicitly provided
         _firestore_db = firestore.client()
-        logger.info("Firestore client initialized.")
+        logger.error("LOG.INFO: Firestore client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Firestore client: %s", e, exc_info=True)
         raise RuntimeError("Firestore client has not been initialized.")
@@ -70,7 +70,7 @@ def init_clients(app):
              raise FileNotFoundError(f"Vision API key file not found at: {vision_cred_path}")
         vision_creds = service_account.Credentials.from_service_account_file(vision_cred_path)
         _vision_client = vision.ImageAnnotatorClient(credentials=vision_creds)
-        logger.info("Google Cloud Vision client initialized.")
+        logger.error("LOG.INFO: Google Cloud Vision client initialized.")
     except Exception as e:
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
         raise RuntimeError("Vision client has not been initialized.")
@@ -85,11 +85,11 @@ def init_clients(app):
             raise ValueError("Algolia configuration (APP_ID, SEARCH_API_KEY, INDEX_NAME) missing.")
 
         _algolia_client = SearchClientSync(algolia_app_id, algolia_search_api_key)
-        logger.info(f"Algolia client initialized for index: {algolia_index_name}")
+        logger.error(f"LOG.INFO: Algolia client initialized for index: {algolia_index_name}")
     except Exception as e:
         logger.error("Failed to initialize Algolia client: %s", e, exc_info=True)
         # Decide if this should be a fatal error (raise RuntimeError) or allow fallback
-        logger.warning("Algolia client failed to initialize. Keyword search will be unavailable.")
+        logger.error("Algolia client failed to initialize. Keyword search will be unavailable.")
         _algolia_client = None
         _algolia_index = None # Ensure index is None if client fails
 
@@ -100,7 +100,7 @@ def init_clients(app):
             raise ValueError("OPENAI_API_KEY not found in configuration.")
         # Initialize the main OpenAI client object
         _openai_client = openai.OpenAI(api_key=api_key)
-        logger.info("OpenAI client initialized.")
+        logger.error("LOG.INFO: OpenAI client initialized.")
         # If you were using separate clients before, you now access methods via this client:
         # e.g., openai_client.chat.completions.create(...)
         # e.g., openai_client.moderations.create(...)
@@ -108,7 +108,7 @@ def init_clients(app):
         logger.error("Failed to initialize OpenAI client: %s", e, exc_info=True)
         raise RuntimeError("OpenAI client has not been initialized.")
 
-    logger.info("All external clients initialized successfully.")
+    logger.error("LOG.INFO: All external clients initialized successfully.")
 def get_firestore_db() -> FirestoreClient:
     """ Safely returns the initialized Firestore client instance. """
     global _firestore_db
@@ -167,7 +167,7 @@ def refresh_vision_client():
         
         # Create new client
         _vision_client = vision.ImageAnnotatorClient()
-        logger.info("Vision client refreshed successfully")
+        logger.error("LOG.INFO: Vision client refreshed successfully")
         return _vision_client
         
     except Exception as e:

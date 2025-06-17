@@ -190,7 +190,7 @@ def ocr_scan():
                         })
                 else:
                     # Handle all non-conversation images
-                    logger.info("Image at index %d from user_id: %s is not a conversation (type: %s)", 
+                    logger.error("LOG.INFO: Image at index %d from user_id: %s is not a conversation (type: %s)", 
                               idx, user_id, category)
                     batch_results.append({
                         "status": "error",
@@ -242,7 +242,7 @@ def ocr_scan_multipart():
 
         for idx, file in enumerate(files):
             if not file or not file.filename:
-                logger.warning("Empty file part detected at index %d for user_id: %s", idx, user_id)
+                logger.error("Empty file part detected at index %d for user_id: %s", idx, user_id)
                 batch_results.append({
                     "status": "error",
                     "type": "unknown",

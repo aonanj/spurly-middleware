@@ -55,19 +55,19 @@ def safe_filter(text: str) -> bool:
     """
     if not text or not isinstance(text, str):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in filters.safe_filter (1): {err_point}")
         return False
     if contains_blacklisted_phrase(text):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in filters.safe_filter (2): {err_point}")
         return False
     if contains_expired_phrase(text):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in filters.safe_filter (3): {err_point}")
         return False
     if fails_regex_safety(text):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in filters.safe_filter (4): {err_point}")
         return False
     return True
 
@@ -95,10 +95,8 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
         else:
             output[key] = fallback 
             err_point = __package__ or __name__
-            logger.warning(f"Warning: {err_point}")
+            logger.error(f"Warning: {err_point}")
     return output
-
-from typing import Dict
 
 def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connection_profile: dict) -> Dict[str, str]:
     """
@@ -115,19 +113,6 @@ def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connectio
     elif variants.get("banter_spur", ""):
         fallback = variants.get("banter_spur", "")
     output = variants.copy()
-
-    def trait(key, default=None):
-        return connection_profile.get(key) or user_profile.get(key, default)
-
-    # === Override Rules ===
-
-    # Rule: No alcohol references if connection is sober
-    if trait("drinking") == "Never":
-        for key in output:
-            if any(kw in output[key].lower() for kw in ["wine", "beer", "drink", "bar", "shots", "drinks"]):
-                output[key] = fallback
-            err_point = __package__ or __name__
-            logger.warning(f"Warning: {err_point}")
 
 
     return output

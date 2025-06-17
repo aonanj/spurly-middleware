@@ -30,7 +30,7 @@ def get_user(user_id: str) -> Optional[UserProfile]:
         doc = user_ref.get()
         
         if not doc.exists:
-            logger.info(f"User not found: {user_id}")
+            logger.error(f"LOG.INFO: User not found: {user_id}")
             return None
         
         data = doc.to_dict()
@@ -154,7 +154,7 @@ def create_user(user_id: str,
         user_ref = db.collection("users").document(user_id)
         user_ref.set(user.to_dict())
         
-        logger.info(f"Created new user: {user_id} with {auth_provider}")
+        logger.error(f"LOG.INFO: Created new user: {user_id} with {auth_provider}")
         return user
         
     except Exception as e:
@@ -240,7 +240,7 @@ def update_user(
         user_ref = db.collection("users").document(user_id)
         user_ref.update(update_data)
         
-        logger.info(f"Updated user: {user_id}")
+        logger.error(f"LOG.INFO: Updated user: {user_id}")
         return user
         
     except Exception as e:
@@ -291,9 +291,9 @@ def delete_user(user_id: str) -> Dict[str, str]:
             try:
                 auth.delete_user(user.auth_provider_id)
             except Exception as e:
-                logger.warning(f"Failed to delete Firebase Auth user: {str(e)}")
+                logger.error(f"Failed to delete Firebase Auth user: {str(e)}")
         
-        logger.info(f"Deleted user: {user_id}")
+        logger.error(f"LOG.INFO: Deleted user: {user_id}")
         return {"status": "User successfully deleted"}
         
     except Exception as e:

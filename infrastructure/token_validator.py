@@ -79,31 +79,16 @@ def handle_auth_errors(f):
         except AuthError as e:
             return jsonify({"error": e.message}), e.status_code
         except ValidationError as e:
-            #DEBUG: 
-            logger.error("2nd exception block entered of handle_auth_errors")
-            logger.error(f" Validation error: {f.__name__}, e message: {e.message}, e status: {e.status_code}"); 
-            logger.warning(f"Validation error in {f.__name__}: {e.message}")
             return jsonify({"error": e.message}), e.status_code
         except jwt.ExpiredSignatureError:
-            #DEBUG: 
-            logger.error("3rd exception block entered of handle_auth_errors")
-            logger.error(f" Expired token error"); 
             return jsonify({"error": "Token has expired"}), 401
         except jwt.InvalidTokenError as e:
-            #DEBUG: 
-            logger.error("4th exception block entered of handle_auth_errors")
-            logger.warning(f"Invalid token in {f.__name__}: {str(e)}")
             return jsonify({"error": "Invalid token"}), 401
         except requests.RequestException as e:
-            #DEBUG:
-            logger.error("5th exception block entered of handle_auth_errors")
             logger.error(f"Requests.Requests exception in {f.__name__}: {str(e)}")
             return jsonify({"error": "External service temporarily unavailable"}), 503
         except Exception as e:
-            #DEBUG:
-            logger.error("6th exception block entered of handle_auth_errors")
             logger.error(f"Unexpected error in {f.__name__}: {str(e)}")
-            logger.exception(f"Unexpected error in {f.__name__}: {str(e)}")
             return jsonify({"error": "Internal server error"}), 500
     return decorated_function
 

@@ -100,7 +100,7 @@ def create_connection_profile(
     try:
        db = get_firestore_db()
        db.collection("users").document(user_id).collection("connections").document(connection_id).set(profile_data_to_save)
-       logger.info(f"Connection profile {connection_id} created for user {user_id}.")
+       logger.error(f"LOG.INFO: Connection profile {connection_id} created for user {user_id}.")
        
        response_data = profile_data_to_save.copy()
        if response_data.get('personality_traits'):
@@ -167,7 +167,7 @@ def save_connection_profile(connection_profile: ConnectionProfile) -> dict:
     try:
         db = get_firestore_db()  # Ensure Firestore client is initialized
         db.collection("users").document(user_id).collection("connections").document(connection_id).set(connection_profile_dict)
-        logger.info(f"Connection profile {connection_id} for user {user_id} saved successfully.")
+        logger.error(f"LOG.INFO: Connection profile {connection_id} for user {user_id} saved successfully.")
         return {
             "success": "connection profile successfully saved"
         }
@@ -223,7 +223,7 @@ def set_active_connection_firestore(user_id: str, connection_id: Optional[str]) 
         db.collection("users").document(user_id).collection("settings").document("active_connection").set({
             "connection_id": effective_connection_id
         })
-        logger.info(f"Active connection set to '{effective_connection_id}' for user '{user_id}'.")
+        logger.error(f"LOG.INFO: Active connection set to '{effective_connection_id}' for user '{user_id}'.")
         return {"success": "active connection set", "connection_id": effective_connection_id}
     except Exception as e:
         logger.error(f"Error setting active conn for user {user_id} to {effective_connection_id}: {e}", exc_info=True)
@@ -240,7 +240,7 @@ def get_active_connection_firestore(user_id: str) -> str:
         doc = doc_ref.get()
         if doc.exists:
             active_cid = doc.to_dict().get("connection_id")
-            logger.debug(f"Retrieved active connection_id '{active_cid}' for user '{user_id}'.")
+            logger.error(f"Retrieved active connection_id '{active_cid}' for user '{user_id}'.")
             return active_cid if active_cid is not None else get_null_connection_id(user_id) # Ensure null if db has None
         else:
             logger.error(f"No active conn for user '{user_id}'. Setting/returning null.")
@@ -262,7 +262,7 @@ def clear_active_connection_firestore(user_id: str) -> dict:
         result = set_active_connection_firestore(user_id, null_connection_id) # Set to null
         if "error" in result: 
             return {"error": f"Failed to clear active connection by setting to null: {result['error']}"}
-        logger.info(f"Active connection cleared (set to '{null_connection_id}') for user '{user_id}'.")
+        logger.error(f"LOG.INFO: Active connection cleared (set to '{null_connection_id}') for user '{user_id}'.")
         return {"success": "active connection cleared", "connection_id": null_connection_id}
     except Exception as e:
         err_point = __package__ or "connection_service"
@@ -272,7 +272,7 @@ def clear_active_connection_firestore(user_id: str) -> dict:
 def get_connection_profile(user_id: str, connection_id: str) -> Optional[ConnectionProfile]:
     null_connection_id = current_app.config.get('NULL_CONNECTION_ID', 'null_connection_id_p')
     if not user_id or not connection_id or (isinstance(connection_id, str) and connection_id.endswith(null_connection_id)):
-        logger.warning(f"Attempt to get profile with invalid IDs. User:'{user_id}', Conn:'{connection_id}'")
+        logger.error(f"Attempt to get profile with invalid IDs. User:'{user_id}', Conn:'{connection_id}'")
         return None 
 
     try:
@@ -295,7 +295,7 @@ def get_connection_profile(user_id: str, connection_id: str) -> Optional[Connect
             profile = ConnectionProfile.from_dict(complete_data)
             return profile
         else:
-            logger.warning(f"Conn profile not found: user '{user_id}', conn '{connection_id}'.")
+            logger.error(f"Conn profile not found: user '{user_id}', conn '{connection_id}'.")
             return None
     except Exception as e:
         logger.error("[%s] Error getting conn profile (user %s, conn %s): %s", "conn_service", user_id, connection_id, e, exc_info=True)
@@ -359,11 +359,11 @@ def update_connection_profile(
                 update_payload["connection_profile_pic_url"] = updated_profile_pic_url
 
         if not update_payload:
-            logger.info(f"No effective update data provided for conn {connection_id}, user {user_id}.")
+            logger.error(f"LOG.INFO: No effective update data provided for conn {connection_id}, user {user_id}.")
             return {"warning": "no effective update data provided for connection profile", "connection_id": connection_id}
 
         doc_ref.update(update_payload)
-        logger.info(f"Conn profile {connection_id} for user {user_id} updated with keys: {list(update_payload.keys())}.")
+        logger.error(f"LOG.INFO: Conn profile {connection_id} for user {user_id} updated with keys: {list(update_payload.keys())}.")
         return {"success": "connection profile updated", "connection_id": connection_id}
     except Exception as e:
         logger.error(f"Error updating conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
@@ -380,11 +380,11 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
         db = get_firestore_db()  # Ensure Firestore client is initialized
         doc_ref = db.collection("users").document(user_id).collection("connections").document(connection_id)
         if not doc_ref.get().exists:
-            logger.warning(f"Delete attempt: non-existent conn profile {connection_id} for user {user_id}.")
+            logger.error(f"Delete attempt: non-existent conn profile {connection_id} for user {user_id}.")
             return {"warning": "connection profile not found, no action taken", "connection_id": connection_id}
 
         doc_ref.delete()
-        logger.info(f"Conn profile {connection_id} for user {user_id} deleted successfully.")
+        logger.error(f"LOG.INFO: Conn profile {connection_id} for user {user_id} deleted successfully.")
         # TODO: Delete associated images off firebase storage. 
         return {"success": "connection profile deleted", "connection_id": connection_id}
     except Exception as e:

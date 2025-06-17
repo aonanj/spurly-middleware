@@ -1,6 +1,7 @@
 from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
 import openai
+from openai import OpenAI
 import re
 
 logger = get_logger(__name__)
@@ -21,25 +22,25 @@ def moderate_topic(text: str) -> dict:
     """
     if not text or not isinstance(text, str):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in moderation.moderate_topic. No input text: {err_point}")
         return {"safe": False, "reason": "invalid_or_blank"}
 
     normalized = text.strip().lower()
     if not _is_moderated_safe_with_openai(normalized):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in moderation.moderate_topic. calling moderate_safe_with_openai: {err_point}")
         return {"safe": False, "reason": "openai_moderation"}
     # Check static banned list
     for phrase in BANNED_PHRASES:
         if phrase in normalized:
             err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
+            logger.error(f"Error in moderation.moderate_topic. banned_phrases: {err_point}")
             return {"safe": False, "reason": "banned_phrase"}
 
     # Check gibberish / emoji spam
     if GIBBERISH_PATTERN.search(text) or TOO_MUCH_EMOJI.search(text):
         err_point = __package__ or __name__
-        logger.error(f"Error: {err_point}")
+        logger.error(f"Error in moderation.moderate_topic. gibberish pattern: {err_point}")
         return {"safe": False, "reason": "gibberish_or_emoji"}
 
     # ✅ (Optional): Plug in ML moderation here later
@@ -50,10 +51,10 @@ def moderate_topic(text: str) -> dict:
 
 def _is_moderated_safe_with_openai(text):
     try:
-        chat_client = get_openai_client()
+        chat_client = OpenAI()
         resp = chat_client.moderations.create(
             input=text,
-            model="text-moderation-latest"
+            model="omni-moderation-latest"
         )
         flagged = resp.results[0].flagged
         return True if not flagged else False

@@ -147,7 +147,7 @@ def perform_ocr_with_retry(content: bytes, client: vision.ImageAnnotatorClient, 
             # If this is a retry, wait with exponential backoff
             if attempt > 0:
                 wait_time = min(2 ** attempt, 10)  # Max 10 seconds
-                logger.info(f"Retrying OCR after {wait_time} seconds (attempt {attempt + 1}/{max_retries})")
+                logger.error(f"LOG.INFO: Retrying OCR after {wait_time} seconds (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
             
             # Create a fresh client for each retry to avoid stale connections
@@ -195,7 +195,7 @@ def perform_ocr_with_retry(content: bytes, client: vision.ImageAnnotatorClient, 
             
             # Validate response has text
             if not response.full_text_annotation or not response.full_text_annotation.pages:
-                logger.warning("No text detected in image")
+                logger.error("No text detected in image")
                 # This is not necessarily an error - image might genuinely have no text
                 # Return the response anyway and let the caller handle it
                 return response
@@ -205,7 +205,7 @@ def perform_ocr_with_retry(content: bytes, client: vision.ImageAnnotatorClient, 
             
         except (core_exceptions.ServiceUnavailable, core_exceptions.DeadlineExceeded) as e:
             # These are transient errors that should be retried
-            logger.warning(f"Transient error during OCR (attempt {attempt + 1}): {str(e)}")
+            logger.error(f"Transient error during OCR (attempt {attempt + 1}): {str(e)}")
             last_error = e
             continue
             
@@ -352,7 +352,7 @@ def process_image_batch(user_id: str, image_files: List) -> Dict[str, Any]:
             logger.error(f"Failed to process {filename}: {str(e)}")
     
     if errors:
-        logger.warning(f"Batch processing completed with {len(errors)} errors")
+        logger.error(f"Batch processing completed with {len(errors)} errors")
     
     return {
         "results": results,
