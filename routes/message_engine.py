@@ -33,9 +33,9 @@ def generate():
     - images (files, optional): Multiple image files (message screenshots + profile screenshots)
     """
     # Check if request is multipart
-    if not request.content_type or 'multipart/form-data' not in request.content_type:
-        logger.error("Request is not multipart/form-data")
-        return jsonify({'error': "Request must be multipart/form-data"}), 400
+##    if not request.content_type or 'multipart/form-data' not in request.content_type:
+##       logger.error("Request is not multipart/form-data")
+##        return jsonify({'error': "Request must be multipart/form-data"}), 400
 
     # Extract form fields
     conversation_id = request.form.get("conversation_id", "")

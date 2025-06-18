@@ -271,7 +271,7 @@ def generate_spurs(
 
     if not image_parts:
         logger.error("No valid images to process (gpt_service.py:generate_spurs).")
-        return []
+        ##return []
     
     if not openai_client:
         logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
