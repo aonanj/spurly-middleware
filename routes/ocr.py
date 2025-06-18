@@ -149,7 +149,7 @@ def ocr_scan():
                     continue
 
                 # Classify the image
-                category = classify_image(image_cv2)
+                category = "conversation" ##classify_image(image_cv2)
                 logger.error("Image at index %d (filename: %s) from user_id: %s classified as '%s'", 
                           idx, filename, user_id, category)
 
@@ -291,7 +291,7 @@ def ocr_scan_multipart():
                     continue
 
                 # Classify and process
-                category = classify_image(image_cv2)
+                category = "conversation" ##classify_image(image_cv2)
                 
                 if category == 'conversation':
                     # Reset file pointer for process_image

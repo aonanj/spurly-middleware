@@ -32,52 +32,28 @@ def build_prompt(selected_spurs: list[str], context_block: str) -> str:
         """
         Constructs the dynamic GPT prompt using system rules + conversation context.
         """
-
-        valid_spurs = [v for v in selected_spurs if v in current_app.config['SPUR_VARIANT_DESCRIPTIONS']]
-        if not valid_spurs:
-            err_point = __package__ or __name__
-            logger.error(f"Error: {err_point}")
-            raise ValueError("No valid SPUR variants selected.")
         
-        spur_instructions = ""
+        user_prompt = context_block
         
-        user_prompt_path = current_app.config.get('SPURLY_USER_PROMPT_PATH') # Use .get for safety
+        spur_descriptions = current_app.config.get('SPUR_VARIANT_DESCRIPTIONS', {})
+        for k, v in spur_descriptions.items():
+            if k in selected_spurs:
+                user_prompt += f"\n   -{k}: {v}"
 
-        if not user_prompt_path:
-            logger.error("SPURLY_USER_PROMPT_PATH not found in Flask config.")
-            # Raise an error or return a default prompt string
-            raise ValueError("User prompt path configuration is missing.")
-
-        try:
-            with open(user_prompt_path, "r", encoding="utf-8") as f:
-                spur_instructions = f.read().strip()
-        except FileNotFoundError:
-            logger.error("User prompt file not found at path: %s", user_prompt_path)
-            # Raise an error or return a default prompt string
-            raise FileNotFoundError(f"User prompt file not found: {user_prompt_path}")
-        except IOError as e:
-            logger.error("Error reading user prompt file at path %s: %s", user_prompt_path, e)
-            # Raise an error or return a default prompt string
-            raise IOError(f"Error reading user prompt file: {e}") from e
-        except Exception as e:
-            logger.error("Unexpected error loading user prompt: %s", e, exc_info=True)
-            raise  # Re-raise unexpected errors
-
-        spur_instructions += "\n\n### SPUR VARIANTS AND DESCRIPTIONS ###\n"
-
-        spur_instructions += "\n".join(
-            f"{idx + 1}. {v}: {current_app.config['SPUR_VARIANT_DESCRIPTIONS'][v]}"
-            for idx, v in enumerate(valid_spurs)
-        )
-
-        json_output_structure = "{\n" + ",\n".join(f'  "{v}": "..."' for v in valid_spurs) + "\n}"
-
-        spur_instructions += f"\n\n### OUTPUT FORMAT ###\nRespond in JSON in the following format: \n {json_output_structure}"
-
-        spur_instructions += f"\n\n### CONTEXT ###\n{context_block}\n\n"
+        
+        user_prompt += "\n\n Your response should be formatted as a JSON object with the following structure:\n"
+        json_output_structure = "\n {\n" 
+        for k, v in spur_descriptions.items():
+            if k in selected_spurs:
+                json_output_structure += f'     "{k}": "<generated message suggestion for {k}>",\n'
+        json_output_structure += "  }\n"
+        
+        user_prompt += json_output_structure
+        user_prompt += "\n\n Your output must be strictly formatted as above. Do NOT include any text or characters outside of the JSON object. No explanations, no additional text, no markdown formatting. Just the JSON object."
+        
         # Final prompt
-        return spur_instructions
+        return user_prompt
     except Exception as e:
         err_point = __package__ or __name__
-        logger.error("[%s] Error: %s", err_point, e)
+        logger.error("[%s] Error in prompt_template.build_prompt: %s", err_point, e)
         raise e

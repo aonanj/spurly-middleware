@@ -1,217 +1,264 @@
-import cv2
-import numpy as np
-import logging
-import re
+import base64
+import json
+from typing import Dict, Literal
+import requests
+from PIL import Image
+import io
 
-logger = logging.getLogger(__name__)
-
-# Keywords that might indicate a profile content (requires OCR text to be effective)
-PROFILE_KEYWORDS = [
-    r"bio", r"about me", r"interests", r"prompt", r"profile",
-    r"looking for", r"my self-summary", r"occupation", r"education"
-]
-COMPILED_PROFILE_KEYWORDS = [re.compile(p, re.IGNORECASE) for p in PROFILE_KEYWORDS]
-
-# Keywords or patterns that might indicate a conversation (requires OCR text to be effective)
-CONVERSATION_KEYWORDS = [
-    r"message", r"send", r"chat", r"reply", r"delivered", r"sent",
-    r"type a message", r"online", r"typing",
-    r"\d{1,2}:\d{2}\s*(?:AM|PM)" # Timestamps like 10:30 AM
-]
-COMPILED_CONVERSATION_KEYWORDS = [re.compile(p, re.IGNORECASE) for p in CONVERSATION_KEYWORDS]
-
-
-def has_significant_text_heuristics(image_cv2_gray, image_cv2_color) -> tuple[bool, float]:
+def classify_image(image_data: Dict) -> Literal["photo", "profile", "conversation"]:
     """
-    Uses heuristics to guess if an image has significant text.
-    Returns a boolean and a confidence score (0.0 - 1.0).
-    This is a basic heuristic and not a replacement for OCR.
-    """
-    height, width = image_cv2_gray.shape
-    area = height * width
-
-    # 1. Edge density (text often has many sharp edges)
-    edges = cv2.Canny(image_cv2_gray, 50, 150, apertureSize=3)
-    edge_pixels = np.sum(edges > 0)
-    edge_density = edge_pixels / area
-    
-    # logger.error(f"Edge density: {edge_density}")
-
-    # 2. Contour analysis (looking for small, regular shapes like characters)
-    #    and larger rectangular blocks (like text paragraphs or UI elements)
-    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    
-    text_like_contours = 0
-    min_char_area = (height * 0.01) * (width * 0.005) # Heuristic: min area for a char
-    max_char_area = (height * 0.1) * (width * 0.1)    # Heuristic: max area for a char
-    
-    possible_text_block_contours = 0
-    min_block_area = (width * 0.2) * (height * 0.05) # Heuristic: min area for a text block
-
-    for contour in contours:
-        (x, y, w, h) = cv2.boundingRect(contour)
-        aspect_ratio = w / float(h) if h > 0 else 0
-        contour_area = cv2.contourArea(contour)
-
-        # Character-like contours
-        if min_char_area < contour_area < max_char_area and 0.1 < aspect_ratio < 2.0:
-            text_like_contours += 1
-        
-        # Text block-like contours (larger rectangular areas)
-        if contour_area > min_block_area and 0.5 < aspect_ratio < 20: # Blocks can be wide or tall
-             # Further check if the block is mostly uniform or has fine textures inside (more advanced)
-            possible_text_block_contours +=1
-
-    # logger.error(f"Text-like contours: {text_like_contours}, Possible text blocks: {possible_text_block_contours}")
-
-    # Heuristic decision points
-    # These thresholds are highly empirical and need tuning for your specific dataset
-    is_text_heavy = False
-    confidence = 0.0
-
-    if edge_density > 0.15 and text_like_contours > 50 : # High edge density and many small contours
-        is_text_heavy = True
-        confidence = max(confidence, 0.6)
-    elif possible_text_block_contours > 3 and text_like_contours > 100: # Fewer large blocks but many char-like contours
-        is_text_heavy = True
-        confidence = max(confidence, 0.7)
-    elif text_like_contours > 200: # A lot of small contours, likely text
-        is_text_heavy = True
-        confidence = max(confidence, 0.5)
-    
-    if is_text_heavy:
-        # Additional check: color simplicity (screenshots often have fewer distinct colors)
-        # This is a simplified check. A more robust way involves color quantization.
-        resized_for_color = cv2.resize(image_cv2_color, (50, 50))
-        unique_colors = len(np.unique(resized_for_color.reshape(-1, 3), axis=0))
-        # logger.error(f"Unique colors in sample: {unique_colors}")
-        if unique_colors < 200: # Arbitrary threshold for color simplicity
-            confidence = min(confidence + 0.2, 1.0)
-        else: # More colors, might be a photo with text overlay
-            confidence = max(confidence - 0.1, 0.1)
-
-
-    logger.error(f"LOG.INFO: Text heuristics: text_heavy={is_text_heavy}, confidence={confidence:.2f}, edges={edge_density:.2f}, small_contours={text_like_contours}, block_contours={possible_text_block_contours}")
-    return is_text_heavy, confidence
-
-
-def classify_image(image_cv2) -> str:
-    """
-    Classify an image based on its visual characteristics.
+    Classify an image as 'photo', 'profile', or 'conversation'.
     
     Args:
-        image_cv2: OpenCV image array (numpy.ndarray) - already decoded image
-        
+        image_data: Dict with keys:
+            - 'data': raw bytes of the image
+            - 'filename': name of the file
+            - 'mime_type': MIME type of the image
+    
     Returns:
-        str: Classification result ('conversation', 'profile_content', 'connection_pic', or '')
+        One of: "photo", "profile", or "conversation"
     """
-    # Input validation
-    if image_cv2 is None:
-        logger.error("Received None image for classification.")
-        return ""
     
-    if not isinstance(image_cv2, np.ndarray):
-        logger.error(f"Expected numpy array, got {type(image_cv2)}")
-        return ""
+    # Convert image bytes to base64 for API
+    image_bytes = image_data['data']
+    base64_image = base64.b64encode(image_bytes).decode('utf-8')
     
-    logger.error("LOG.INFO: Classifying image using enhanced heuristics...")
-    height, width = image_cv2.shape[:2]
+    # Prepare the prompt for classification
+    classification_prompt = """Analyze this image and classify it into exactly one of these three categories:
+
+1. "photo" - The image shows one or more people (portraits, group photos, selfies, etc.)
+2. "profile" - The image is a screenshot of a social media or dating app profile section with text content about a person
+3. "conversation" - The image is a screenshot of a text message or direct message conversation between people
+
+Look for these key indicators:
+- For "photo": Human faces, bodies, people in any setting
+- For "profile": Profile layout with bio text, stats, interests, profile picture alongside text descriptions
+- For "conversation": Message bubbles, chat interface, back-and-forth text exchanges
+
+Respond with only one word: either "photo", "profile", or "conversation"."""
+
+    # Example using OpenAI API (replace with your preferred vision model)
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer YOUR_API_KEY"  # Replace with actual API key
+    }
     
-    if height == 0 or width == 0:
-        logger.error("Invalid image dimensions for classification.")
-        return ""
-
-    aspect_ratio = width / float(height)
-    image_cv2_gray = cv2.cvtColor(image_cv2, cv2.COLOR_BGR2GRAY)
-
-    # --- Stage 1: Try to identify if it's predominantly a photo or a screenshot ---
-    is_screenshot_candidate, text_confidence = has_significant_text_heuristics(image_cv2_gray, image_cv2)
-
-    # If confidence in text presence is very low, lean towards 'photo'
-    if not is_screenshot_candidate and text_confidence < 0.3:
-        logger.error("LOG.INFO: Classified as 'photo' (low text confidence).")
-        return "connection_pic"
+    payload = {
+        "model": "gpt-4o-mini",  # or "gpt-4-vision-preview"
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": classification_prompt
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:{image_data['mime_type']};base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 10,
+        "temperature": 0
+    }
     
-    # If confidence is moderate but not high, it could be a photo with some text or a very sparse screenshot
-    if not is_screenshot_candidate and text_confidence < 0.5:
-         # Further check for photo-like qualities (e.g. more complex textures, less uniform regions)
-         # For simplicity, we'll still lean to photo but with less certainty.
-         # A more advanced check could involve texture analysis (e.g. Haralick features)
-        logger.error("LOG.INFO: Classified as 'connection_pic' (moderate text confidence but not clearly screenshot).")
-        return "connection_pic"
-
-    # --- Stage 2: If it's likely a screenshot, differentiate conversation vs. profile ---
-    # This stage assumes `is_screenshot_candidate` is True or text_confidence is high enough.
-    # NOTE: The following keyword checks are placeholders.
-    # Effective keyword spotting requires actual OCR text from the image.
-    # Without OCR, we rely more on structural heuristics.
-    
-    ocr_text_available = False # This would be True if you had OCR text
-    detected_text_for_keywords = "" # Populate this if OCR is performed
-
-    profile_keyword_score = 0
-    if ocr_text_available:
-        for pattern in COMPILED_PROFILE_KEYWORDS:
-            if pattern.search(detected_text_for_keywords):
-                profile_keyword_score += 1
-        logger.error(f"Profile keyword score: {profile_keyword_score}")
-
-    conversation_keyword_score = 0
-    if ocr_text_available:
-        for pattern in COMPILED_CONVERSATION_KEYWORDS:
-            if pattern.search(detected_text_for_keywords):
-                conversation_keyword_score += 1
-        logger.error(f"Conversation keyword score: {conversation_keyword_score}")
-
-    # Structural Heuristics for Conversation Screenshots:
-    # Look for multiple, distinct horizontal bands of text, potentially aligned.
-    # This is a simplified approach.
-    num_potential_message_bands = 0
-    # Detect horizontal lines, which could be rows of text or dividers
-    edges = cv2.Canny(image_cv2_gray, 50, 150)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=80, minLineLength=int(width * 0.3), maxLineGap=20)
-    if lines is not None:
-        # Filter and group lines to identify distinct bands. This is non-trivial.
-        # For a simpler proxy: count reasonably long horizontal lines.
-        num_potential_message_bands = len(lines)
-        # logger.error(f"Number of long horizontal lines (potential message bands proxy): {num_potential_message_bands}")
-
-
-    # Decision Logic for Screenshots:
-    # These thresholds and logic are very heuristic and need extensive tuning.
-    
-    # Tall, narrow images are often conversation screenshots
-    if aspect_ratio < 0.75: # Typical for phone screenshots of conversations
-        if num_potential_message_bands > 5: # Many distinct lines of text
-             logger.error(f"LOG.INFO: Classified as 'conversation' (tall, many horizontal text bands). AR: {aspect_ratio:.2f}, Bands: {num_potential_message_bands}")
-             return "conversation"
-        elif ocr_text_available and conversation_keyword_score > profile_keyword_score:
-             logger.error("LOG.INFO: Classified as 'conversation' (tall, keyword-based).")
-             return "conversation"
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+        response.raise_for_status()
+        
+        result = response.json()
+        classification = result['choices'][0]['message']['content'].strip().lower()
+        
+        # Validate the response
+        if classification in ["photo", "profile", "conversation"]:
+            return classification
         else:
-            # If it's tall but doesn't strongly look like a conversation, it might be a profile content or other.
-            # Defaulting to profile for tall, texty images if not clearly conversation.
-            logger.error(f"LOG.INFO: Classified as 'profile_content' (tall, default from screenshot). AR: {aspect_ratio:.2f}")
-            return "profile_content"
+            # Fallback logic if response is unexpected
+            return "photo"  # Default fallback
             
-    # Wider images or those with fewer distinct message bands might be profiles
-    elif aspect_ratio >= 0.75 :
-        if ocr_text_available and profile_keyword_score > 0 and profile_keyword_score > conversation_keyword_score:
-            logger.error("LOG.INFO: Classified as 'profile_content' (keyword-based).")
-            return "profile_content"
-        # If fewer message bands and wider, more likely a profile or other less structured text.
-        elif num_potential_message_bands < 5 and text_confidence > 0.6:
-             logger.error(f"LOG.INFO: Classified as 'profile_content' (wider/fewer bands, texty). AR: {aspect_ratio:.2f}, Bands: {num_potential_message_bands}")
-             return "profile_content"
+    except Exception as e:
+        print(f"Error during classification: {e}")
+        # Implement fallback logic or raise exception
+        return "photo"  # Default fallback
 
 
-    # Fallback / Default based on initial text assessment:
-    if is_screenshot_candidate:
-        # If it seems like a screenshot but doesn't fit specific rules above,
-        # make a general guess. 'profile_content' might be a safer default for unrecognized screenshots.
-        logger.error("LOG.INFO: Classified as 'profile_content' (default for recognized screenshot).")
-        return "profile_content"
+# Alternative implementation using open-source models (Transformers)
+def classify_image_opensource(image_data: Dict) -> Literal["photo", "profile", "conversation"]:
+    """
+    Alternative implementation using Hugging Face transformers.
+    """
+    from transformers.pipelines import pipeline
+    
+    # Initialize the visual question answering pipeline
+    vqa = pipeline("visual-question-answering", model="dandelin/vilt-b32-finetuned-vqa")
+    
+    # Convert bytes to PIL Image
+    image = Image.open(io.BytesIO(image_data['data']))
+    
+    # Ask specific questions to classify
+    questions = [
+        "Does this image show people or persons?",
+        "Is this a screenshot of a social media profile?",
+        "Is this a screenshot of a text message conversation?"
+    ]
+    
+    scores = {"photo": 0, "profile": 0, "conversation": 0}
+    
+    for question in questions:
+        try:
+            # Fixed: VQA pipeline expects dictionary with 'image' and 'question' keys
+            result = vqa({"image": image, "question": question})
+            answer = list(result)[0]['answer'].lower()
+            
+            if "people" in question and answer in ['yes', 'true']:
+                scores["photo"] += 1
+            elif "profile" in question and answer in ['yes', 'true']:
+                scores["profile"] += 1
+            elif "conversation" in question and answer in ['yes', 'true']:
+                scores["conversation"] += 1
+        except:
+            continue
+    
+    # Return the category with highest score
+    return max(scores, key=scores.get)  # type: ignore
+
+
+# Lightweight rule-based approach using OCR
+def classify_image_lightweight(image_data: Dict) -> Literal["photo", "profile", "conversation"]:
+    """
+    Lightweight implementation using OCR and pattern matching.
+    """
+    import pytesseract
+    import numpy as np
+    import cv2
+    
+    # Convert bytes to image
+    nparr = np.frombuffer(image_data['data'], np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    
+    # Perform OCR
+    try:
+        text = pytesseract.image_to_string(img).lower()
+    except:
+        text = ""
+    
+    # Pattern matching for classification
+    conversation_keywords = ['sent', 'delivered', 'read', 'typing', 'message', 'reply', 'am', 'pm']
+    profile_keywords = ['bio', 'about', 'interests', 'looking for', 'age', 'location', 'height', 'occupation']
+    
+    conversation_score = sum(1 for keyword in conversation_keywords if keyword in text)
+    profile_score = sum(1 for keyword in profile_keywords if keyword in text)
+    
+    # Check for face detection for photos
+    # Fixed: Use the full path or install opencv-python-headless
+    try:
+        # Option 1: Use haarcascade file directly (you need to download it)
+        face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        
+        # Option 2: If you have the file in a specific location
+        # face_cascade = cv2.CascadeClassifier('/path/to/haarcascade_frontalface_default.xml')
+        
+        # Option 3: Download from OpenCV GitHub
+        # import urllib.request
+        # cascade_url = "https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/haarcascade_frontalface_default.xml"
+        # urllib.request.urlretrieve(cascade_url, "haarcascade_frontalface_default.xml")
+        # face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        
+        if face_cascade.empty():
+            faces = []
+        else:
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+    except:
+        faces = []
+    
+    if len(faces) > 0 and conversation_score < 2 and profile_score < 2:
+        return "photo"
+    elif conversation_score > profile_score and conversation_score >= 2:
+        return "conversation"
+    elif profile_score >= 2:
+        return "profile"
     else:
-        # If it wasn't a strong candidate for screenshot and didn't fit profile/conversation
-        logger.error("LOG.INFO: Classified as 'photo' (default fallback).")
-        return "connection_pic"
+        return "photo"  # Default
+
+
+# Alternative lightweight version without face detection
+def classify_image_simple(image_data: Dict) -> Literal["photo", "profile", "conversation"]:
+    """
+    Simple implementation using only OCR and pattern matching, no face detection.
+    """
+    import pytesseract
+    from PIL import Image
+    import io
+    
+    # Convert bytes to PIL Image
+    image = Image.open(io.BytesIO(image_data['data']))
+    
+    # Perform OCR
+    try:
+        text = pytesseract.image_to_string(image).lower()
+    except:
+        return "photo"  # If OCR fails, assume it's a photo
+    
+    # Pattern matching for classification
+    conversation_indicators = [
+        'sent', 'delivered', 'read', 'typing', 'message', 
+        'reply', 'am', 'pm', 'yesterday', 'today',
+        'iphone', 'android', 'whatsapp', 'messenger'
+    ]
+    
+    profile_indicators = [
+        'bio', 'about', 'interests', 'looking for', 'age', 
+        'location', 'height', 'occupation', 'education',
+        'followers', 'following', 'posts', 'likes', 'swipe',
+        'match', 'instagram', 'twitter', 'tinder', 'bumble'
+    ]
+    
+    # Count indicators
+    conversation_score = sum(1 for indicator in conversation_indicators if indicator in text)
+    profile_score = sum(1 for indicator in profile_indicators if indicator in text)
+    
+    # Look for message bubble patterns (timestamps, sequential messages)
+    import re
+    time_pattern = r'\d{1,2}:\d{2}\s*(am|pm|AM|PM)'
+    has_timestamps = len(re.findall(time_pattern, text)) > 1
+    
+    if has_timestamps or conversation_score >= 3:
+        return "conversation"
+    elif profile_score >= 3:
+        return "profile"
+    else:
+        # Check if there's very little text (likely a photo)
+        word_count = len(text.split())
+        if word_count < 10:
+            return "photo"
+        
+        # If we still can't determine, use the highest score
+        if conversation_score > profile_score:
+            return "conversation"
+        elif profile_score > conversation_score:
+            return "profile"
+        else:
+            return "photo"
+
+
+# # Example usage
+# if __name__ == "__main__":
+#     # Test with a sample image
+#     with open("test_image.jpg", "rb") as f:
+#         image_dict = {
+#             'data': f.read(),
+#             'filename': 'test_image.jpg',
+#             'mime_type': 'image/jpeg'
+#         }
+    
+#     result = classify_image(image_dict)
+#     print(f"Classification: {result}")

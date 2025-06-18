@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 
 
-def _downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> bytes:
+def downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> bytes:
     # Load image from byte stream
     img = Image.open(io.BytesIO(image_bytes))
 
@@ -28,7 +28,7 @@ def _downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> byte
     img.save(output_buffer, format='JPEG')  # or 'JPEG' if needed
     return output_buffer.getvalue()
 
-def _extract_json_block(text):
+def extract_json_block(text):
     match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         return match.group(1)
@@ -71,7 +71,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                 logger.error("Skipping image due to missing bytes.")
                 continue
 
-            resized_image_bytes = _downscale_image_from_bytes(image_bytes, max_dim=1024)
+            resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
             base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
             image_parts.append({
                 "type": "image_url",
@@ -133,7 +133,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
         )
 
         content = (response.choices[0].message.content or "").strip()
-        json_parsed_content = _extract_json_block(content)
+        json_parsed_content = extract_json_block(content)
                     
         # Attempt to parse the JSON from the response content
         try:
@@ -230,8 +230,8 @@ Conversation:
             temperature=0.6
             )
         content = (response.choices[0].message.content or "").strip()
-        json_parsed_content = _extract_json_block(content)
-        return json.loads(_extract_json_block(json_parsed_content))
+        json_parsed_content = extract_json_block(content)
+        return json.loads(json_parsed_content)
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error in infer_situation decorator of middleware.py: %s", err_point, e)
@@ -286,12 +286,121 @@ Text Message:
             temperature=0.5
             )
         content = (response.choices[0].message.content or "").strip()
-        json_parsed_content = _extract_json_block(content)
-        return json.loads(_extract_json_block(json_parsed_content))
+        json_parsed_content = extract_json_block(content)
+        return json.loads(json_parsed_content)
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error in infer_tone decorator of trait_manager.py: %s", err_point, e)
         return {"tone": "neutral", "confidence": 0.0}
+
+def analyze_convo_for_context(images: List[Dict]) -> List[Dict]:
+    """
+    Analyzes images to extract conversation context and profile information.
+    
+    Args:
+        images: List of dictionaries containing:
+            - 'data': raw bytes of image
+            - 'filename': Original filename
+            - 'mime_type': MIME type of the image
+    
+    Returns:
+        List containing:
+            - Dict: 'situation': inferred situation (str), 
+                     'confidence_score': confidence score for the situation inference (float)
+            - Dict: 'tone': inferred tone of the other person (str),
+                     'confidence_score': confidence score for the tone inference (float)
+
+    """
+    empty_context = []
+    empty_context.append({"situation": "none", "confidence_score": 0.0})
+    empty_context.append({"tone": "none", "confidence_score": 0.0})
+    
+    if not images:
+        return empty_context
+    
+    
+    image_parts = []
+    for image_data in images:
+        image_bytes = image_data.get("bytes")
+        if not image_bytes:
+            logger.error("Skipping image due to missing bytes.")
+            continue
+
+        resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+        base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
+        image_parts.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+        })
+
+    if not image_parts:
+        logger.error("No valid images to process.")
+        return empty_context
+
+        
+    # Create a prompt for analyzing the images
+    system_prompt = """
+    You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Analyze the accompanying image or images and extract the following information:
+
+        - Extract the conversation messages in order. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges, such as on dating apps or social media.
+        - Identify who is sending each message (user vs other person)
+        - Infer the situation of the conversation: Focus on what the user is trying to accomplish. This might include recovering from a misstep, shifting the topic, escalating or de-escalating intimacy, prompting action, testing interest, expressing vulnerability, or managing face. Be attuned to subtext, indirect cues, and soft pivots. Inferred situation should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference (lower values may be appropriate if the conversation is ambiguous or short). Example situations include: "cold_open", "recovery", "follow_up_no_response", "cta_setup", "cta_response", "message_refinement", "topic_pivot", "re_engagement". 
+        - Infer the tone of the other person, giving the greatest weight to the most recent message from the other person. Tone inference should be based on word choice, punctuation, style, and implicit emotional signals (e.g., emoji usage). The tone should be 1-2 words; examples include: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc.  Be attuned to subtext, indirect cues, and soft pivots. Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis should focus on the emotional intent behind the message, rather than its literal meaning. Inferred tone should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference.
+
+    
+    Format your response as a list of two JSON objects:
+    [
+        {
+            "situation": <inferred situation>,
+            "confidence_score": <0.XX> 
+        },
+        {
+            "tone": <inferred tone>,
+            "confidence_score": <0.XX>
+        }
+    ]
+
+    Your output must be strictly formatted as above. Do NOT include any text or characters outside of the JSON object. No explanations, no additional text, no markdown formatting. Just the JSON object.
+    """
+    
+    user_prompt = """
+    Here is/are the image/images of the conversation you should analyze. Please infer both situation and tone based on the images provided. Respond with a JSON object containing the inferred situation and tone, as described in the system prompt. If the images do not contain any conversation, you should return "none" for both situation and tone, with a confidence score of 0.0.
+    """
+        
+    openai_client = get_openai_client()
+    if not openai_client:
+        return empty_context
+    
+    try:
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user", 
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                 *image_parts
+                ]
+            }],
+            max_tokens=3000,
+            temperature=0.5
+            )
+        content = (response.choices[0].message.content or "")
+        
+        # Extract JSON from response
+        json_parsed_content = extract_json_block(content)
+        if json_parsed_content:
+            return json.loads(json_parsed_content)
+        else:
+            logger.error("Failed to extract JSON from image analysis response")
+            return empty_context
+       
+    except Exception as e:
+        logger.error(f"Error analyzing images for situation and tone: {e}", exc_info=True)
+        return empty_context
 
 
 ## DEPRECATED: This function is no longer used, but kept for reference.

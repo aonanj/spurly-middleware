@@ -131,7 +131,7 @@ def format_connection_profile(connection_profile: ConnectionProfile) -> str:
         if key == "connection_id" and value is None: 
             continue
 
-        display_key = key.replace('_', ' ').capitalize()
+        display_key = key.replace('_', ' ')
         if isinstance(value, list):
             if value: 
                 if key == "personality_traits":

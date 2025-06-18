@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timezone
 from flask import current_app
 import openai
@@ -12,7 +13,7 @@ from services.storage_service import get_conversation
 from services.user_service import get_user
 from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt
-from utils.trait_manager import infer_tone, infer_situation
+from utils.trait_manager import infer_tone, infer_situation, analyze_convo_for_context, downscale_image_from_bytes, extract_json_block
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
 
 
@@ -33,9 +34,9 @@ def get_user_profile_for_prompt(user_id: str) -> Dict:
         raise ValueError(f"User with ID {user_id} not found")
     
     prompt_dict = {}
-    prompt_dict["name"] = f"User Name: {user.name if user.name else ''}, \n"
-    prompt_dict["age"] = f"User Age: {user.age if user.age else 'unknown'}, \n"
-    prompt_dict["user_context_block"] = f"Personal Info about User {user.name if user.name else ''}: {user.user_context_block if user.user_context_block else ''}. \n"
+    prompt_dict["name"] = f"    -User Name: {user.name if user.name else ''}, \n"
+    prompt_dict["age"] = f" -User Age: {user.age if user.age else 'unknown'}, \n"
+    prompt_dict["user_context_block"] = f"  -Personal Info about User {user.name if user.name else ''}: {user.user_context_block if user.user_context_block else ''}. \n"
 
     return prompt_dict
     
@@ -55,10 +56,10 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
         raise ValueError(f"Connection with ID {connection_id} not found for user {user_id}")
 
     prompt_dict = {}
-    prompt_dict["name"] = f"Connection Name: {connection_profile.connection_name if connection_profile.connection_name else ''}, \n"
-    prompt_dict["age"] = f"Connection Age: {connection_profile.connection_age if connection_profile.connection_age else 'unknown'}, \n"
-    prompt_dict["connection_profile_pic_url"] = f"Connection Profile Pic URL: {connection_profile.connection_profile_pic_url if connection_profile.connection_profile_pic_url else 'unknown'}, \n"
-    prompt_dict["connection_context_block"] = f"Personal Info about Connection {connection_profile.connection_name if connection_profile.connection_name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
+    prompt_dict["name"] = f"    -Connection Name: {connection_profile.connection_name if connection_profile.connection_name else ''}, \n"
+    prompt_dict["age"] = f" -Connection Age: {connection_profile.connection_age if connection_profile.connection_age else 'unknown'}, \n"
+
+    prompt_dict["connection_context_block"] = f"    -Personal Info about Connection {connection_profile.connection_name if connection_profile.connection_name else ''}: {connection_profile.connection_context_block if connection_profile.connection_context_block else ''}, \n"
     
     try:
         personality_traits = []
@@ -72,17 +73,19 @@ def get_connection_profile_for_prompt(user_id: str, connection_id: str) -> Dict:
                             v_str = str(v)
                         personality_traits.append(f"{k}: {v_str}")
 
-        prompt_dict['personality_traits'] = (f"Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
+        prompt_dict['personality_traits'] = (f" -Connection Personality Traits: {', '.join(personality_traits) if personality_traits else 'unknown'}, \n")
         
-        text = connection_profile.connection_profile_text
-        if isinstance(text, list):
-            joined_text = ', '.join(text)
-        elif isinstance(text, str):
-            joined_text = text
-        else:
-            joined_text = ''
+
             
-        prompt_dict["connection_profile_text"] = f"\nConnection Profile Text: {joined_text}. \n"
+        if connection_profile.connection_profile_text and connection_profile.connection_profile_text != "":
+            text = connection_profile.connection_profile_text
+            if isinstance(text, list):
+                joined_text = ', '.join(text)
+            elif isinstance(text, str):
+                joined_text = text
+            else:
+                joined_text = ''
+            prompt_dict["connection_profile_text"] = f" -Connection Profile Text: {joined_text}. \n"
 
         return prompt_dict
     except Exception as e:
@@ -118,7 +121,8 @@ def generate_spurs(
     situation: Optional[str],
     topic: Optional[str],
     selected_spurs: Optional[list[str]] = None,
-    conversation_messages: Optional[List[Dict]] = None,  # New parameter
+    conversation_messages: Optional[List[Dict]] = None,
+    images: Optional[List[Dict]] = None,  # New parameter for images
 ) -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
@@ -130,8 +134,8 @@ def generate_spurs(
         situation (str): A description of the conversation's context.
         topic (str): A topic associated with the conversation.
         selected_spurs (list[str], optional): List of spur variants to generate/regenerate.
-        profile_ocr_texts (list[str], optional): List of text excerpts extracted from connection's profile screenshots.
-        photo_analysis_data (list[dict], optional): List of analysis results (e.g., traits) from connection's photos.
+        conversation_messages (list[dict], optional): List of conversation messages.
+        images (list[dict], optional): List of images with 'data' (raw bytes of image), 'filename', and 'mime_type'.
 
     Returns:
         List of generated Spur objects.
@@ -139,7 +143,7 @@ def generate_spurs(
     user = get_user(user_id)
     if not user:
         raise ValueError(f"User with ID {user_id} not found")
-    user_profile_dict = user.to_dict() # Renamed for clarity
+    user_profile_dict = user.to_dict()
     if not selected_spurs:
         selected_spurs = user_profile_dict['selected_spurs']
     
@@ -152,91 +156,151 @@ def generate_spurs(
             connection_profile = get_connection_profile(user_id, active_connection_id)
 
     # Initialize context_block first
-    context_block = "***User Profile:***\n"
-    user_prompt_profile = get_user_profile_for_prompt(user_id) # Create instance for formatting
-    context_block += "\n".join(user_prompt_profile.values()) + "\n\n"
+    context_block = "*** USER PROFILE CONTEXT:\n"
+    user_prompt_profile = get_user_profile_for_prompt(user_id)
+    context_block += "\n".join(user_prompt_profile.values()) + "\n"
     
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
-        context_block += "***Connection Profile:***\n"
-        connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id) # Create instance for formatting
-        context_block += "\n".join(connection_prompt_profile.values()) + "\n\n"
+        context_block += "*** CONNECTION PROFILE CONTEXT: \n"
+        connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id)
+        context_block += "\n".join(connection_prompt_profile.values()) + "\n"
 
-    
-    if situation and situation != "":
-        context_block += f"***Situation:*** {situation}\n\n"
-    if topic and topic != "":
-        context_block += f"***Topic:*** {topic}\n\n"
-    
-    #DEBUG
-    logger.error("LOG.INFO: gpt_service.generate_spurs called with parameters:")
-    logger.error(f"LOG.INFO: Generating spurs for user_id: {user_id}, connection_id: {connection_id}, conversation_id: '{conversation_id}'")
-    
-    tone_info = {}
-    tone = ""
+    tone = None
     if conversation_messages and len(conversation_messages) > 0:
+        tone_info = {}
+        context_block += "\n*** USER-PROVIDED CONVERSATION: \n"
         if not conversation_id:
             conversation_id = generate_conversation_id(user_id)
+        i = 1
+        context_block += "\n    *** Conversation Messages: \n"
+        for msg in conversation_messages:
+            context_block += f"     - Message #{i} \n"
+            context_block += f"         -{msg.get('sender', '')}: {msg.get('text', '')}\n"
+            i += 1
         tone_info = infer_tone(conversation_messages[-1].get("text", ""))
         if classify_confidence(tone_info["confidence"]) == "high":
             tone = tone_info["tone"]
-            context_block += f"***Tone:*** {tone}\n\n"
-        if not situation or situation == "":  # Infer situation only if not provided
+            context_block += f"\n   *** Inferred Tone:  {tone}\n"
+        if not situation or situation == "":
             situation_info = infer_situation(conversation_messages)
             if classify_confidence(situation_info["confidence"]) == "high":
                 situation = situation_info["situation"]
-                context_block += f"***Situation:*** {situation}\n\n"
-        i = 1
-        context_block += "\n*** *CONVERSATION* ***\n"
-        for msg in conversation_messages:
-            context_block += f"* Message #{i} *\n"
-            context_block += f"{msg.get('sender', '')}: {msg.get('text', '')}\n"
-            i += 1
-        context_block += "\n\n"
-        context_block += f"NOTE: You should suggest SPURs based on the conversation above. Consider the Situation, Topic, and Tone if they are included. Your suggestions should consider the User Profile and the Connection Profile, and you should tie your suggestions back to the Connection Profile only if it fits into the conversation. Your fundamental goal here is to keep the conversation engaging and relevant.\n\n"
+                context_block += f" *** Situation:  {situation}\n"
 
+    if (situation or topic) and (situation != "" or topic != ""):
+        context_block += "\n*** USER-PROVIDED CONVERSATION CONTEXT (overrides): \n"
+        if situation and situation != "":
+            context_block += f" -Situation:  {situation}\n"
+        if topic and topic != "":
+            context_block += f" -Topic:  {topic}\n\n"
     
+        # Process images if provided
+    image_analysis = []
+    if images and len(images) > 0:
+        logger.info(f"Processing {len(images)} images for context analysis")
+        
+        # Analyze images for conversation and profile context
+        image_analysis = analyze_convo_for_context(images)
+        
+        if image_analysis:
+            context_block += "\n*** CONTEXT FOR CONVERSATION SCREENSHOTS (images): \n"
+            for context_dict in image_analysis:
+                if isinstance(context_dict, dict):
+                    for k, v in context_dict.items():
+                        if isinstance(v, (int, float)):
+                            v_str = f"{v:.2f}"
+                        else:
+                            v_str = str(v)
+                        context_block += f" - {k}: {v_str}"
 
+    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. You should suggest SPURs based on the"
+    
+    if (conversation_messages and len(conversation_messages) > 0) or (images and len(images) > 0):
+        context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
+    
+    context_block += " context, including the User Profile Context"
+    
+    if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
+        context_block += " and the Connection Profile Context"
 
+    if (conversation_messages and len(conversation_messages) > 0) or (images and len(images) > 0):
+        context_block += ", but only as that information fits into and/or enrichs the Conversation"
+    context_block += ". "
+    
+    if situation or topic or tone or (image_analysis and len(image_analysis) > 0):
+        context_block += "You should consider the "
+    if (situation and situation != "") or (image_analysis[0].get('situation') and image_analysis[0].get('confidence_score') != 0):
+        context_block += "situation"
+    if (topic and topic != ""):
+        if context_block.endswith("situation"):
+            context_block += " and "
+        context_block += "topic"
+    if (tone and tone != "") or (image_analysis[1].get('tone') and image_analysis[1].get('confidence_score') != 0):
+        if context_block.endswith("situation") or context_block.endswith("topic"):
+            context_block += " and "
+        context_block += "tone"
+    if (images and len(images) > 0) or (conversation_messages and len(conversation_messages) > 0):
+        context_block += " of the Conversation"
+    
+    context_block += " to inform your suggestions. \n"
+    context_block += "You should suggest only one Spur for only these Spur variants: \n"
+    
+    user_prompt = build_prompt(selected_spurs or [], context_block)
 
-    prompt = build_prompt(selected_spurs or [], context_block)
-
-    #DEBUG
-    logger.error("LOG.INFO: gpt_service.generate_spurs called with parameters:")
-    logger.error(f"LOG.INFO: Generated prompt for user {user_id}: {prompt}")
     fallback_prompt_suffix = (
         "\nKeep all outputs safe, short, and friendly.\n"
     )
+
+    openai_client = get_openai_client()
+    system_prompt = get_system_prompt()
     
-    # Fallback response (ensure keys match SPUR_VARIANT_ID_KEYS)
-    # This might need to be more dynamic if SPUR_VARIANT_ID_KEYS can change.
-    # fallback_response_values = {
-    #     key: "We're having trouble generating something right now. Please try your request again."
-    #     for key in current_app.config.get('SPUR_VARIANT_ID_KEYS', {}).keys()
-    # }
+    image_parts = []
+    for image_data in images or []:
+        image_bytes = image_data.get("bytes")
+        if not image_bytes:
+            logger.error("Skipping image due to missing bytes.")
+            continue
 
+        resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+        base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
+        image_parts.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+        })
 
+    if not image_parts:
+        logger.error("No valid images to process (gpt_service.py:generate_spurs).")
+        return []
+    
+    if not openai_client:
+        logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
+        return []
+    
     for attempt in range(3):  # 1 initial + 2 retries
         try:
-            current_prompt = prompt + fallback_prompt_suffix if attempt > 0 else prompt
-            system_prompt = get_system_prompt()
-            openai_client = get_openai_client()
-            
             response = openai_client.chat.completions.create(
-                model="chatgpt-4o-latest",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": current_prompt}
-                ],
-                temperature=1.0 if attempt == 0 else 0.75,
-            )
+                    {
+                        "role": "user", 
+                        "content": [
+                            {"type": "text", "text": user_prompt},
+                    *image_parts
+                    ]
+                }],
+                max_tokens=4000,
+                temperature=1.1 if attempt == 0 else 0.75,
+                )
+            content = (response.choices[0].message.content or "") if response.choices else ""
             
-            ## DEBUG:
-            logger.error(f"GPT response: {response}")  # Log the full response for debugging
+            # Extract JSON from response
+            json_parsed_content = extract_json_block(content)
 
-            raw_output: str = (response.choices[0].message.content or '') if response.choices else ''
-            # Pass user_profile_dict to parse_gpt_output
             gpt_parsed_filtered_output = parse_gpt_output(
-                raw_output, 
+                json_parsed_content, 
                 user_profile_dict, 
                 connection_profile.to_dict() if connection_profile else {}
             )
@@ -252,7 +316,7 @@ def generate_spurs(
 
             for variant, _id_key in variant_keys.items():
                 spur_text: str = validated_output.get(variant, "")
-                if spur_text: # Ensure spur_text is not empty
+                if spur_text:
                     spur_objects.append(
                         Spur(
                             user_id=user_profile_dict.get("user_id", ""), 
@@ -267,7 +331,7 @@ def generate_spurs(
                             created_at=datetime.now(timezone.utc),
                         )
                     )
-            if spur_objects: # If any spurs were successfully created
+            if spur_objects:
                 return spur_objects
 
         except openai.APIError as e:
@@ -280,38 +344,70 @@ def generate_spurs(
                 logger.error(f"Final GPT attempt failed for user {user_id} — returning fallback.")
     
     logger.error(f"All GPT generation attempts failed for user {user_id}.")
-    # Return an empty list or a list of fallback Spur objects if defined
-    # For example, create Spur objects from fallback_response_values if it's structured correctly
     return []
 
-def get_spurs_for_output(user_id: str, conversation_id: str, connection_id: str, situation: str, topic: str,
-                         conversation_messages: Optional[List[Dict]] = None,  # New parameter
-                         ) -> list:
+def get_spurs_for_output(
+    user_id: str, 
+    conversation_id: str, 
+    connection_id: str, 
+    situation: str, 
+    topic: str,
+    conversation_messages: Optional[List[Dict]] = None,
+    images: Optional[List[Dict]] = None,  # New parameter
+) -> list:
     """
     Gets spurs that are formatted and content-filtered to send to the frontend. 
     Iterative while loop structure regenerates spurs that fail content filtering.
+    
+    Args:
+        user_id (str): User ID.
+        conversation_id (str): Conversation ID.
+        connection_id (str): Connection ID.
+        situation (str): Situation context.
+        topic (str): Topic of conversation.
+        conversation_messages (list[dict], optional): List of conversation messages.
+        images (list[dict], optional): List of images with base64 data.
+    
+    Returns:
+        list: List of Spur objects ready for output.
     """ 
     user_profile = get_user(user_id=user_id)
     if not user_profile:
         raise ValueError(f"User with ID {user_id} not found")
-    selected_spurs_from_profile = user_profile.to_dict().get("selected_spurs", []) # Ensure it's a list
+    selected_spurs_from_profile = user_profile.to_dict().get("selected_spurs", [])
 
     # Initial generation
-    spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, selected_spurs_from_profile,
-                           conversation_messages=conversation_messages) # Pass through
+    spurs = generate_spurs(
+        user_id, 
+        connection_id, 
+        conversation_id, 
+        situation, 
+        topic, 
+        selected_spurs_from_profile,
+        conversation_messages=conversation_messages,
+        images=images  # Pass images through
+    )
 
     counter = 0
     max_iterations = 3 
 
     # Iterative regeneration for spurs that fail validation/filtering
-    spurs_needing_regeneration = spurs_to_regenerate(spurs) # This function returns list of variants (strings)
+    spurs_needing_regeneration = spurs_to_regenerate(spurs)
 
     while spurs_needing_regeneration and counter < max_iterations:
         counter += 1
         logger.error(f"LOG.INFO: Regeneration attempt {counter} for user {user_id}, variants: {spurs_needing_regeneration}")
         
-        fixed_spurs = generate_spurs(user_id, connection_id, conversation_id, situation, topic, spurs_needing_regeneration, # Pass only variants to regenerate
-                                     conversation_messages=conversation_messages)
+        fixed_spurs = generate_spurs(
+            user_id, 
+            connection_id, 
+            conversation_id, 
+            situation, 
+            topic, 
+            spurs_needing_regeneration,
+            conversation_messages=conversation_messages,
+            images=images  # Pass images for regeneration too
+        )
         spurs = merge_spurs(spurs, fixed_spurs)
         spurs_needing_regeneration = spurs_to_regenerate(spurs)
 
