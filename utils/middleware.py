@@ -6,27 +6,26 @@ import utils.trait_manager as trait_manager
 
 logger = get_logger(__name__)
 
-def sanitize_topic(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        context = getattr(request, "context", request.get_json() or {})
-        topic = context.get("topic", "")
-        filtered = False
+def sanitize_topic(topic):
 
-        if isinstance(topic, str):
-            topic = topic.strip()[:75]
 
-        result = moderate_topic(topic)
-        if not result["safe"]:
-            topic = ""
-            filtered = True
+    if isinstance(topic, str):
+        topic = topic.strip()[:75]
 
-        context["topic"] = topic
-        context["topic_filtered"] = filtered
-        setattr(request, "context", context)
+    result = moderate_topic(topic)
+    logger.error(f" Moderation result for topic '{topic}': {result}")
+    if not result.get('safe'):
+        topic = ""
+        filtered = True
+        return {
+            "filtered": True,
+            "topic": topic,
+        }
 
-        return f(*args, **kwargs)
-    return wrapper
+    return {
+        "filtered": False,
+        "topic": topic,
+    }
 
 
 def validate_profile(f):
@@ -59,28 +58,4 @@ def validate_profile(f):
                 return jsonify({"error": "connection age must be at least 18 if provided"}), 400
 
         return f(*args, **kwargs)
-    return wrapper
-
-def enrich_context(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        data = request.get_json() or {}
-        conversation = data.get("conversation", [])
-        
-        if not data.get("situation"):
-            try:
-                inferred = trait_manager.infer_situation(conversation)
-            except Exception as e:
-                err_point = __package__ or __name__
-                logger.error("[%s] Error in enrich_context decorator of middleware.py: %s", err_point, e)
-                inferred = {"situation": "cold_open", "confidence": "low"}
-            data["situation"] = inferred.get("situation", "cold_open")
-            data["situation_confidence"] = inferred.get("confidence", "low")
-        
-        # Attach enriched data to request context
-        
-        setattr(request, "context", data)
-        
-        return f(*args, **kwargs)
-    
     return wrapper

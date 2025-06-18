@@ -196,7 +196,7 @@ def generate_spurs(
         # Process images if provided
     image_analysis = []
     if images and len(images) > 0:
-        logger.info(f"Processing {len(images)} images for context analysis")
+        logger.error(f"LOG INFO: Processing {len(images)} images for context analysis")
         
         # Analyze images for conversation and profile context
         image_analysis = analyze_convo_for_context(images)
@@ -246,9 +246,8 @@ def generate_spurs(
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
 
-    fallback_prompt_suffix = (
-        "\nKeep all outputs safe, short, and friendly.\n"
-    )
+    # DEBUG
+    logger.error(f"LOG.INFO: Generating spurs for user {user_id} with context: {context_block}")
 
     openai_client = get_openai_client()
     system_prompt = get_system_prompt()

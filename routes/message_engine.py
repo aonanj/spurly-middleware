@@ -4,7 +4,6 @@ from infrastructure.logger import get_logger
 from infrastructure.id_generator import generate_conversation_id
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
-from utils.middleware import enrich_context, sanitize_topic
 from class_defs.conversation_def import Conversation
 from services.storage_service import ConversationStorage
 import json
@@ -69,9 +68,9 @@ def generate():
     
     # Process uploaded images
     images = []
-    image_files = request.files.getlist("images")
     
-    if image_files:
+    if 'images' in request.files or request.files.getlist("images"):
+        image_files = request.files.getlist("images")
         logger.info(f"Received {len(image_files)} images")
         for idx, image_file in enumerate(image_files):
             if image_file and image_file.filename and allowed_file(image_file.filename):
@@ -80,7 +79,7 @@ def generate():
                     image_data = image_file.read()
                     images.append({
                         'filename': image_file.filename or f'image_{idx}.jpg',
-                        'data': image_data,
+                        'bytes': image_data,
                         'mime_type': image_file.content_type or 'image/jpeg'
                     })
                     
