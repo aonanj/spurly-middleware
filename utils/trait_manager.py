@@ -4,9 +4,7 @@ from PIL import Image
 import io
 from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
-from utils.prompt_loader import load_system_prompt
 import json
-import openai
 import base64
 import os
 from typing import List, Dict, Any

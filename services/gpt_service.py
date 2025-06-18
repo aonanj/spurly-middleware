@@ -9,7 +9,6 @@ from infrastructure.logger import get_logger
 from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
 from services.connection_service import get_connection_profile, get_active_connection_firestore
-from services.storage_service import get_conversation
 from services.user_service import get_user
 from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt

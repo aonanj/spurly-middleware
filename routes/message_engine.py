@@ -1,23 +1,20 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
-from infrastructure.id_generator import get_null_connection_id, generate_conversation_id
+from infrastructure.id_generator import generate_conversation_id
 from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from utils.middleware import enrich_context, sanitize_topic
 from class_defs.conversation_def import Conversation
 from services.storage_service import ConversationStorage
 import json
-from werkzeug.datastructures import FileStorage
-from typing import List, Dict, Optional
-import base64
 
 generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)
 
 @generate_bp.route("/generate", methods=["POST"])
 @verify_token
-@handle_errors
+@handle_all_errors
 @enrich_context
 @sanitize_topic
 def generate():

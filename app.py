@@ -1,11 +1,9 @@
-from config import Config
-from flask import Flask, current_app
+from flask import Flask
 from flask_cors import CORS
 from infrastructure.clients import init_clients
 from infrastructure.logger import setup_logger
 from dotenv import load_dotenv
 from routes.connections import connection_bp
-from routes.context_route import context_bp
 from routes.conversations import conversations_bp
 from routes.spurs import spurs_bp
 from routes.feedback import feedback_bp
@@ -43,7 +41,6 @@ def create_app():
     app.register_blueprint(feedback_bp)
     app.register_blueprint(conversations_bp)
     app.register_blueprint(user_management_bp)
-    app.register_blueprint(context_bp)
     app.register_blueprint(generate_bp)
 
     level = app.config.get("LOGGER_LEVEL", "INFO")

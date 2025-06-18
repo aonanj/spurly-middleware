@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
 from services.user_service import update_user_profile, get_user
 
@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 
 @user_management_bp.route("/user", methods=["POST"])
 @verify_token
-@handle_errors
+@handle_all_errors
 def update_user_bp():
     try:
         data = request.get_json()
@@ -39,7 +39,7 @@ def update_user_bp():
 
 @user_management_bp.route("/user", methods=["GET"])
 @verify_token
-@handle_errors
+@handle_all_errors
 def get_user_bp():
     try:
         user_id = getattr(g, "user_id", None)

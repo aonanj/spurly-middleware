@@ -1,14 +1,14 @@
 from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
 from gpt_training.anonymizer import anonymize_spur
-from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_all_errors
 from services.spur_service import save_spur
 
 feedback_bp = Blueprint("feedback", __name__)
 
 @feedback_bp.route("/feedback", methods=["POST"])
 @verify_token
-@handle_errors
+@handle_all_errors
 def feedback():
     data = request.get_json()
     

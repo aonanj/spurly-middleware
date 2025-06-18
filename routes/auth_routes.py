@@ -1,16 +1,15 @@
 import os
 import re
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Dict, Optional, Tuple, Any
+from datetime import datetime, timezone
+from typing import Dict, Any
 
 import firebase_admin
 from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
-import requests
 import jwt
-from infrastructure.token_validator import verify_token, handle_auth_errors, create_jwt_token, AuthError, ValidationError
+from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, AuthError, ValidationError
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
 from class_defs.profile_def import UserProfile
@@ -153,7 +152,7 @@ def create_or_update_user_from_firebase(firebase_user: Dict[str, Any], firebase_
 # Routes
 
 @auth_bp.route('/firebase/register', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def firebase_register():
     """Register new user with Firebase ID token"""
     if not request.is_json:
@@ -226,7 +225,7 @@ def firebase_register():
         raise AuthError("Unable to create account", 500)
 
 @auth_bp.route('/firebase/login', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def firebase_login():
     """Login with Firebase ID token"""
     if not request.is_json:
@@ -329,7 +328,7 @@ def firebase_login():
 
 @auth_bp.route('/logout', methods=['POST'])
 @verify_token
-@handle_auth_errors
+@handle_all_errors
 def logout():
     """Logout user and invalidate tokens"""
     
@@ -364,9 +363,61 @@ def logout():
             "success": False,
             "message": f"Failed to clear active connection for user {user_id}"
         }), 500
+
+@auth_bp.route('/refresh', methods=['POST'])
+@handle_all_errors
+def refresh_token():
+    """Refresh an expired access token using a refresh token"""
+    if not request.is_json:
+        raise ValidationError("Content-Type must be application/json")
+    
+    data = request.get_json()
+    if not data:
+        raise ValidationError("Request body is required")
+    
+    refresh_token = data.get('refresh_token')
+    if not refresh_token:
+        raise ValidationError("refresh_token is required")
+    
+    secret_key = os.environ.get('JWT_SECRET_KEY')
+    if not secret_key:
+        raise AuthError("JWT configuration missing", 500)
+    
+    try:
+        # Decode refresh token
+        payload = jwt.decode(refresh_token, secret_key, algorithms=['HS256'])
+        
+        # Verify token type
+        if payload.get('type') != 'refresh':
+            raise AuthError("Invalid token type - refresh token required", 401)
+        
+        # Get user to ensure they still exist
+        user_id = payload.get('user_id')
+        user = get_user(user_id)
+        if not user:
+            raise AuthError("User account no longer exists", 401)
+        
+        # Create new access token (but not a new refresh token)
+        new_access_token, _ = create_jwt_token(
+            user_id=user.user_id,
+            email=user.email,
+            name=user.name,
+            provider=user.auth_provider
+        )
+        
+        return jsonify({
+            "access_token": new_access_token,
+            "token_type": "Bearer",
+            "expires_in": 3600
+        }), 200
+        
+    except jwt.ExpiredSignatureError:
+        raise AuthError("Refresh token has expired - please login again", 401)
+    except jwt.InvalidTokenError:
+        raise AuthError("Invalid refresh token", 401)
         
 @auth_bp.route('/check-email', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def check_email_availability():
     """Check if an email is already registered"""
     if not request.is_json:
@@ -390,10 +441,10 @@ def check_email_availability():
     }), 200
 
 
-# Legacy routes (keep for backward compatibility during migration)
+# DEPRECATED: Legacy routes (keep for backward compatibility during migration)
 
 @auth_bp.route('/register', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def register():
     """[DEPRECATED] Register new user with email and password - Use /firebase/register instead"""
     return jsonify({
@@ -402,7 +453,7 @@ def register():
     }), 410  # 410 Gone
 
 @auth_bp.route('/login', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def login():
     """[DEPRECATED] Login with email and password - Use /firebase/login instead"""
     return jsonify({

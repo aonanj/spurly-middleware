@@ -1,7 +1,7 @@
 from class_defs.conversation_def import Conversation
 from class_defs.spur_def import Spur
 from datetime import datetime, timezone
-from flask import current_app, jsonify
+from flask import jsonify
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import generate_anonymous_user_id, generate_anonymous_conversation_id, generate_anonymous_connection_id, generate_anonymous_spur_id
@@ -30,12 +30,7 @@ def anonymize_conversation(original_conversation: Conversation) -> str:
 		conversation_dict = original_conversation.to_dict()
 		conversation_messages = original_conversation.conversation
 		
-		user_id = conversation_dict.get("user_id", "")
-		user_profile = get_user(user_id)
 
-		connection_id = original_conversation.connection_id or ""
-		connection_profile = None
-				
 		if not all("text" in message and "sender" in message for message in conversation_messages):
 			logger.error("Invalid conversation format. Keys 'text' and 'sender' expected.")
 			raise ValueError("Invalid conversation format. Keys 'text' and 'sender' expected.")

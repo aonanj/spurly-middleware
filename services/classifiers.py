@@ -1,5 +1,4 @@
 import base64
-import json
 from typing import Dict, Literal
 import requests
 from PIL import Image

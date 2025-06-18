@@ -1,6 +1,5 @@
 from flask import current_app
 from infrastructure.logger import get_logger
-import json
 
 logger = get_logger(__name__)
 

@@ -2,7 +2,7 @@ import os
 import time
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from functools import wraps, lru_cache
 from typing import Dict, Optional, Tuple, Any
 
@@ -13,7 +13,7 @@ from flask import Blueprint, request, jsonify, current_app, g
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
-from infrastructure.token_validator import AuthError, ValidationError, handle_auth_errors, create_jwt_token
+from infrastructure.token_validator import AuthError, ValidationError, handle_all_errors, create_jwt_token
 
 from services.user_service import get_user, update_user, create_user
 from services.connection_service import clear_active_connection_firestore
@@ -271,7 +271,7 @@ def get_or_create_user(user_id: str, provider: str, provider_user_id: str, email
 # Routes
 
 @social_auth_bp.route('/google', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def google_auth():
     """Authenticate user with Google ID token"""
     if not request.is_json:
@@ -331,7 +331,7 @@ def google_auth():
     }), 200
 
 @social_auth_bp.route('/apple', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def apple_auth():
     """Authenticate user with Apple Sign In"""
     if not request.is_json:
@@ -402,7 +402,7 @@ def apple_auth():
     }), 200
 
 @social_auth_bp.route('/facebook', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def facebook_auth():
     """Authenticate user with Facebook access token"""
     if not request.is_json:
@@ -464,7 +464,7 @@ def facebook_auth():
     }), 200
 
 @social_auth_bp.route('/refresh', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def refresh_token():
     """Refresh access token using refresh token"""
     if not request.is_json:
@@ -522,7 +522,7 @@ def refresh_token():
         raise AuthError("Invalid refresh token")
 
 @social_auth_bp.route('/logout', methods=['POST'])
-@handle_auth_errors
+@handle_all_errors
 def logout():
     """Logout user and invalidate tokens"""
     # Get token from Authorization header

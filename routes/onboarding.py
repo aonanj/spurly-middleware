@@ -1,12 +1,9 @@
 # routes/onboarding.py
 from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
-import jwt
-import logging
-from typing import Dict, Any, Tuple
 
 from infrastructure.logger import get_logger
-from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_all_errors
 from services.user_service import update_user_profile, get_user
 
 onboarding_bp = Blueprint("onboarding", __name__)
@@ -14,8 +11,8 @@ logger = get_logger(__name__)
 
 
 @onboarding_bp.route("/api/onboarding", methods=["POST"])
-@handle_errors
 @verify_token
+@handle_all_errors
 def onboarding():
     """
     Complete user onboarding by updating their profile with additional information.
@@ -118,8 +115,8 @@ def onboarding():
         return jsonify({"error": "Failed to complete onboarding"}), 500
 
 @onboarding_bp.route("/api/onboarding/status", methods=["GET"])
-@handle_errors
 @verify_token
+@handle_all_errors
 def onboarding_status():
     """
     Check if the current user has completed onboarding.

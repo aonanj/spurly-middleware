@@ -20,7 +20,7 @@ class AuthError(Exception):
         self.status_code = status_code
         super().__init__(self.message)
 
-def handle_errors(f):
+def handle_all_errors(f):
     """Decorator to handle errors"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -88,8 +88,8 @@ def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
         return user.to_dict()
 
 @profile_bp.route('/<user_id>', methods=['GET'])
-@handle_errors
 @verify_token
+@handle_all_errors
 def get_profile(user_id: str):
     """Get user profile by ID"""
     # Verify user is accessing their own profile or has permission

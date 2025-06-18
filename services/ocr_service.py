@@ -1,5 +1,4 @@
-from typing import List, Dict, Optional, Tuple, Generator, Any
-from flask import jsonify
+from typing import List, Dict, Generator, Any
 from google.cloud import vision
 from google.api_core import retry, exceptions as core_exceptions
 from infrastructure.clients import get_vision_client
@@ -7,7 +6,6 @@ from infrastructure.logger import get_logger
 from utils.ocr_utils import extract_conversation, crop_top_bottom_cv
 import cv2
 import numpy as np
-import io
 from contextlib import contextmanager
 import time
 

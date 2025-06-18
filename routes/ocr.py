@@ -1,16 +1,14 @@
 import cv2
 import numpy as np
 from flask import Blueprint, request, jsonify, g
-import logging
 import base64
-from typing import List, Dict, Any
 
 # Configuration
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 
 from services.classifiers import classify_image
 from services.ocr_service import process_image
-from infrastructure.token_validator import verify_token, handle_errors
+from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,7 +18,7 @@ ocr_bp = Blueprint('ocr', __name__)
 
 @ocr_bp.route('/scan', methods=['POST'])
 @verify_token
-@handle_errors
+@handle_all_errors
 def ocr_scan():
     """
     Endpoint to process multiple images sent as bytes for OCR.
@@ -221,7 +219,7 @@ def ocr_scan():
 # Alternative endpoint that accepts multipart/form-data (if needed)
 @ocr_bp.route('/scan-multipart', methods=['POST'])
 @verify_token
-@handle_errors
+@handle_all_errors
 def ocr_scan_multipart():
     """
     Alternative endpoint that accepts images as multipart/form-data.

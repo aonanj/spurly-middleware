@@ -8,8 +8,7 @@ from infrastructure.id_generator import generate_conversation_id
 from infrastructure.logger import get_logger
 import uuid
 from werkzeug.utils import secure_filename
-from typing import List, Dict, Optional, Any, Tuple
-from contextlib import contextmanager
+from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 import threading
 

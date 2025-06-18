@@ -18,7 +18,7 @@ Defines a dataclass named Spur with the following fields:
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional, List, Dict, Any
+from typing import Optional
 
 @dataclass
 class Spur:

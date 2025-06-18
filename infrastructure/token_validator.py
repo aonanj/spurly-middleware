@@ -3,10 +3,8 @@ from functools import wraps
 from flask import request, g, jsonify, current_app
 from infrastructure.logger import get_logger
 import os
-import requests
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
-import firebase_admin
 from firebase_admin import auth as firebase_admin_auth
 
 logger = get_logger(__name__)
@@ -68,42 +66,63 @@ def get_user_id_from_token(id_token):
     decoded_token = firebase_admin_auth.verify_id_token(id_token)
     return decoded_token['uid']
         
-def handle_auth_errors(f):
-    """Decorator to handle authentication errors"""
+def handle_all_errors(f):
+    """
+    Unified error handler that properly handles both auth and general errors.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        data = request.get_json(silent=True)
-  
         try:
             return f(*args, **kwargs)
         except AuthError as e:
-            return jsonify({"error": e.message}), e.status_code
+            # Return 401 for auth errors (including expired tokens)
+            return jsonify({
+                "error": e.message,
+                "error_code": "AUTH_ERROR",
+                "requires_login": True
+            }), e.status_code
         except ValidationError as e:
-            return jsonify({"error": e.message}), e.status_code
+            # Return 400 for validation errors
+            return jsonify({
+                "error": e.message,
+                "error_code": "VALIDATION_ERROR"
+            }), e.status_code
         except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token has expired"}), 401
-        except jwt.InvalidTokenError as e:
-            return jsonify({"error": "Invalid token"}), 401
-        except requests.RequestException as e:
-            logger.error(f"Requests.Requests exception in {f.__name__}: {str(e)}")
-            return jsonify({"error": "External service temporarily unavailable"}), 503
+            # Explicit handling for expired tokens
+            return jsonify({
+                "error": "Token has expired",
+                "error_code": "TOKEN_EXPIRED",
+                "requires_login": True
+            }), 401
+        except jwt.InvalidTokenError:
+            # Handle other JWT errors
+            return jsonify({
+                "error": "Invalid token",
+                "error_code": "INVALID_TOKEN",
+                "requires_login": True
+            }), 401
         except Exception as e:
-            logger.error(f"Unexpected error in {f.__name__}: {str(e)}")
-            return jsonify({"error": "Internal server error"}), 500
+            # Log unexpected errors but don't expose details
+            logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            return jsonify({
+                "error": "Internal server error",
+                "error_code": "INTERNAL_ERROR"
+            }), 500
+    
     return decorated_function
 
 def verify_token(f):
-    """Decorator to verify JWT token"""
+    """Decorator to verify JWT token and check expiration"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
         
         if not auth_header:
-            raise AuthError("Authorization header is required")
+            raise AuthError("Authorization header is required", 401)
         
         parts = auth_header.split()
         if parts[0].lower() != 'bearer' or len(parts) != 2:
-            raise AuthError("Invalid authorization header format")
+            raise AuthError("Invalid authorization header format", 401)
         
         token = parts[1]
         secret_key = os.environ.get('JWT_SECRET_KEY')
@@ -116,38 +135,50 @@ def verify_token(f):
             
             # Verify token type
             if payload.get('type') != 'access':
-                raise AuthError("Invalid token type")
+                raise AuthError("Invalid token type", 401)
             
-            user_id = ""
-            if 'user_id' in payload:
-                user_id = payload.get('user_id')
-            elif 'sub' in payload:
-                user_id = payload.get('sub')
-            elif 'uid' in payload:
-                user_id = payload.get('uid')
+            # Extract user_id
+            user_id = payload.get('user_id') or payload.get('sub') or payload.get('uid')
+            if not user_id:
+                raise AuthError("Invalid token: missing user ID", 401)
+                
             setattr(g, "user_id", user_id)
             current_app.config['user_id'] = user_id
-
-            return f(*args, **kwargs)
+            
+            # Execute the wrapped function
+            response = f(*args, **kwargs)
+            
+            # Check if token is expiring soon and add headers
+            if 'exp' in payload:
+                exp_timestamp = payload['exp']
+                current_timestamp = datetime.now(timezone.utc).timestamp()
+                time_until_expiry = exp_timestamp - current_timestamp
+                
+                # If token expires in less than 5 minutes, add warning header
+                if time_until_expiry < 300:  # 5 minutes
+                    if isinstance(response, tuple) and len(response) == 2:
+                        response_data, status_code = response
+                        headers = {}
+                    elif isinstance(response, tuple) and len(response) == 3:
+                        response_data, status_code, headers = response
+                    else:
+                        response_data = response
+                        status_code = 200
+                        headers = {}
+                    
+                    # Add expiration warning headers
+                    headers.update({
+                        'X-Token-Expires-Soon': 'true',
+                        'X-Token-Expires-In': str(int(time_until_expiry))
+                    })
+                    
+                    return response_data, status_code, headers
+            
+            return response
             
         except jwt.ExpiredSignatureError:
-            raise AuthError("Token has expired")
-        except jwt.InvalidTokenError:
-            raise AuthError("Invalid token")
+            raise AuthError("Token has expired", 401)
+        except jwt.InvalidTokenError as e:
+            raise AuthError(f"Invalid token: {str(e)}", 401)
             
-    return decorated_function
-
-
-def handle_errors(f):
-    """
-    Decorator to handle exceptions in routes.
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Unhandled error in {f.__name__}: {str(e)}", exc_info=True)
-            return jsonify({'error': 'Internal server error'}), 500
-    
     return decorated_function
