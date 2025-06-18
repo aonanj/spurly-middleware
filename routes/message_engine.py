@@ -15,8 +15,8 @@ logger = get_logger(__name__)
 @generate_bp.route("/generate", methods=["POST"])
 @verify_token
 @handle_all_errors
-@enrich_context
-@sanitize_topic
+##@enrich_context
+##@sanitize_topic
 def generate():
     """
     POST /generate
