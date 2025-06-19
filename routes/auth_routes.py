@@ -327,8 +327,8 @@ def firebase_login():
         raise AuthError("Unable to authenticate", 500)
 
 @auth_bp.route('/logout', methods=['POST'])
-@verify_token
 @handle_all_errors
+@verify_token
 def logout():
     """Logout user and invalidate tokens"""
     

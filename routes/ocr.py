@@ -17,8 +17,8 @@ ocr_bp = Blueprint('ocr', __name__)
 
 
 @ocr_bp.route('/scan', methods=['POST'])
-@verify_token
 @handle_all_errors
+@verify_token
 def ocr_scan():
     """
     Endpoint to process multiple images sent as bytes for OCR.
@@ -218,8 +218,8 @@ def ocr_scan():
 
 # Alternative endpoint that accepts multipart/form-data (if needed)
 @ocr_bp.route('/scan-multipart', methods=['POST'])
-@verify_token
 @handle_all_errors
+@verify_token
 def ocr_scan_multipart():
     """
     Alternative endpoint that accepts images as multipart/form-data.

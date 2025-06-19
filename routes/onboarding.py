@@ -11,8 +11,8 @@ logger = get_logger(__name__)
 
 
 @onboarding_bp.route("/api/onboarding", methods=["POST"])
-@verify_token
 @handle_all_errors
+@verify_token
 def onboarding():
     """
     Complete user onboarding by updating their profile with additional information.
@@ -115,8 +115,8 @@ def onboarding():
         return jsonify({"error": "Failed to complete onboarding"}), 500
 
 @onboarding_bp.route("/api/onboarding/status", methods=["GET"])
-@verify_token
 @handle_all_errors
+@verify_token
 def onboarding_status():
     """
     Check if the current user has completed onboarding.

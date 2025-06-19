@@ -7,8 +7,8 @@ from services.spur_service import save_spur
 feedback_bp = Blueprint("feedback", __name__)
 
 @feedback_bp.route("/feedback", methods=["POST"])
-@verify_token
 @handle_all_errors
+@verify_token
 def feedback():
     data = request.get_json()
     

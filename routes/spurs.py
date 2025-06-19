@@ -10,8 +10,8 @@ logger = get_logger(__name__)
 spurs_bp = Blueprint("spurs", __name__)
 
 @spurs_bp.route("/get-spurs", methods=["GET"])
-@verify_token
 @handle_all_errors
+@verify_token
 def fetch_saved_spurs_bp():
     user_id = getattr(g, "user_id", None)
     if not user_id:
@@ -61,8 +61,8 @@ def fetch_saved_spurs_bp():
     # return jsonify(result)
 
 @spurs_bp.route("/save-spur", methods=["POST"])
-@verify_token
 @handle_all_errors
+@verify_token
 def save_spur_bp():
     data = request.get_json()
     user_id = getattr(g, "user_id", None)
@@ -79,8 +79,8 @@ def save_spur_bp():
 
 
 @spurs_bp.route("/delete-spur", methods=["DELETE"])
-@verify_token
 @handle_all_errors
+@verify_token
 def delete_saved_spurs_bp():
     user_id = getattr(g, "user_id", None)
 
@@ -100,8 +100,8 @@ def delete_saved_spurs_bp():
     return jsonify(result)
 
 @spurs_bp.route("/get-spur/<spur_id>", methods=["GET"])
-@verify_token
 @handle_all_errors
+@verify_token
 def get_spur_bp(spur_id):
     user_id = getattr(g, "user_id", None)
     if not user_id:

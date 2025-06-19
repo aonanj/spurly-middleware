@@ -12,8 +12,8 @@ generate_bp = Blueprint("generate", __name__)
 logger = get_logger(__name__)
 
 @generate_bp.route("/generate", methods=["POST"])
-@verify_token
 @handle_all_errors
+@verify_token
 ##@enrich_context
 ##@sanitize_topic
 def generate():

@@ -7,8 +7,8 @@ user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
 
 @user_management_bp.route("/user", methods=["POST"])
-@verify_token
 @handle_all_errors
+@verify_token
 def update_user_bp():
     try:
         data = request.get_json()
@@ -38,8 +38,8 @@ def update_user_bp():
         return jsonify({"error": f"[{err_point}] - Error"}), 401
 
 @user_management_bp.route("/user", methods=["GET"])
-@verify_token
 @handle_all_errors
+@verify_token
 def get_user_bp():
     try:
         user_id = getattr(g, "user_id", None)

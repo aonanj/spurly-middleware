@@ -22,8 +22,8 @@ def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
         return user.to_dict()
 
 @profile_bp.route('/<user_id>', methods=['GET'])
-@verify_token
 @handle_all_errors
+@verify_token
 def get_profile(user_id: str):
     """Get user profile by ID"""
     # Verify user is accessing their own profile or has permission

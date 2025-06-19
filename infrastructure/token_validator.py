@@ -69,41 +69,54 @@ def get_user_id_from_token(id_token):
 def handle_all_errors(f):
     """
     Unified error handler that properly handles both auth and general errors.
+    Must be the outermost decorator (listed last) to catch all exceptions.
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
             return f(*args, **kwargs)
         except AuthError as e:
-            # Return 401 for auth errors (including expired tokens)
+            # Log auth errors for monitoring
+            logger.error(f"AuthError in {f.__name__}: {e.message} (status: {e.status_code})")
+            
+            # Return proper auth error response
             return jsonify({
                 "error": e.message,
                 "error_code": "AUTH_ERROR",
                 "requires_login": True
             }), e.status_code
+            
         except ValidationError as e:
-            # Return 400 for validation errors
+            # Return validation error response
             return jsonify({
                 "error": e.message,
                 "error_code": "VALIDATION_ERROR"
             }), e.status_code
+            
         except jwt.ExpiredSignatureError:
             # Explicit handling for expired tokens
+            logger.error(f"Expired token in {f.__name__}")
             return jsonify({
                 "error": "Token has expired",
                 "error_code": "TOKEN_EXPIRED",
-                "requires_login": True
+                "requires_login": True,
+                "refresh_required": True
             }), 401
-        except jwt.InvalidTokenError:
+            
+        except jwt.InvalidTokenError as e:
             # Handle other JWT errors
+            logger.error(f"Invalid token in {f.__name__}: {str(e)}")
             return jsonify({
                 "error": "Invalid token",
                 "error_code": "INVALID_TOKEN",
                 "requires_login": True
             }), 401
+            
         except Exception as e:
-            # Log unexpected errors but don't expose details
+            # Log unexpected errors with full traceback
             logger.error(f"Unexpected error in {f.__name__}: {str(e)}", exc_info=True)
+            
+            # Don't expose internal error details to client
             return jsonify({
                 "error": "Internal server error",
                 "error_code": "INTERNAL_ERROR"
@@ -148,31 +161,32 @@ def verify_token(f):
             # Execute the wrapped function
             response = f(*args, **kwargs)
             
-            # Check if token is expiring soon and add headers
+            # Add token expiration headers
             if 'exp' in payload:
                 exp_timestamp = payload['exp']
                 current_timestamp = datetime.now(timezone.utc).timestamp()
                 time_until_expiry = exp_timestamp - current_timestamp
                 
-                # If token expires in less than 5 minutes, add warning header
-                if time_until_expiry < 300:  # 5 minutes
-                    if isinstance(response, tuple) and len(response) == 2:
+                # Prepare response with headers
+                if isinstance(response, tuple):
+                    if len(response) == 2:
                         response_data, status_code = response
                         headers = {}
-                    elif isinstance(response, tuple) and len(response) == 3:
-                        response_data, status_code, headers = response
                     else:
-                        response_data = response
-                        status_code = 200
-                        headers = {}
-                    
-                    # Add expiration warning headers
-                    headers.update({
-                        'X-Token-Expires-Soon': 'true',
-                        'X-Token-Expires-In': str(int(time_until_expiry))
-                    })
-                    
-                    return response_data, status_code, headers
+                        response_data, status_code, headers = response
+                else:
+                    response_data = response
+                    status_code = 200
+                    headers = {}
+                
+                # Add expiration info headers
+                headers['X-Token-Expires-In'] = str(int(time_until_expiry))
+                
+                # Add warning if token expires soon (< 5 minutes)
+                if time_until_expiry < 300:
+                    headers['X-Token-Expires-Soon'] = 'true'
+                
+                return response_data, status_code, headers
             
             return response
             
