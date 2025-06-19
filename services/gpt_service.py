@@ -201,7 +201,7 @@ def generate_spurs(
         # Analyze images for conversation and profile context
         image_analysis = analyze_convo_for_context(images)
         
-        if image_analysis:
+        if image_analysis and len(image_analysis) > 0:
             context_block += "\n*** CONTEXT FOR CONVERSATION SCREENSHOTS (images): \n"
             for context_dict in image_analysis:
                 if isinstance(context_dict, dict):
@@ -226,15 +226,26 @@ def generate_spurs(
         context_block += ", but only as that information fits into and/or enrichs the Conversation"
     context_block += ". "
     
+    img_analysis_situation = ""
+    img_analysis_sit_confidence = 0
+    img_analysis_tone = ""
+    img_analysis_tone_confidence = 0
+
+    if len(image_analysis) > 0:
+        img_analysis_situation = (image_analysis[0].get('situation'))
+        img_analysis_sit_confidence = image_analysis[0].get('confidence_score', 0)
+        img_analysis_tone = (image_analysis[1].get('tone'))
+        img_analysis_tone_confidence = image_analysis[1].get('confidence_score', 0)
+                                   
     if situation or topic or tone or (image_analysis and len(image_analysis) > 0):
         context_block += "You should consider the "
-    if (situation and situation != "") or (image_analysis[0].get('situation') and image_analysis[0].get('confidence_score') != 0):
+    if (situation and situation != "") or (img_analysis_situation and img_analysis_situation):
         context_block += "situation"
     if (topic and topic != ""):
         if context_block.endswith("situation"):
             context_block += " and "
         context_block += "topic"
-    if (tone and tone != "") or (image_analysis[1].get('tone') and image_analysis[1].get('confidence_score') != 0):
+    if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != 0):
         if context_block.endswith("situation") or context_block.endswith("topic"):
             context_block += " and "
         context_block += "tone"
@@ -247,7 +258,7 @@ def generate_spurs(
     user_prompt = build_prompt(selected_spurs or [], context_block)
 
     # DEBUG
-    logger.error(f"LOG.INFO: Generating spurs for user {user_id} with context: {context_block}")
+    
 
     openai_client = get_openai_client()
     system_prompt = get_system_prompt()
