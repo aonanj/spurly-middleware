@@ -257,7 +257,6 @@ def generate_spurs(
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
 
-    # DEBUG
     
 
     openai_client = get_openai_client()

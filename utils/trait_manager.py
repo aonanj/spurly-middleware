@@ -30,7 +30,7 @@ def extract_json_block(text):
     match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
     if match:
         return match.group(1)
-    elif text.strip().startswith('{') and text.strip().endswith('}'):
+    elif (text.strip().startswith('{') and text.strip().endswith('}')) or (text.strip().startswith('[') and text.strip().endswith(']')):
         return text.strip()
 
     else:
