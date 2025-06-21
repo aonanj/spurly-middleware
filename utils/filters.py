@@ -59,7 +59,7 @@ def safe_filter(text: str) -> bool:
         return False
     if contains_blacklisted_phrase(text):
         err_point = __package__ or __name__
-        logger.error(f"Error in filters.safe_filter (2): {err_point}")
+        logger.error(f"Error in filters.safe_filter (2): {err_point}. Blacklisted phrase: {text}")
         return False
     if contains_expired_phrase(text):
         err_point = __package__ or __name__

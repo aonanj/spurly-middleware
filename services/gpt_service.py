@@ -223,7 +223,7 @@ def generate_spurs(
         context_block += " and the Connection Profile Context"
 
     if (conversation_messages and len(conversation_messages) > 0) or (images and len(images) > 0):
-        context_block += ", but only as that information fits into and/or enrichs the Conversation"
+        context_block += ", where that information might enrich or contribute to the Conversation"
     context_block += ". "
     
     img_analysis_situation = ""
@@ -256,7 +256,9 @@ def generate_spurs(
     context_block += "You should suggest only one Spur for only these Spur variants: \n"
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
-
+    
+    ## DEBUG
+    logger.error(f"LOG.INFO: User prompt for GPT generation: {user_prompt}")
     
 
     openai_client = get_openai_client()
@@ -299,9 +301,12 @@ def generate_spurs(
                     *image_parts
                     ]
                 }],
-                max_tokens=4000,
-                temperature=1.1 if attempt == 0 else 0.75,
+                max_tokens=8000,
+                temperature=1.2 if attempt == 0 else 0.75,
                 )
+            
+            #DEBUG
+            logger.error(f"LOG.INFO: OpenAI response for user {user_id} on attempt {attempt+1}: {response}")
             content = (response.choices[0].message.content or "") if response.choices else ""
             
             # Extract JSON from response
