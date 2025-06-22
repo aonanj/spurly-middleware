@@ -19,6 +19,7 @@ from services.connection_service import (
     get_top_n_traits,
     save_connection_profile
 )
+from utils.moderation import redact_flagged_sentences
 from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, upload_profile_image
 from utils.ocr_utils import perform_ocr_on_screenshot as perform_ocr
 from utils.trait_manager import infer_personality_traits_from_openai_vision
@@ -185,12 +186,18 @@ def create_connection():
             form_data = request.form.to_dict()
             logger.error(f"Form data received: {form_data}")  # Debug log for form data
         connection_profile_pic_url = form_data.get('connection_profile_pic_url', '')
-        form_data.update({'user_id': user_id})  # Ensure user_id is included in form data
+        form_data.update({'user_id': user_id})  
+        
+        connection_context_block = ""
+        if form_data.get('connection_context_block') and len(form_data.get('connection_context_block', '').strip()) > 0 and form_data.get('connection_context_block', '').strip() != "":
+            connection_context_block = redact_flagged_sentences(form_data['connection_context_block'])
+            
+        
         connection_data = {
             'user_id': user_id,
             'connection_name': form_data.get('connection_name', ''),
             'connection_age': form_data.get('connection_age', ''),
-            'connection_context_block': form_data.get('connection_context_block', '')
+            'connection_context_block': connection_context_block
         }
         logger.error(f"Connection data: {connection_data}")  # Debug log for connection data
         # Process profile content images (OCR)
@@ -348,7 +355,9 @@ def update_connection():
                     logger.error(f"Error processing profile pic: {e}", exc_info=True)
         
         # Get context block if provided
-        connection_context_block = form_data.get("connection_context_block", "").strip()
+        connection_context_block = ""
+        if form_data.get('connection_context_block') and len(form_data.get('connection_context_block', '').strip()) > 0 and form_data.get('connection_context_block', '').strip() != "":
+            connection_context_block = redact_flagged_sentences(form_data['connection_context_block'])
         
         # Update the profile
         result = update_connection_profile(
@@ -868,13 +877,15 @@ def create_connection_with_photos():
     connection_id = request.form.get('connection_id')
     
     
-    # Get form data
+    connection_context_block = ""
+    if request.form.get('connection_context_block') and len(request.form.get('connection_context_block', '').strip()) > 0 and request.form.get('connection_context_block', '').strip() != "":
+        connection_context_block = redact_flagged_sentences(request.form['connection_context_block'])
     connection_data = {
         'user_id': user_id,
         'connection_id': connection_id,
         'connection_name': request.form.get('connection_name'),
         'connection_age': request.form.get('connection_age'),
-        'connection_context_block': request.form.get('connection_context_block'),
+        'connection_context_block': connection_context_block,
        
     }
     

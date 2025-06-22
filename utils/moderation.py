@@ -15,6 +15,23 @@ BANNED_PHRASES = [
 GIBBERISH_PATTERN = re.compile(r"[^a-zA-Z0-9\s,.!?()'\"-]{3,}")
 TOO_MUCH_EMOJI = re.compile(r"[\U0001F600-\U0001F64F]{3,}")
 
+def redact_flagged_sentences(text: str) -> str:
+    sentences = _split_into_sentences(text)
+    redacted_sentences = []
+
+    for sentence in sentences:
+        try:
+            if _is_sentence_flagged(sentence):
+                redacted_sentences.append("")
+            else:
+                redacted_sentences.append(sentence)
+        except Exception as e:
+            # In case of rate limits or API errors, log and keep the sentence
+            redacted_sentences.append(sentence)
+
+    return ' '.join(redacted_sentences)
+
+
 def moderate_topic(text: str) -> dict:
     """
     Evaluates a topic string for safety.
@@ -61,3 +78,15 @@ def _is_moderated_safe_with_openai(text):
     except openai.APIError as e:
         logger.error(f"OpenAI API error: {e}")
         return False
+
+
+def _split_into_sentences(text):
+    # Simple regex-based splitter (can be replaced with nltk or spacy for more accuracy)
+    return re.split(r'(?<=[.!?])\s+', text.strip())
+
+
+def _is_sentence_flagged(sentence: str) -> bool:
+    client = get_openai_client()
+    resp = client.moderations.create(input=sentence)
+    return resp.results[0].flagged
+

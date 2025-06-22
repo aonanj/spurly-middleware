@@ -6,6 +6,7 @@ from flask import current_app
 from infrastructure.logger import get_logger
 from class_defs.profile_def import UserProfile
 from infrastructure.clients import get_firestore_db
+from utils.moderation import redact_flagged_sentences
 
 
 logger = get_logger(__name__)
@@ -145,7 +146,7 @@ def create_user(user_id: str,
         auth_provider_id=auth_provider_id,
         name=name,
         age=age,
-        user_context_block=user_context_block,
+        user_context_block=redact_flagged_sentences(user_context_block) if user_context_block else None,
         selected_spurs=selected_spurs
     )
     
@@ -212,7 +213,7 @@ def update_user(
             user.age = age
         
         if user_context_block is not None:
-            update_data.update({"user_context_block": user_context_block})
+            update_data.update({"user_context_block": redact_flagged_sentences(user_context_block)})
             user.user_context_block = user_context_block
         
         if selected_spurs is not None:
