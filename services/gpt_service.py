@@ -121,7 +121,8 @@ def generate_spurs(
     topic: Optional[str],
     selected_spurs: Optional[list[str]] = None,
     conversation_messages: Optional[List[Dict]] = None,
-    images: Optional[List[Dict]] = None,  # New parameter for images
+    conversation_images: Optional[List[Dict]] = None,  
+    profile_images: Optional[List[Dict]] = None
 ) -> list:
     """
     Generates spur responses based on the provided conversation context and profiles.
@@ -134,7 +135,8 @@ def generate_spurs(
         topic (str): A topic associated with the conversation.
         selected_spurs (list[str], optional): List of spur variants to generate/regenerate.
         conversation_messages (list[dict], optional): List of conversation messages.
-        images (list[dict], optional): List of images with 'data' (raw bytes of image), 'filename', and 'mime_type'.
+        conversation_images (list[dict], optional): List of images with 'data' (raw bytes of image), 'filename', and 'mime_type'.
+        profile_images (list[dict], optional): List of profile images with 'data' (raw bytes of image), 'filename', and 'mime_type'.
 
     Returns:
         List of generated Spur objects.
@@ -194,16 +196,16 @@ def generate_spurs(
             context_block += f" -Topic:  {topic}\n\n"
     
         # Process images if provided
-    image_analysis = []
-    if images and len(images) > 0:
-        logger.error(f"LOG INFO: Processing {len(images)} images for context analysis")
+    conversation_image_analysis = []
+    if conversation_images and len(conversation_images) > 0:
+        logger.error(f"LOG INFO: Processing {len(conversation_images)} images for context analysis")
         
         # Analyze images for conversation and profile context
-        image_analysis = analyze_convo_for_context(images)
+        conversation_image_analysis = analyze_convo_for_context(conversation_images)
         
-        if image_analysis and len(image_analysis) > 0:
+        if conversation_image_analysis and len(conversation_image_analysis) > 0:
             context_block += "\n*** CONTEXT FOR CONVERSATION SCREENSHOTS (images): \n"
-            for context_dict in image_analysis:
+            for context_dict in conversation_image_analysis:
                 if isinstance(context_dict, dict):
                     for k, v in context_dict.items():
                         if isinstance(v, (int, float)):
@@ -214,15 +216,18 @@ def generate_spurs(
 
     context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. You should suggest SPURs based on the"
     
-    if (conversation_messages and len(conversation_messages) > 0) or (images and len(images) > 0):
+    if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
         context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
+    
+    if(profile_images and len(profile_images) > 0):
+        context_block += " Profile Image(s) provided, as well as the"
     
     context_block += " context, including the User Profile Context"
     
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
         context_block += " and the Connection Profile Context"
 
-    if (conversation_messages and len(conversation_messages) > 0) or (images and len(images) > 0):
+    if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
         context_block += ", where that information might enrich or contribute to the Conversation"
     context_block += ". "
     
@@ -231,13 +236,13 @@ def generate_spurs(
     img_analysis_tone = ""
     img_analysis_tone_confidence = 0
 
-    if len(image_analysis) > 0:
-        img_analysis_situation = (image_analysis[0].get('situation'))
-        img_analysis_sit_confidence = image_analysis[0].get('confidence_score', 0)
-        img_analysis_tone = (image_analysis[1].get('tone'))
-        img_analysis_tone_confidence = image_analysis[1].get('confidence_score', 0)
+    if len(conversation_image_analysis) > 0:
+        img_analysis_situation = (conversation_image_analysis[0].get('situation'))
+        img_analysis_sit_confidence = conversation_image_analysis[0].get('confidence_score', 0)
+        img_analysis_tone = (conversation_image_analysis[1].get('tone'))
+        img_analysis_tone_confidence = conversation_image_analysis[1].get('confidence_score', 0)
                                    
-    if situation or topic or tone or (image_analysis and len(image_analysis) > 0):
+    if situation or topic or tone or (conversation_image_analysis and len(conversation_image_analysis) > 0):
         context_block += "You should consider the "
     if (situation and situation != "") or (img_analysis_situation and img_analysis_situation):
         context_block += "situation"
@@ -249,10 +254,10 @@ def generate_spurs(
         if context_block.endswith("situation") or context_block.endswith("topic"):
             context_block += " and "
         context_block += "tone"
-    if (images and len(images) > 0) or (conversation_messages and len(conversation_messages) > 0):
+    if (conversation_images and len(conversation_images) > 0) or (conversation_messages and len(conversation_messages) > 0):
         context_block += " of the Conversation"
     
-    context_block += " to inform your suggestions. \n"
+    context_block += " to inform your SPUR suggestions. \n"
     context_block += "You should suggest only one Spur for only these Spur variants: \n"
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
@@ -264,25 +269,40 @@ def generate_spurs(
     openai_client = get_openai_client()
     system_prompt = get_system_prompt()
     
-    image_parts = []
-    for image_data in images or []:
+    conversation_image_parts = []
+    for image_data in conversation_images or []:
         image_bytes = image_data.get("bytes")
         if not image_bytes:
-            logger.error("Skipping image due to missing bytes.")
+            logger.error("Skipping conversation image due to missing bytes.")
             continue
 
         resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
         base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
-        image_parts.append({
+        conversation_image_parts.append({
             "type": "image_url",
             "image_url": {
                 "url": f"data:image/jpeg;base64,{base64_image}"
             }
         })
 
-    if not image_parts:
-        logger.error("No valid images to process (gpt_service.py:generate_spurs).")
-        ##return []
+    if not conversation_image_parts:
+        logger.error("No valid conversation images to process (gpt_service.py:generate_spurs).")
+    
+    profile_image_parts = []
+    for image_data in profile_images or []:
+        image_bytes = image_data.get("bytes")
+        if not image_bytes:
+            logger.error("Skipping profile image due to missing bytes.")
+            continue
+
+        resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+        base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
+        profile_image_parts.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+        })
     
     if not openai_client:
         logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
@@ -298,8 +318,11 @@ def generate_spurs(
                         "role": "user", 
                         "content": [
                             {"type": "text", "text": user_prompt},
-                    *image_parts
-                    ]
+                            {"type": "text", "text": "The following images (if any) show the Conversation for which you are generating SPURs: "},
+                            *conversation_image_parts,
+                            {"type": "text", "text": "The following images (if any) show a section of the Connection's Profile: "},
+                            *profile_image_parts
+                        ]
                 }],
                 max_tokens=8000,
                 temperature=1.2 if attempt == 0 else 0.75,
@@ -366,7 +389,8 @@ def get_spurs_for_output(
     situation: str, 
     topic: str,
     conversation_messages: Optional[List[Dict]] = None,
-    images: Optional[List[Dict]] = None,  # New parameter
+    conversation_images: Optional[List[Dict]] = None,  
+    profile_images: Optional[List[Dict]] = None
 ) -> list:
     """
     Gets spurs that are formatted and content-filtered to send to the frontend. 
@@ -379,7 +403,8 @@ def get_spurs_for_output(
         situation (str): Situation context.
         topic (str): Topic of conversation.
         conversation_messages (list[dict], optional): List of conversation messages.
-        images (list[dict], optional): List of images with base64 data.
+        conversation_images (list[dict], optional): List of images with base64 data.
+        profile_images (list[dict], optional): List of profile images with base64 data.
     
     Returns:
         list: List of Spur objects ready for output.
@@ -398,7 +423,8 @@ def get_spurs_for_output(
         topic, 
         selected_spurs_from_profile,
         conversation_messages=conversation_messages,
-        images=images  # Pass images through
+        conversation_images=conversation_images,
+        profile_images=profile_images
     )
 
     counter = 0
@@ -419,7 +445,8 @@ def get_spurs_for_output(
             topic, 
             spurs_needing_regeneration,
             conversation_messages=conversation_messages,
-            images=images  # Pass images for regeneration too
+            conversation_images=conversation_images,
+            profile_images=profile_images  # Pass images for regeneration too
         )
         spurs = merge_spurs(spurs, fixed_spurs)
         spurs_needing_regeneration = spurs_to_regenerate(spurs)

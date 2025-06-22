@@ -29,7 +29,8 @@ def generate():
     - user_id (str, optional): If not provided, extracted from auth token.
     - connection_id (str, optional)
     - conversation_messages (JSON string, optional): List of message dicts with 'sender' and 'text'.
-    - images (files, optional): Multiple image files (message screenshots + profile screenshots)
+    - conversation_images (files, optional): Multiple image files from conversation screenshots
+    - profile_images (files, optional): Multiple image files from profile/info screenshots
     """
     # Check if request is multipart
 ##    if not request.content_type or 'multipart/form-data' not in request.content_type:
@@ -66,29 +67,42 @@ def generate():
             logger.error(f"Failed to parse conversation_messages JSON: {e}")
             return jsonify({'error': "Invalid conversation_messages JSON format"}), 400
     
-    # Process uploaded images
-    images = []
-    
-    if 'images' in request.files or request.files.getlist("images"):
-        image_files = request.files.getlist("images")
-        logger.info(f"Received {len(image_files)} images")
-        for idx, image_file in enumerate(image_files):
+    # Process conversation images
+    conversation_images = []
+    if 'conversation_images' in request.files:
+        convo_files = request.files.getlist('conversation_images')
+        logger.info(f"Received {len(convo_files)} conversation images")
+        for idx, image_file in enumerate(convo_files):
             if image_file and image_file.filename and allowed_file(image_file.filename):
                 try:
-                    # Read image data
                     image_data = image_file.read()
-                    images.append({
-                        'filename': image_file.filename or f'image_{idx}.jpg',
+                    conversation_images.append({
+                        'filename': image_file.filename or f'convo_{idx}.jpg',
                         'bytes': image_data,
-                        'mime_type': image_file.content_type or 'image/jpeg'
+                        'mime_type': image_file.content_type or 'image/jpeg',
+                        'type': 'conversation'
                     })
-                    
-                    # Option 2: Save to storage and pass URLs
-                    # url = save_image_to_storage(image_data, user_id, idx)
-                    # images.append({'url': url})
-                    
                 except Exception as e:
-                    logger.error(f"Error processing image {idx}: {e}")
+                    logger.error(f"Error processing conversation image {idx}: {e}")
+    
+    # Process profile images
+    profile_images = []
+    if 'profile_images' in request.files:
+        profile_files = request.files.getlist('profile_images')
+        logger.info(f"Received {len(profile_files)} profile images")
+        for idx, image_file in enumerate(profile_files):
+            if image_file and image_file.filename and allowed_file(image_file.filename):
+                try:
+                    image_data = image_file.read()
+                    profile_images.append({
+                        'filename': image_file.filename or f'profile_{idx}.jpg',
+                        'bytes': image_data,
+                        'mime_type': image_file.content_type or 'image/jpeg',
+                        'type': 'profile'
+                    })
+                except Exception as e:
+                    logger.error(f"Error processing profile image {idx}: {e}")
+    
     
     # Save conversation if messages provided
     if conversation_messages:
@@ -111,9 +125,10 @@ def generate():
         storage.save_conversation(conversation=conversation_obj)
     
     logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, "
-                f"conversation_id: '{conversation_id}', images: {len(images)}")
+                f"conversation_id: '{conversation_id}', conversation_images: {len(conversation_images)}, "
+                f"profile_images: {len(profile_images)}")
 
-    # Generate spurs with images
+    # Generate spurs with categorized images
     spur_objs = get_spurs_for_output(
         user_id=user_id,
         connection_id=connection_id,
@@ -121,7 +136,8 @@ def generate():
         situation=situation,
         topic=topic,
         conversation_messages=conversation_messages,
-        images=images  # Pass images to GPT service
+        conversation_images=conversation_images,
+        profile_images=profile_images
     )
   
     spurs = [spur.to_dict() for spur in spur_objs]
