@@ -6,6 +6,7 @@ from infrastructure.clients import get_firestore_db
 import time
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
+from infrastructure.adapters import extract_image_bytes_from_request
 from services.connection_service import (
     get_user_connections,
     set_active_connection_firestore,
@@ -78,7 +79,7 @@ def _process_image_file(file_obj: FileStorage, max_size: int,
     return image_bytes
 
 
-def _extract_image_bytes_from_request(field_name: str) -> List[bytes]:
+def extract_image_bytes_from_request(field_name: str) -> List[bytes]:
     """
     Extract image bytes from request, handling both file uploads and base64 data.
     
@@ -194,7 +195,7 @@ def create_connection():
         logger.error(f"Connection data: {connection_data}")  # Debug log for connection data
         # Process profile content images (OCR)
         profile_content_texts = []
-        content_images = _extract_image_bytes_from_request('profileContentImageBytes')
+        content_images = extract_image_bytes_from_request('profileContentImageBytes')
         
         for image_bytes in content_images:
             if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES:
@@ -213,7 +214,7 @@ def create_connection():
 
         # Process profile pictures (personality traits)
         personality_traits = []
-        pic_images_bytes = _extract_image_bytes_from_request('connectionPicsImageBytes')
+        pic_images_bytes = extract_image_bytes_from_request('connectionPicsImageBytes')
         image_data_list = []
 
         for image_bytes in pic_images_bytes:
@@ -303,7 +304,7 @@ def update_connection():
         if 'connectionProfileContent' in request.files or \
            (request.is_json and 'connectionProfileContent' in form_data):
             profile_content_texts = []
-            content_images = _extract_image_bytes_from_request('connectionProfileContent')
+            content_images = extract_image_bytes_from_request('connectionProfileContent')
             
             for image_bytes in content_images:
                 if not image_bytes or len(image_bytes) > MAX_PROFILE_CONTENT_IMAGE_SIZE_BYTES:
@@ -322,7 +323,7 @@ def update_connection():
         if 'connectionProfilePics' in request.files or \
            (request.is_json and 'connectionProfilePics' in form_data):
             personality_traits = []
-            pic_images = _extract_image_bytes_from_request('connectionProfilePics')
+            pic_images = extract_image_bytes_from_request('connectionProfilePics')
             
             for image_bytes in pic_images:
                 if not image_bytes or len(image_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
@@ -561,7 +562,7 @@ def analyze_connection_photos():
             return jsonify({"error": "Connection profile not found"}), 404
 
         # Extract image bytes from request (up to 4 images)
-        connection_photo_images = _extract_image_bytes_from_request('connection_photos')
+        connection_photo_images = extract_image_bytes_from_request('connection_photos')
         
         if not connection_photo_images:
             return jsonify({"error": "No photos provided"}), 400
@@ -883,7 +884,7 @@ def create_connection_with_photos():
     
     # Process OCR images
     try:
-        ocr_image_bytes = _extract_image_bytes_from_request('profileContentImageBytes')
+        ocr_image_bytes = extract_image_bytes_from_request('profileContentImageBytes')
         connection_profile_text = []
         for image_bytes in ocr_image_bytes:
             # Process each OCR image
@@ -896,7 +897,7 @@ def create_connection_with_photos():
     
     # Process profile images (store them)
     try:
-        profile_image_bytes = _extract_image_bytes_from_request('connectionPicsImageBytes')
+        profile_image_bytes = extract_image_bytes_from_request('connectionPicsImageBytes')
         connection_traits = []
         image_dict = []
         for image_bytes in profile_image_bytes:
