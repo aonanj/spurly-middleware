@@ -5,7 +5,7 @@ from typing import List, Dict, Optional
 from flask import request, g
 from flask import jsonify
 
-from logger import get_logger
+from .logger import get_logger
 
 logger = get_logger(__name__)
 
