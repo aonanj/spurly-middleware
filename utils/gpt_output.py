@@ -10,12 +10,16 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
     Parse GPT response into usable SPUR variants with safety filtering and fallbacks.
     """
     try:
+        user_id = user_profile.get("user_id")
+        
         # Step 1: Sanitize and parse JSON-like GPT output
         cleaned = gpt_response.strip('`\n ').replace("```json", "").replace("```", "")
         parsed = json.loads(cleaned)
+        
+        
 
         # Step 2: Check all expected fields are present
-        spur_keys = current_app.config['SPUR_VARIANTS']
+        spur_keys = user_profile.get("spur_variants", [])   
         fallback = parsed.get("warm_spur") or parsed.get("main_spur") or ""
         for key in spur_keys:
             if key not in parsed or not parsed.get(key):

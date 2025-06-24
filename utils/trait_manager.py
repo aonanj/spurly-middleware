@@ -4,10 +4,11 @@ from PIL import Image
 import io
 from infrastructure.clients import get_openai_client
 from infrastructure.logger import get_logger
+from utils.usage_tracker import track_openai_usage_manual, estimate_tokens_from_messages
 import json
 import base64
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 
 logger = get_logger(__name__)
@@ -41,7 +42,7 @@ def extract_json_block(text):
 
 
 
-def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     Infers personality traits from a list of images using a single OpenAI vision call.
 
@@ -49,6 +50,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
         image_files_data: A list of dictionaries, each containing:
             "bytes": Image content in bytes.
             "content_type": MIME type (e.g., "image/jpeg").
+        user_id: User ID for usage tracking (optional)
 
     Returns:
         A list of trait dictionaries like [{"trait": "Adventurous", "confidence": 0.95}, ...].
@@ -117,18 +119,45 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             }
             """
         
+        # Prepare messages for token estimation
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": [
+                *image_parts,
+                {"type": "text", "text": "Please infer five personality traits from the image or images provided."}
+            ]}
+        ]
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
         response = openai_client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": [
-                    *image_parts,
-                    {"type": "text", "text": "Please infer five personality traits from the image or images provided."}
-                ]}
-            ],
+            messages=messages,
             max_tokens=3000,
             temperature=0.5,
         )
+
+        # Track usage if user_id is provided
+        if user_id:
+            if hasattr(response, 'usage') and response.usage:
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    feature="trait_inference"
+                )
+            else:
+                # Fallback to estimation
+                estimated_completion_tokens = 500  # Conservative estimate for trait inference
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=estimated_prompt_tokens,
+                    completion_tokens=estimated_completion_tokens,
+                    feature="trait_inference"
+                )
 
         content = (response.choices[0].message.content or "").strip()
         json_parsed_content = extract_json_block(content)
@@ -163,34 +192,25 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             logger.error(f"Error processing OpenAI response for unknown image: {e}", exc_info=True)
 
     except Exception as e:
-        logger.error(f"Error during OpenAI trait inference for unknown image: {e}", exc_info=True)
-        # Continue to the next image if one fails
+        logger.error(f"Error in trait inference: {e}", exc_info=True)
 
     return []
 
-def infer_situation(conversation) -> dict:
+def infer_situation(conversation, user_id: Optional[str] = None) -> dict:
     """
-    Uses GPT to infer the messaging situation from a list of conversation turns.
-
-    Args:
-        conversation (list): [{"speaker": "user"|"other", "text": "..."}, ...]
-
-    Returns:
-        dict: {"situation": "cta_setup", "confidence": 0.89}
-    """
-
-    system_prompt = """
-    You are a conversation analyst. Your task is to infer the situational context or intent behind a given text message. Focus on what the sender is trying to accomplish in the conversation. This might include recovering from a misstep, shifting the topic, escalating or de-escalating intimacy, prompting action, testing interest, expressing vulnerability, or managing face. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges. Be attuned to subtext, indirect cues, and soft pivots.
+    Uses GPT to infer the likely conversational situation or intent behind a conversation.
     
-Valid situations:
-- "cold_open": The conversation is just starting, no context yet.
-- "recovery": The conversation has gone off track, possibly because the user said something unintentionally offensive or offputting, and the user is trying to get it back on track.
-- "follow_up_no_response": The user has sent a message but received no response, seemingly because the other person is not interested.
-- "cta_setup": The user is trying to set up a call to action (CTA) like a date or phone call.
-- "cta_response": The user has received a response to a CTA, like a date or phone call.
-- "message_refinement": The user is trying to refine a message they sent, possibly because it was misunderstood or not well received.
-- "topic_pivot": The user is trying to change the topic of conversation, possibly because the current topic is not going well.
-- "re_engagement": The user is trying to re-engage the other person after a lull in conversation.
+    Args:
+        conversation: Conversation object to analyze
+        user_id: User ID for usage tracking (optional)
+    
+    Returns:
+        dict: {"situation": "cold_open", "confidence": 0.85}
+    """
+    system_prompt = """You are an expert messaging assistant. Analyze the following message and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action, changing the subject, seeking validation, escalating or de-escalating intimacy, testing interest, etc.
+Respond ONLY with a JSON object like this:
+{"situation": "<situation>", "confidence": 0.85}. For example, if you infer the situation is "cold_open" with 85% confidence, you would respond:
+{"situation": "cold_open", "confidence": 0.85}.
 """
 
     prompt = f"""You're an expert messaging assistant. Analyze the following message and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action, changing the subject, seeking validation, escalating or de-escalating intimacy, testing interest, etc.
@@ -216,17 +236,45 @@ Conversation:
         return {"situation": "cold_open", "confidence": 0.0}
     
     try:
+        # Prepare messages for token estimation
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
         #DEBUG
         logger.error("DEBUG: trait_manager.infer_situation: Sending prompt to OpenAI: %s", prompt)
         response = openai_client.chat.completions.create(
             model="chatgpt-4o-latest",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-                ],
+            messages=messages,  # type: ignore
             max_tokens=3000,
             temperature=0.6
             )
+        
+        # Track usage if user_id is provided
+        if user_id:
+            if hasattr(response, 'usage') and response.usage:
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="chatgpt-4o-latest",
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    feature="situation_inference"
+                )
+            else:
+                # Fallback to estimation
+                estimated_completion_tokens = 200  # Conservative estimate for situation inference
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="chatgpt-4o-latest",
+                    prompt_tokens=estimated_prompt_tokens,
+                    completion_tokens=estimated_completion_tokens,
+                    feature="situation_inference"
+                )
+        
         content = (response.choices[0].message.content or "").strip()
         json_parsed_content = extract_json_block(content)
         return json.loads(json_parsed_content)
@@ -236,12 +284,13 @@ Conversation:
         return {"situation": "cold_open", "confidence": 0.0}
 
 
-def infer_tone(message):
+def infer_tone(message, user_id: Optional[str] = None):
     """
     Uses GPT to infer the tone of a single message with a confidence score.
 
     Args:
         message (str): The message to analyze.
+        user_id (str): User ID for usage tracking (optional)
 
     Returns:
         dict: {"tone": "warm", "confidence": 0.82}
@@ -272,17 +321,45 @@ Text Message:
     
     
     try:
+        # Prepare messages for token estimation
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
         #DEBUG
         logger.error("DEBUG: trait_manager.infer_tone: Sending prompt to OpenAI: %s", prompt)
         response = openai_client.chat.completions.create(
             model="chatgpt-4o-latest",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-                ],
+            messages=messages,  # type: ignore
             max_tokens=3000,
             temperature=0.5
             )
+        
+        # Track usage if user_id is provided
+        if user_id:
+            if hasattr(response, 'usage') and response.usage:
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="chatgpt-4o-latest",
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    feature="tone_inference"
+                )
+            else:
+                # Fallback to estimation
+                estimated_completion_tokens = 100  # Conservative estimate for tone inference
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="chatgpt-4o-latest",
+                    prompt_tokens=estimated_prompt_tokens,
+                    completion_tokens=estimated_completion_tokens,
+                    feature="tone_inference"
+                )
+        
         content = (response.choices[0].message.content or "").strip()
         json_parsed_content = extract_json_block(content)
         return json.loads(json_parsed_content)
@@ -291,101 +368,103 @@ Text Message:
         logger.error("[%s] Error in infer_tone decorator of trait_manager.py: %s", err_point, e)
         return {"tone": "neutral", "confidence": 0.0}
 
-def analyze_convo_for_context(images: List[Dict]) -> List[Dict]:
+def analyze_convo_for_context(images: List[Dict], user_id: Optional[str] = None) -> List[Dict]:
     """
-    Analyzes images to extract conversation context and profile information.
+    Analyzes conversation images for situation and tone context.
     
     Args:
-        images: List of dictionaries containing:
-            - 'data': raw bytes of image
-            - 'filename': Original filename
-            - 'mime_type': MIME type of the image
+        images: List of image dictionaries
+        user_id: User ID for usage tracking (optional)
     
     Returns:
-        List containing:
-            - Dict: 'situation': inferred situation (str), 
-                     'confidence_score': confidence score for the situation inference (float)
-            - Dict: 'tone': inferred tone of the other person (str),
-                     'confidence_score': confidence score for the tone inference (float)
-
+        List of context dictionaries
     """
-    empty_context = []
-    empty_context.append({"situation": "none", "confidence_score": 0.0})
-    empty_context.append({"tone": "none", "confidence_score": 0.0})
+    empty_context = [{"situation": "none", "tone": "none", "confidence": 0.0}]
     
     if not images:
         return empty_context
     
-    
-    image_parts = []
-    for image_data in images:
-        image_bytes = image_data.get("bytes")
-        if not image_bytes:
-            logger.error("Skipping image due to missing bytes.")
-            continue
-
-        resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
-        base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
-        image_parts.append({
-            "type": "image_url",
-            "image_url": {
-                "url": f"data:image/jpeg;base64,{base64_image}"
-            }
-        })
-
-    if not image_parts:
-        logger.error("No valid images to process.")
-        return empty_context
-
-        
-    # Create a prompt for analyzing the images
-    system_prompt = """
-    You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Analyze the accompanying image or images and extract the following information:
-
-        - Extract the conversation messages in order. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges, such as on dating apps or social media.
-        - Identify who is sending each message (user vs other person)
-        - Infer the situation of the conversation: Focus on what the user is trying to accomplish. This might include recovering from a misstep, shifting the topic, escalating or de-escalating intimacy, prompting action, testing interest, expressing vulnerability, or managing face. Be attuned to subtext, indirect cues, and soft pivots. Inferred situation should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference (lower values may be appropriate if the conversation is ambiguous or short). Example situations include: "cold_open", "recovery", "follow_up_no_response", "cta_setup", "cta_response", "message_refinement", "topic_pivot", "re_engagement". 
-        - Infer the tone of the other person, giving the greatest weight to the most recent message from the other person. Tone inference should be based on word choice, punctuation, style, and implicit emotional signals (e.g., emoji usage). The tone should be 1-2 words; examples include: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc.  Be attuned to subtext, indirect cues, and soft pivots. Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis should focus on the emotional intent behind the message, rather than its literal meaning. Inferred tone should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference.
-
-    
-    Format your response as a list of two JSON objects:
-    [
-        {
-            "situation": <inferred situation>,
-            "confidence_score": <0.XX> 
-        },
-        {
-            "tone": <inferred tone>,
-            "confidence_score": <0.XX>
-        }
-    ]
-
-    Your output must be strictly formatted as above. Do NOT include any text or characters outside of the JSON object. No explanations, no additional text, no markdown formatting. Just the JSON object.
-    """
-    
-    user_prompt = """
-    Here is/are the image/images of the conversation you should analyze. Please infer both situation and tone based on the images provided. Respond with a JSON object containing the inferred situation and tone, as described in the system prompt. If the images do not contain any conversation, you should return "none" for both situation and tone, with a confidence score of 0.0.
-    """
-        
-    openai_client = get_openai_client()
-    if not openai_client:
-        return empty_context
-    
     try:
+        image_parts = []
+        for image_data in images:
+            image_bytes = image_data.get("bytes")
+            if not image_bytes:
+                continue
+
+            resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+            base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
+            image_parts.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{base64_image}"
+                }
+            })
+
+        if not image_parts:
+            return empty_context
+
+        system_prompt = """You are an expert at analyzing conversation screenshots. Your task is to infer both the conversational situation and tone from the provided images. 
+
+For situation, consider: cold_open, recovery, escalation, de-escalation, call_to_action, subject_change, validation_seeking, etc.
+
+For tone, consider: warm, cool, playful, serious, defensive, open, closed, etc.
+
+Respond with a JSON object containing both situation and tone with confidence scores:
+{"situation": "<situation>", "tone": "<tone>", "confidence": 0.XX}
+
+If the images don't contain a conversation, return "none" for both with 0.0 confidence."""
+    
+        user_prompt = """
+        Here is/are the image/images of the conversation you should analyze. Please infer both situation and tone based on the images provided. Respond with a JSON object containing the inferred situation and tone, as described in the system prompt. If the images do not contain any conversation, you should return "none" for both situation and tone, with a confidence score of 0.0.
+        """
+        
+        openai_client = get_openai_client()
+        if not openai_client:
+            return empty_context
+        
+        # Prepare messages for token estimation
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user", 
+                "content": [
+                    {"type": "text", "text": user_prompt},
+                    *image_parts
+                ]
+            }
+        ]
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
         response = openai_client.chat.completions.create(
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user", 
-                    "content": [
-                        {"type": "text", "text": user_prompt},
-                 *image_parts
-                ]
-            }],
+            messages=messages,
             max_tokens=3000,
             temperature=0.5
             )
+        
+        # Track usage if user_id is provided
+        if user_id:
+            if hasattr(response, 'usage') and response.usage:
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    feature="conversation_analysis"
+                )
+            else:
+                # Fallback to estimation
+                estimated_completion_tokens = 300  # Conservative estimate for conversation analysis
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=estimated_prompt_tokens,
+                    completion_tokens=estimated_completion_tokens,
+                    feature="conversation_analysis"
+                )
+        
         content = (response.choices[0].message.content or "")
         
         # Extract JSON from response

@@ -71,7 +71,7 @@ class Config:
         "main_spur": "Natural, charismatic, confident, open, friendly. Prioritize fluid conversation and approachability.",
         "warm_spur": "Kind, inviting, sincere, lightly humorous. Emphasize receptiveness and warmth.",
         "cool_spur": "Dry humor, clever, smooth, low-key, chill, lightly ironic. Emphasize ease, calm confidence, or witty restraint.",
-        "banter_spur": "Energetic, teasing, engaging, flirtatious, humorous, joking, good-natured teasing, occasionally flirty. Use fun language and soft banter—respect boundaries, but keep the conversation going."
+        "banter_spur": "Energetic, engaging, flirtatious, humorous, joking, good-natured teasing. Use fun language and soft banter—respect boundaries, but keep the conversation going."
     }
 
     

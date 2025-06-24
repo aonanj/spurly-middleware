@@ -14,6 +14,7 @@ from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt
 from utils.trait_manager import infer_tone, infer_situation, analyze_convo_for_context, downscale_image_from_bytes, extract_json_block
 from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
+from utils.usage_tracker import track_openai_usage, track_openai_usage_manual, estimate_tokens_from_messages
 
 
 logger = get_logger(__name__)
@@ -113,6 +114,7 @@ def merge_spurs(original_spurs: list, regenerated_spurs: list) -> list:
 
     return merged_spurs
 
+@track_openai_usage('spur_generation')
 def generate_spurs(
     user_id: str,
     connection_id: Optional[str],
@@ -310,22 +312,49 @@ def generate_spurs(
     
     for attempt in range(3):  # 1 initial + 2 retries
         try:
+            # Prepare messages for token estimation
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user", 
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                        {"type": "text", "text": "The following images (if any) show the Conversation for which you are generating SPURs: "},
+                        *conversation_image_parts,
+                        {"type": "text", "text": "The following images (if any) show a section of the Connection's Profile: "},
+                        *profile_image_parts
+                    ]
+                }
+            ]
+            
+            # Estimate tokens for manual tracking
+            estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+            
             response = openai_client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user", 
-                        "content": [
-                            {"type": "text", "text": user_prompt},
-                            {"type": "text", "text": "The following images (if any) show the Conversation for which you are generating SPURs: "},
-                            *conversation_image_parts,
-                            {"type": "text", "text": "The following images (if any) show a section of the Connection's Profile: "},
-                            *profile_image_parts
-                        ]
-                }],
+                messages=messages,
                 max_tokens=8000,
                 temperature=1.2 if attempt == 0 else 0.75,
+                )
+            
+            # Manual usage tracking since decorator might not capture all details
+            if hasattr(response, 'usage') and response.usage:
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=response.usage.prompt_tokens,
+                    completion_tokens=response.usage.completion_tokens,
+                    feature="spur_generation"
+                )
+            else:
+                # Fallback to estimation
+                estimated_completion_tokens = 1000  # Conservative estimate for spur generation
+                track_openai_usage_manual(
+                    user_id=user_id,
+                    model="gpt-4o",
+                    prompt_tokens=estimated_prompt_tokens,
+                    completion_tokens=estimated_completion_tokens,
+                    feature="spur_generation"
                 )
             
             #DEBUG

@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, g, current_app
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -243,7 +242,7 @@ def create_connection():
         # Make a single, efficient call to the AI model if there are any valid images
         if image_data_list:
             try:
-                trait_list = infer_personality_traits_from_openai_vision(image_data_list)
+                trait_list = infer_personality_traits_from_openai_vision(image_data_list, user_id)
                 if trait_list:
                     # The function now returns the list directly in the desired format
                     personality_traits = trait_list
@@ -612,7 +611,7 @@ def analyze_connection_photos():
             
             if image_data_list:
                 # Analyze all images for personality traits
-                trait_results = infer_personality_traits_from_openai_vision(image_data_list)
+                trait_results = infer_personality_traits_from_openai_vision(image_data_list, user_id)
                 if trait_results:
                     personality_traits = trait_results
                     logger.error(f"LOG.INFO: Analyzed {len(image_data_list)} photos and extracted {len(personality_traits)} traits")

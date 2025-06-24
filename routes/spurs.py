@@ -67,6 +67,7 @@ def save_spur_bp():
     data = request.get_json()
     user_id = getattr(g, "user_id", None)
     if not user_id:
+        user_id = data.get("user_id", None)
         if not user_id:
             user_id = current_app.config.get("user_id", None)
             if not user_id:
@@ -82,15 +83,17 @@ def save_spur_bp():
 @handle_all_errors
 @verify_token
 def delete_saved_spurs_bp():
+    
+    data = request.get_json()
     user_id = getattr(g, "user_id", None)
-
     if not user_id:
+        user_id = data.get("user_id", None)
         if not user_id:
             user_id = current_app.config.get("user_id", None)
             if not user_id:
                 return jsonify({"error": "Authentication error"}), 401
     
-    data = request.get_json()
+    
     spur_id = data.get("spur_id")
     if not spur_id:
         err_point = __package__ or __name__
