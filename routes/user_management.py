@@ -1,10 +1,18 @@
 from flask import Blueprint, request, jsonify, g, current_app
+import re
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
-from services.user_service import update_user_profile, get_user, get_selected_spurs, update_spur_preferences
+from services.user_service import update_user_profile, get_user, get_selected_spurs, update_spur_preferences, update_user
 
 user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
+
+
+EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
+def validate_email(email: str) -> bool:
+    """Validate email format"""
+    return bool(EMAIL_REGEX.match(email))
 
 @user_management_bp.route("/user", methods=["POST"])
 @handle_all_errors
@@ -111,6 +119,45 @@ def update_selected_spurs_bp():
             }), 200
         
         return jsonify({"message": "No spurs selected"}), 200
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
+@user_management_bp.route("/update-email", methods=["POST"])
+@handle_all_errors
+@verify_token
+def update_email_bp():
+    
+    if request.is_json:
+        form_data = request.get_json()
+    else:
+        form_data = request.form.to_dict()
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = form_data.get("user_id", None)
+            if not user_id:
+                user_id = current_app.config.get("user_id", None)
+                if not user_id:
+                    err_point = __package__ or __name__
+                    logger.error(f"Error: User ID is None in {err_point}")
+                    return jsonify({"error": f"[{err_point}] - Error"}), 400
+        
+        updated_email = ""
+        if "updated_email" in form_data and isinstance(form_data.get("updated_email"), str):
+            updated_email = form_data.get("updated_email", "")
+            
+        if validate_email(updated_email):
+            updated_user_profile = update_user(user_id=user_id, email=updated_email)
+            setattr(g, "email", updated_email)
+            
+            return jsonify({
+                "user_id": updated_user_profile.user_id,
+                "email:": updated_user_profile.email,
+            }), 200
+        
+        return jsonify({"message": "updated email not provided"}), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
