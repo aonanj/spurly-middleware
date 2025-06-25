@@ -82,29 +82,34 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
             raise AuthError("Invalid token header")
         
         # Get Google's public keys
-        public_keys = get_google_public_keys()
-        
-        #DEBUG
-        logger.error(f"LOG INFO: Unverified header: {unverified_header}")
-        logger.error(f"LOG INFO: Public keys: {public_keys}")
-        logger.error(f"LOG INFO: Key ID: {unverified_header['kid']}")
+        public_keys_response = get_google_public_keys()
+
         
         # Find the key that matches
         key_id = unverified_header['kid']
-        if key_id not in public_keys:
-            # Clear cache and retry once
-            get_google_public_keys.cache_clear()
-            public_keys = get_google_public_keys()
-            if key_id not in public_keys:
-                raise AuthError("Token signing key not found")
         
-        # Get the public key
-        public_key = public_keys[key_id]
+        matching_key = None
+        for key in public_keys_response.get('keys', []):
+            if key.get('kid') == key_id:
+                matching_key = key
+                break
+        
+        if not matching_key:
+            get_google_public_keys.cache_clear()
+            public_keys_response = get_google_public_keys()
+            for key in public_keys_response.get('keys', []):
+                if key.get('kid') == key_id:
+                    matching_key = key
+                    break
+                
+        if not matching_key:
+            raise AuthError("Token signing key not found")
+        
         
         # Decode and verify the token
         decoded_token = jwt.decode(
             id_token,
-            public_key,
+            matching_key,
             algorithms=['RS256'],
             audience=current_app.config.get('GOOGLE_CLIENT_ID'),
             options={"verify_exp": True}
