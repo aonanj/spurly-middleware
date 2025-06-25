@@ -364,15 +364,12 @@ def generate_spurs(
             # Extract JSON from response
             json_parsed_content = extract_json_block(content)
 
-            gpt_parsed_filtered_output = parse_gpt_output(
+            validated_output = parse_gpt_output(
                 json_parsed_content, 
                 user_profile_dict, 
                 connection_profile.to_dict() if connection_profile else {}
             )
-            
-            variant_keys = user.selected_spurs
-            validated_output = validate_and_normalize_output(gpt_parsed_filtered_output, variant_keys)
-            
+                    
             spur_objects = []
             
             if user_profile_dict.get("user_id"):
@@ -380,7 +377,7 @@ def generate_spurs(
             else:
                 user_id = ""
 
-            for variant in variant_keys:
+            for variant in validated_output:
                 spur_text: str = validated_output.get(variant, "")
                 if spur_text:
                     spur_objects.append(

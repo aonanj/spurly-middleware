@@ -36,7 +36,9 @@ COMMON_PHRASES = [
     "hope you're doing well",
     "circling back",
     "just wanted to touch base",
-    "how are you doing"
+    "how are you doing",
+    "getting to know you",
+    "get to know you"
 ]
 
 def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
