@@ -6,10 +6,23 @@ load_dotenv()
 
 class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "spurly-default-key")
+    
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+    
     APP_OATH_KEY = os.environ.get("APP_OATH_KEY", "")
+    
     APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "")
+    APPLE_BUNDLE_ID = os.environ.get("APPLE_BUNDLE_ID", "")
+    
     GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_REVERSED_CLIENT_ID = os.environ.get("GOOGLE_REVERSED_CLIENT_ID", "")
+    GCS_PROFILE_PICS_BUCKET = os.environ.get("GCS_PROFILE_PICS_BUCKET", "boreal-sweep-455716-a5.firebasestorage.app")
+    GOOGLE_PROJECT_ID = os.environ.get("GOOGLE_PROJECT_ID", "boreal-sweep-455716-a5")
+    
+    FACEBOOK_CLIENT_TOKEN = os.environ.get("FACEBOOK_CLIENT_TOKEN", "")
+    FACEBOOK_APP_SECRET = os.environ.get("FACEBOOK_APP_SECRET", "")
+    FACEBOOK_APP_ID = os.environ.get("FACEBOOK_APP_ID", "")
+    
     
     _vision_creds_path = os.environ.get("GOOGLE_CLOUD_VISION_CREDS")
     if _vision_creds_path:
@@ -43,7 +56,7 @@ class Config:
         _vertex_creds = {}
     GOOGLE_CLOUD_VERTEX_API_KEY = _vertex_creds.get("private_key", "")
 
-    GCS_PROFILE_PICS_BUCKET = os.environ.get("GCS_PROFILE_PICS_BUCKET", "boreal-sweep-455716-a5.firebasestorage.app")
+    
 
     ## Algolia credentials
     ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
@@ -51,9 +64,6 @@ class Config:
     ALGOLIA_CONVERSATIONS_INDEX = os.getenv("ALGOLIA_CONVERSATIONS_INDEX", "conversations")
     ALGOLIA_SEARCH_RESULTS_LIMIT = os.getenv("ALGOLIA_SEARCH_RESULTS_LIMIT", 20)
     ALGOLIA_WRITE_API_KEY = os.getenv("ALGOLIA_WRITE_API_KEY", "")
-
-
-    
 
     ENABLE_AUTH = os.environ.get("ENABLE_AUTH", "True").lower() == "true"
     
@@ -96,7 +106,7 @@ class Config:
 
     LOGGER_LEVEL = os.environ.get("LOGGER_LEVEL", "INFO")
     
-    AI_MODEL = "chatgpt-4o-latest"
+    AI_MODEL = "gpt-4o"
     AI_MESSAGES_ROLE_SYSTEM = "system"
     AI_MESSAGES_ROLE_USER = "user"
     AI_TEMPERATURE_INITIAL = 0.9
