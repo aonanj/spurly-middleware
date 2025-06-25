@@ -217,7 +217,7 @@ def update_user(
             user.user_context_block = user_context_block
         
         if selected_spurs is not None:
-            update_data.update({"selected_spurs": ", ".join(selected_spurs)})
+            update_data.update({"selected_spurs": selected_spurs})
             user.selected_spurs = selected_spurs
         
         if email is not None:
