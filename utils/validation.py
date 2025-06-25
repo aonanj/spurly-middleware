@@ -1,29 +1,30 @@
 from class_defs.spur_def import Spur
 from flask import current_app
 
-def validate_and_normalize_output(spur_dict):
+def validate_and_normalize_output(spur_dict, variants):
     """
     Ensures all 4 SPUR types are present and safe. Substitutes missing or invalid values
     with warm_spur. Also trims whitespace and truncates excessively long messages.
     """
     fallback = " "
-    if spur_dict.get("warm_spur", ""):
+    if "warm_spur" in spur_dict:
         fallback = spur_dict.get("warm_spur", "").strip()
-    elif spur_dict.get("main_spur", ""):
+    elif "main_spur" in spur_dict:
         fallback = spur_dict.get("main_spur", "").strip()
-    elif spur_dict.get("cool_spur", ""):
+    elif "cool_spur" in spur_dict:
         fallback = spur_dict.get("cool_spur", "").strip()
-    elif spur_dict.get("banter_spur", ""):
+    elif "banter_spur" in spur_dict:
         fallback = spur_dict.get("banter_spur", "").strip()
-        
-    validated = {}
 
-    for key in current_app.config['SPUR_VARIANTS']:
-        value = spur_dict.get(key, "").strip()
-        if not value or not isinstance(value, str) or len(value) > 300:
-            validated[key] = fallback
+    validated = {}
+    
+
+    for variant in variants:
+        value = spur_dict.get(variant, "").strip()
+        if not value or not isinstance(value, str) or len(value) > 1000:
+            validated[variant] = fallback
         else:
-            validated[key] = value
+            validated[variant] = value
 
     return validated
 

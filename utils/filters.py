@@ -77,15 +77,16 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
     Run filtering logic over all SPUR variants and apply fallback if unsafe.
     This should be run in the GPT output parsing pipeline before rendering.
     """
+
     fallback = " "
-    if variants.get("main_spur", ""):
-        fallback = variants.get("main_spur", "")
-    elif variants.get("warm_spur", ""):
-        fallback = variants.get("warm_spur", "")
-    elif variants.get("cool_spur", ""):
-        fallback = variants.get("cool_spur", "")
-    elif variants.get("banter_spur", ""):
-        fallback = variants.get("banter_spur", "")
+    if "warm_spur" in variants:
+        fallback = variants.get("warm_spur", "").strip()
+    elif "main_spur" in variants:
+        fallback = variants.get("main_spur", "").strip()
+    elif "cool_spur" in variants:
+        fallback = variants.get("cool_spur", "").strip()
+    elif "banter_spur" in variants:
+        fallback = variants.get("banter_spur", "").strip()
     
     output = {}
 

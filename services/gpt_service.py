@@ -369,17 +369,18 @@ def generate_spurs(
                 user_profile_dict, 
                 connection_profile.to_dict() if connection_profile else {}
             )
-            validated_output = validate_and_normalize_output(gpt_parsed_filtered_output)
+            
+            variant_keys = user.selected_spurs
+            validated_output = validate_and_normalize_output(gpt_parsed_filtered_output, variant_keys)
             
             spur_objects = []
-            variant_keys = current_app.config.get('SPUR_VARIANT_ID_KEYS', {})
             
             if user_profile_dict.get("user_id"):
                 user_id = user_profile_dict["user_id"]           
             else:
                 user_id = ""
 
-            for variant, _id_key in variant_keys.items():
+            for variant in variant_keys:
                 spur_text: str = validated_output.get(variant, "")
                 if spur_text:
                     spur_objects.append(
