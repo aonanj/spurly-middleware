@@ -84,6 +84,11 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
         # Get Google's public keys
         public_keys = get_google_public_keys()
         
+        #DEBUG
+        logger.error(f"LOG INFO: Unverified header: {unverified_header}")
+        logger.error(f"LOG INFO: Public keys: {public_keys}")
+        logger.error(f"LOG INFO: Key ID: {unverified_header['kid']}")
+        
         # Find the key that matches
         key_id = unverified_header['kid']
         if key_id not in public_keys:
