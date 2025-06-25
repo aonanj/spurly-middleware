@@ -52,7 +52,10 @@ COMMON_PHRASES = [
     "look forward to",
     "you seem like",
     "you look like",
-    "you strike me as"
+    "you strike me as",
+    "nice chatting",
+    "you strike me as",
+    "nice talking",
 ]
 
 def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
