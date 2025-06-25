@@ -4,12 +4,24 @@ import re
 
 # === Phrase Blacklists and Regex ===
 BLACKLISTED_PHRASES = [
-    "Challenge accepted",
-    "Sorry not sorry",
-    "Netflix and chill",
-    "Roast me",
-    "Literally dying"
-    # Expand with others as needed
+    "challenge accepted",
+    "sorry not sorry",
+    "netflix and chill",
+    "roast me",
+    "literally dying", 
+    "i can't even",
+    "yolo",
+    "fomo",
+    "epic fail",
+    "bling bling",
+    "flossy",
+    "vibes are immaculate",
+    "vibe check",
+    "slay queen",
+    "on fleek",
+    "cool beans",
+    "what she said",
+    "hot take"
 ]
 
 logger = get_logger(__name__)

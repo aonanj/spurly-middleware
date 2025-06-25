@@ -33,12 +33,26 @@ COMMON_PHRASES = [
     "let me know what you think",
     "just checking in",
     "just wanted to follow up",
+    "just following up",
+    "just wanted to reach out",
+    "just wanted to check in",
+    "just wanted to see",
     "hope you're doing well",
     "circling back",
     "just wanted to touch base",
     "how are you doing",
     "getting to know you",
-    "get to know you"
+    "get to know you",
+    "just wanted to say",
+    "just wanted to share",
+    "just wanted to let you know",
+    "nice to meet you",
+    "nice meeting you",
+    "looking forward to hearing from you",
+    "look forward to",
+    "you seem like",
+    "you look like",
+    "you strike me as"
 ]
 
 def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
