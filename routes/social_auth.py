@@ -105,11 +105,16 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
         if not matching_key:
             raise AuthError("Token signing key not found")
         
+        rsa_public_key: RSAPublicKey = _jwk_to_rsa_public_key(matching_key)
+        public_key_pem = rsa_public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode('utf-8')
         
         # Decode and verify the token
         decoded_token = jwt.decode(
             id_token,
-            matching_key,
+            public_key_pem,
             algorithms=['RS256'],
             audience=current_app.config.get('GOOGLE_CLIENT_ID'),
             options={"verify_exp": True}
