@@ -1,9 +1,8 @@
 import base64
 from datetime import datetime, timezone
-from flask import current_app
 import openai
 from typing import Optional, Dict, List
-from class_defs.profile_def import ConnectionProfile, UserProfile
+from class_defs.profile_def import ConnectionProfile
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_openai_client
@@ -13,7 +12,7 @@ from services.user_service import get_user
 from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt
 from utils.trait_manager import infer_tone, infer_situation, analyze_convo_for_context, downscale_image_from_bytes, extract_json_block
-from utils.validation import validate_and_normalize_output, classify_confidence, spurs_to_regenerate
+from utils.validation import classify_confidence, spurs_to_regenerate
 from utils.usage_tracker import track_openai_usage, track_openai_usage_manual, estimate_tokens_from_messages
 
 
@@ -306,22 +305,24 @@ def generate_spurs(
         logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
         return []
     
+    user_content = [
+        {"type": "text", "text": user_prompt}
+    ]
+    if conversation_image_parts and  len(conversation_image_parts) > 0:
+        user_content.append({"type": "text", "text": "The following images show the Conversation for which you are generating SPURs: "})
+        user_content.extend(conversation_image_parts)
+        
+    if profile_image_parts and len(profile_image_parts) > 0:
+        user_content.append({"type": "text", "text": "The following images show a section of the Connection's Profile: "})
+        user_content.extend(profile_image_parts)
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content}
+    ]
+    
     for attempt in range(3):  # 1 initial + 2 retries
         try:
-            # Prepare messages for token estimation
-            messages = [
-                {"role": "system", "content": system_prompt},
-                {
-                    "role": "user", 
-                    "content": [
-                        {"type": "text", "text": user_prompt},
-                        {"type": "text", "text": "The following images (if any) show the Conversation for which you are generating SPURs: "},
-                        *conversation_image_parts,
-                        {"type": "text", "text": "The following images (if any) show a section of the Connection's Profile: "},
-                        *profile_image_parts
-                    ]
-                }
-            ]
             
             # Estimate tokens for manual tracking
             estimated_prompt_tokens = estimate_tokens_from_messages(messages)
@@ -357,40 +358,56 @@ def generate_spurs(
             logger.error(f"LOG.INFO: OpenAI response for user {user_id} on attempt {attempt+1}: {response}")
             content = (response.choices[0].message.content or "") if response.choices else ""
             
-            # Extract JSON from response
-            json_parsed_content = extract_json_block(content)
-
-            validated_output = parse_gpt_output(
-                json_parsed_content, 
-                user_profile_dict, 
-                connection_profile.to_dict() if connection_profile else {}
-            )
-                    
             spur_objects = []
             
-            if user_profile_dict.get("user_id"):
-                user_id = user_profile_dict["user_id"]           
-            else:
-                user_id = ""
-
-            for variant in validated_output:
-                spur_text: str = validated_output.get(variant, "")
-                if spur_text:
+            if selected_spurs and (not content or ("I can't assist with that" in content) or ("I can't help with that" in content) or ("unable to process your request" in content)):
+                for  variant in selected_spurs:
                     spur_objects.append(
                         Spur(
                             user_id=user_profile_dict.get("user_id", ""), 
-                            spur_id=generate_spur_id(user_id), 
+                            spur_id=generate_spur_id(user_profile_dict.get("user_id", "")), 
                             conversation_id=conversation_id or "",
                             connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id") if connection_profile else "",
                             situation=situation or "",
                             topic=topic or "",
-                            variant=variant or "",
+                            variant=variant,
                             tone=tone or "",
-                            text=spur_text or "",
+                            text="",
                             created_at=datetime.now(timezone.utc),
                         )
                     )
-            if spur_objects:
+            else:
+                json_parsed_content = extract_json_block(content)
+
+                validated_output = parse_gpt_output(
+                    json_parsed_content, 
+                    user_profile_dict, 
+                    connection_profile.to_dict() if connection_profile else {}
+                )
+                
+                if user_profile_dict.get("user_id"):
+                    user_id = user_profile_dict["user_id"]           
+                else:
+                    user_id = ""
+
+                for variant in validated_output:
+                    spur_text: str = validated_output.get(variant, "")
+                    if spur_text:
+                        spur_objects.append(
+                            Spur(
+                                user_id=user_profile_dict.get("user_id", ""), 
+                                spur_id=generate_spur_id(user_id), 
+                                conversation_id=conversation_id or "",
+                                connection_id=ConnectionProfile.get_attr_as_str(connection_profile, "connection_id") if connection_profile else "",
+                                situation=situation or "",
+                                topic=topic or "",
+                                variant=variant or "",
+                                tone=tone or "",
+                                text=spur_text or "",
+                                created_at=datetime.now(timezone.utc),
+                            )
+                        )
+            if spur_objects and len(spur_objects) > 0:
                 return spur_objects
 
         except openai.APIError as e:

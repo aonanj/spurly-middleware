@@ -73,6 +73,8 @@ def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
         message = getattr(spur, "text", "").lower()
         if any(phrase in message for phrase in COMMON_PHRASES):
             spurs_to_retry.append(spur.variant)
+        elif message == "" or message.isspace():
+            spurs_to_retry.append(spur.variant) 
     return spurs_to_retry
 
 CONFIDENCE_THRESHOLDS = {
