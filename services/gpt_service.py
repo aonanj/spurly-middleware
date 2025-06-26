@@ -160,6 +160,7 @@ def generate_spurs(
 
     # Initialize context_block first
     context_block = "*** USER PROFILE CONTEXT:\n"
+    context_block += "(This is a summary about the user for whom you are generating SPURs. Use this to understand the user's personality, interests, and preferences so that your generated SPURs are more natural to the user. But don't assume that anything in the User Profile Context is interesting to or likely to grab the attention of the Connection.)\n"
     user_prompt_profile = get_user_profile_for_prompt(user_id)
     context_block += "\n".join(user_prompt_profile.values()) + "\n"
     
@@ -171,7 +172,7 @@ def generate_spurs(
     tone = None
     if conversation_messages and len(conversation_messages) > 0:
         tone_info = {}
-        context_block += "\n*** USER-PROVIDED CONVERSATION: \n"
+        context_block += "\n*** TEXT CONVERSATION: \n"
         if not conversation_id:
             conversation_id = generate_conversation_id(user_id)
         i = 1
@@ -191,7 +192,7 @@ def generate_spurs(
                 context_block += f" *** Situation:  {situation}\n"
 
     if (situation or topic) and (situation != "" or topic != ""):
-        context_block += "\n*** USER-PROVIDED CONVERSATION CONTEXT (overrides): \n"
+        context_block += "\n*** USER-PROVIDED CONVERSATION CONTEXT (overrides inferred): \n"
         if situation and situation != "":
             context_block += f" -Situation:  {situation}\n"
         if topic and topic != "":
@@ -202,8 +203,6 @@ def generate_spurs(
     if conversation_images and len(conversation_images) > 0:
         # Analyze images for conversation and profile context
         conversation_image_analysis = analyze_convo_for_context(conversation_images)
-        ## DEBUG
-        logger.error(f"LOG INFO: Conversation Image Analysis: {conversation_image_analysis}")
         
         if conversation_image_analysis and len(conversation_image_analysis) > 0:
             context_block += "\n*** CONTEXT FOR CONVERSATION SCREENSHOTS (images): \n"
@@ -215,48 +214,41 @@ def generate_spurs(
                         else:
                             v_str = str(v)
                         context_block += f" - {k}: {v_str}"
-        
-        ## DEBUG
-        logger.error(f"LOG INFO: CONTEXT BLOCK: {context_block}")
-        logger.error(f"LOG INFO: Conversation Image Analysis Length: {len(conversation_image_analysis)}")
-        logger.error(f"LOG INFO: Conversation Image Analysis: {conversation_image_analysis}")
 
-    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. You should suggest SPURs based on the"
+    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs based on the"
     
     if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
         context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
     
     if(profile_images and len(profile_images) > 0):
-        context_block += " Profile Image(s) provided, as well as the"
+        context_block += " Profile Image(s) provided"
     
-    context_block += " context, including the User Profile Context"
     
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
         context_block += " and the Connection Profile Context"
 
     if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
-        context_block += ", where that information might enrich or contribute to the Conversation"
-    context_block += ". "
+        context_block += " , where that information can be used to enrich or contribute to the Conversation -- keeping in mind the"
+    context_block += " fundamental goal of steadily growing the Connection's interest in and desire for the User. "
     
     img_analysis_situation = ""
     img_analysis_tone = ""
-    img_analysis_tone_confidence = 0
 
     if len(conversation_image_analysis) > 0:
-        img_analysis_situation = (conversation_image_analysis[0].get('situation'))
-        img_analysis_sit_confidence = conversation_image_analysis[0].get('confidence_score', 0)
-        img_analysis_tone = (conversation_image_analysis[1].get('tone'))
-        img_analysis_tone_confidence = conversation_image_analysis[1].get('confidence_score', 0)
+        if conversation_image_analysis[0].get('confidence', 0) > 0.3:
+            img_analysis_situation = (conversation_image_analysis[0].get('situation'))
+        if conversation_image_analysis[1].get('confidence', 0) > 0.3:
+            img_analysis_tone = (conversation_image_analysis[1].get('tone'))
                                    
     if situation or topic or tone or (conversation_image_analysis and len(conversation_image_analysis) > 0):
-        context_block += "You should consider the "
-    if (situation and situation != "") or (img_analysis_situation and img_analysis_situation):
+        context_block += "You further should consider the "
+    if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
         context_block += "situation"
     if (topic and topic != ""):
         if context_block.endswith("situation"):
             context_block += " and "
         context_block += "topic"
-    if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != 0):
+    if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
         if context_block.endswith("situation") or context_block.endswith("topic"):
             context_block += " and "
         context_block += "tone"
@@ -264,7 +256,7 @@ def generate_spurs(
         context_block += " of the Conversation"
     
     context_block += " to inform your SPUR suggestions. \n"
-    context_block += "You should suggest only one Spur for only these Spur variants: \n"
+    context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
     

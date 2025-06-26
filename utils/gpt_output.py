@@ -1,4 +1,4 @@
-from .filters import apply_phrase_filter, apply_tone_overrides
+from .filters import apply_phrase_filter, apply_tone_overrides, safe_filter
 from flask import current_app
 from infrastructure.logger import get_logger
 import json
@@ -19,15 +19,23 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
         
 
         # Step 2: Check all expected fields are present
-        spur_keys = user_profile.get("spur_variants", [])   
-        fallback = parsed.get("warm_spur") or parsed.get("main_spur") or ""
+        fallback_message = ""
+        spur_keys = user_profile.get("spur_variants", [])  
+        if 'warm_spur' in spur_keys and safe_filter(parsed.get('warm_spur', '')):
+            fallback_message = parsed.get('warm_spur', '')
+        elif 'main_spur' in spur_keys and safe_filter(parsed.get('main_spur', '')):
+            fallback_message = parsed.get('main_spur', '')
+        elif 'cool_spur' in spur_keys and safe_filter(parsed.get('cool_spur', '')):
+            fallback_message = parsed.get('cool_spur', '')
+        elif 'banter_spur' in spur_keys  and safe_filter(parsed.get('banter_spur', '')):
+            fallback_message = parsed.get('banter_spur', '')
+
         for key in spur_keys:
             if key not in parsed or not parsed.get(key):
-                parsed[key] = fallback
+                parsed[key] = fallback_message
 
         # Step 3: Apply phrase filter and sanitization
-        safe_output = apply_phrase_filter(parsed)
-        sanitized_output = apply_tone_overrides(safe_output, user_profile, connection_profile)
+        sanitized_output = apply_phrase_filter(fallback_message, parsed)
 
         warm_fallback = sanitized_output.get("warm_spur")
         fallback_flags = {

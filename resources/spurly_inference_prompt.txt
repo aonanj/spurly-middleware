@@ -9,23 +9,23 @@ You should avoid stating traits that are purely positive, purely negative, or st
   "personality_traits": [
     {
       "personality_trait": "Trait One",
-      "confidence_score": 0.XX
+      "confidence": 0.XX
     },
     {
       "personality_trait": "Trait Two",
-      "confidence_score": 0.XX
+      "confidence": 0.XX
     },
     {
       "personality_trait": "Trait Three",
-      "confidence_score": 0.XX
+      "confidence": 0.XX
     },
     {
       "personality_trait": "Trait Four",
-      "confidence_score": 0.XX
+      "confidence": 0.XX
     },
     {
       "personality_trait": "Trait Five",
-      "confidence_score": 0.XX
+      "confidence": 0.XX
     }
   ]
 }

@@ -26,11 +26,35 @@ BLACKLISTED_PHRASES = [
 
 logger = get_logger(__name__)
 
-EXPIRED_PHRASES = {
-    # Dynamic decay phrases (tagged with expiry epoch if needed)
-    ##"vibe check": "tier_1",
-    ##"that’s cap": "tier_2"
-}
+EXPIRED_PHRASES = [
+    "hope this helps",
+    "let me know what you think",
+    "just checking in",
+    "just wanted to follow up",
+    "just following up",
+    "just wanted to reach out",
+    "just wanted to check in",
+    "just wanted to see",
+    "hope you're doing well",
+    "circling back",
+    "just wanted to touch base",
+    "how are you doing",
+    "getting to know you",
+    "get to know you",
+    "just wanted to say",
+    "just wanted to share",
+    "just wanted to let you know",
+    "nice to meet you",
+    "nice meeting you",
+    "looking forward to hearing from you",
+    "look forward to",
+    "you seem like",
+    "you look like",
+    "you strike me as",
+    "nice chatting",
+    "you strike me as",
+    "nice talking",
+]
 
 # === Regex traps for formatting issues ===
 REGEX_EMOJI_SPAM = re.compile(r"[\U0001F600-\U0001F64F]{4,}")  # basic emoji overuse
@@ -84,21 +108,11 @@ def safe_filter(text: str) -> bool:
     return True
 
 
-def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
+def apply_phrase_filter(fallback_message, variants: Dict[str, str]) -> Dict[str, str]:
     """
     Run filtering logic over all SPUR variants and apply fallback if unsafe.
     This should be run in the GPT output parsing pipeline before rendering.
     """
-
-    fallback = " "
-    if "warm_spur" in variants:
-        fallback = variants.get("warm_spur", "").strip()
-    elif "main_spur" in variants:
-        fallback = variants.get("main_spur", "").strip()
-    elif "cool_spur" in variants:
-        fallback = variants.get("cool_spur", "").strip()
-    elif "banter_spur" in variants:
-        fallback = variants.get("banter_spur", "").strip()
     
     output = {}
 
@@ -106,9 +120,10 @@ def apply_phrase_filter(variants: Dict[str, str]) -> Dict[str, str]:
         if safe_filter(message):
             output[key] = sanitize(message)
         else:
-            output[key] = fallback 
+            output[key] = fallback_message
+            logger.error(f"Filtered unsafe SPUR variant: {key} -> {output[key]}") 
             err_point = __package__ or __name__
-            logger.error(f"Warning: {err_point}")
+            logger.error(f"Warning: {err_point}. Filtered unsafe SPUR variant: {key} -> {output[key]}")
     return output
 
 def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connection_profile: dict) -> Dict[str, str]:

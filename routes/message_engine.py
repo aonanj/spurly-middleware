@@ -123,10 +123,6 @@ def generate():
         conversation_obj = Conversation.from_dict(conversation_dict)
         storage = ConversationStorage()
         storage.save_conversation(conversation=conversation_obj)
-    
-    logger.info(f"Generating spurs for user_id: {user_id}, connection_id: {connection_id}, "
-                f"conversation_id: '{conversation_id}', conversation_images: {len(conversation_images)}, "
-                f"profile_images: {len(profile_images)}")
 
     # Generate spurs with categorized images
     spur_objs = get_spurs_for_output(

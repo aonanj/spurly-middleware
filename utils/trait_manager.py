@@ -97,23 +97,23 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
             "personality_traits": [
                 {
                 "personality_trait": "Trait One",
-                "confidence_score": 0.XX
+                "confidence": 0.XX
                 },
                 {
                 "personality_trait": "Trait Two",
-                "confidence_score": 0.XX
+                "confidence": 0.XX
                 },
                 {
                 "personality_trait": "Trait Three",
-                "confidence_score": 0.XX
+                "confidence": 0.XX
                 },
                 {
                 "personality_trait": "Trait Four",
-                "confidence_score": 0.XX
+                "confidence": 0.XX
                 },
                 {
                 "personality_trait": "Trait Five",
-                "confidence_score": 0.XX
+                "confidence": 0.XX
                 }
             ]
             }
@@ -174,12 +174,12 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
                     return [
                         {
                             "trait": str(item["personality_trait"]),
-                            "confidence": float(item["confidence_score"])
+                            "confidence": float(item["confidence"])
                         }
                         for item in traits_list
                         if isinstance(item, dict)
                         and "personality_trait" in item
-                        and "confidence_score" in item
+                        and "confidence" in item
                     ]
                 else:
                     logger.error(f"Unexpected personality_traits format from OpenAI (not a list) for unknown image: {traits_list}")
@@ -207,28 +207,32 @@ def infer_situation(conversation, user_id: Optional[str] = None) -> dict:
     Returns:
         dict: {"situation": "cold_open", "confidence": 0.85}
     """
-    system_prompt = """You are an expert messaging assistant. Analyze the following message and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action, changing the subject, seeking validation, escalating or de-escalating intimacy, testing interest, etc.
-Respond ONLY with a JSON object like this:
-{"situation": "<situation>", "confidence": 0.85}. For example, if you infer the situation is "cold_open" with 85% confidence, you would respond:
-{"situation": "cold_open", "confidence": 0.85}.
+    system_prompt = """You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Analyze the accompanying conversation to infer the situation surrounding the conversation, particularly in the most recent messages or message. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges, such as on dating apps or social media. Consider not just the plain meaning of each message, but give equal consideration to unspoken intent at the most recent point in the conversation, subtext, indirect cues, soft pivots, and other subtle indicators (e.g., message length, emjoi and punctuation usage, timeperiod between messages, etc.). 
+    
+    Inferred situation should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference (lower values may be appropriate if the conversation is ambiguous or short). Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action (cta), responding to a cta, reengaging after a long period of no contact, restarting a conversation after receiving no response, changing the subject, refining a message that may have been misunderstood or was unclear, or a "cold_open" where the sender is initiating contact without prior context. Again, you are to assume this conversation is occuring in the early stages of a social or romantic interaction, such as on a dating app or social media, and therefore situations that are more common in familiar contexts need to be avoided -- examples to avoid include "escalating intimacy", "seeking personal validation", etc. These are not appropriate situations to infer in this context, as they are not common in early-stage social or romantic interactions. You should also avoid inferring situations that are too specific or detailed, such as "seeking validation for a personal decision" or "testing interest in a specific topic". Instead, focus on broader situations that are more likely to occur in the context of a dating app or social media conversation.
+    
+    Responses indicating that you are unable to infer a situation are unacceptable, and you are prohibited from returning such responses. You already have a mechanism to convey uncertainty, which is the confidence score. If you are unable to infer a situation, you should return a situation of "cold_open" with a confidence score of 0.0. You should not return an empty response or a response that does not conform to the expected JSON format.
+    
+    You should respond ONLY with a JSON object in the following format:
+    {"situation": "<situation>", "confidence": 0.XX}. For example, if you infer the situation is "cold_open" with 85 percent confidence, you would format your response like this: {"situation": "cold_open", "confidence": 0.85}.
 """
 
-    prompt = f"""You're an expert messaging assistant. Analyze the following message and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action, changing the subject, seeking validation, escalating or de-escalating intimacy, testing interest, etc.
-Respond ONLY with a JSON object like this:
-{{"situation": "<situation>", "confidence": 0.85}}. For example, if you infer the situation is "cold_open" with 85% confidence, you would respond:
-{{"situation": "cold_open", "confidence": 0.85}}.
+    prompt = f"""You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Analyze the following conversation and infer the likely conversational situation or intent behind it. Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action (cta), responding to a cta, reengaging after a long period of no contact, restarting a conversation after receiving no response, changing the subject, refining a message that may have been misunderstood or was unclear, or a "cold_open" where the sender is initiating contact without prior context, etc.
+    
+    Respond ONLY with a JSON object like this: 
+        {{"situation": "<situation>", "confidence": 0.XX}}. 
+    For example, if you infer the situation is "cold_open" with 85% confidence, you would respond:
+        {{"situation": "cold_open", "confidence": 0.85}}.
 
 
 Conversation:
 {json.dumps(conversation, indent=3)}
 """
 
-    if not conversation or conversation.isEmpty() or conversation.count == 0:
+    if not conversation or conversation.isEmpty() or conversation.count == 0 or len(conversation) == 0:
         logger.error("No conversation provided for situation inference.")
         return {"situation": "cold_open", "confidence": 0.0}
 
-    #DEBUG
-    logger.error("DEBUG: trait_manager.infer_situation: Inferring situation from conversation: %s", json.dumps(conversation, indent=3))
 
     openai_client = get_openai_client()
     if not openai_client:
@@ -248,10 +252,10 @@ Conversation:
         #DEBUG
         logger.error("DEBUG: trait_manager.infer_situation: Sending prompt to OpenAI: %s", prompt)
         response = openai_client.chat.completions.create(
-            model="chatgpt-4o-latest",
+            model="gpt-4o",
             messages=messages,  # type: ignore
             max_tokens=3000,
-            temperature=0.6
+            temperature=0.7
             )
         
         # Track usage if user_id is provided
@@ -259,7 +263,7 @@ Conversation:
             if hasattr(response, 'usage') and response.usage:
                 track_openai_usage_manual(
                     user_id=user_id,
-                    model="chatgpt-4o-latest",
+                    model="gpt-4o",
                     prompt_tokens=response.usage.prompt_tokens,
                     completion_tokens=response.usage.completion_tokens,
                     feature="situation_inference"
@@ -269,7 +273,7 @@ Conversation:
                 estimated_completion_tokens = 200  # Conservative estimate for situation inference
                 track_openai_usage_manual(
                     user_id=user_id,
-                    model="chatgpt-4o-latest",
+                    model="gpt-4o",
                     prompt_tokens=estimated_prompt_tokens,
                     completion_tokens=estimated_completion_tokens,
                     feature="situation_inference"
@@ -296,11 +300,11 @@ def infer_tone(message, user_id: Optional[str] = None):
         dict: {"tone": "warm", "confidence": 0.82}
     """
 
-    system_prompt = """You are a communication analyst. Your task is to infer the tone of a text message, based on word choice, punctuation, style, and implicit emotional signals. The tone may include categories such as: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges. Be attuned to subtext, indirect cues, and soft pivots. Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis should focus on the emotional intent behind the message, rather than its literal meaning. Inferred tone should be 1-2 words. Output a JSON object with the inferred tone and a confidence score from 0 to 1:
+    system_prompt = """You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Your task is to infer the tone of a conversation, giving the greatest weight to the most recent message from the other person. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges, such as on dating apps or social media. Consider factors such as word choice, punctuation, style, and implicit emotional signals. The tone may include categories such as: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc. Be attuned to subtext, indirect cues, and soft pivots. Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis should focus on the emotional intent behind the messages, rather than literal meaning. Inferred tone should be 1-2 words. Output a JSON object with the inferred tone and a confidence score from 0 to 1:
     {"tone": "<tone>", "confidence": 0.XX}  
     """
     prompt = f"""Analyze the tone of the following Text Message. Identify the emotional intent (e.g., friendly, annoyed, flirtatious, sarcastic, indifferent, enthusiastic, formal, passive-aggressive, etc.). Respond only with a JSON object like:
-{{"tone": "<tone>", "confidence": 0.84}}. For example, if you infer the tone is "friendly" with 84% confidence, you would respond:
+{{"tone": "<tone>", "confidence": 0.XX}}. For example, if you infer the tone is "friendly" with 84% confidence, you would respond:
 {{"tone": "friendly", "confidence": 0.84}}. 
 
 Text Message: 
@@ -310,8 +314,6 @@ Text Message:
         logger.error("No message provided for tone inference.")
         return {"tone": "neutral", "confidence": 0.0}
 
-    #DEBUG
-    logger.error("DEBUG: trait_manager.infer_tone: Inferring situation from conversation: %s", message)
     
     openai_client = get_openai_client()
     if not openai_client:
@@ -333,7 +335,7 @@ Text Message:
         #DEBUG
         logger.error("DEBUG: trait_manager.infer_tone: Sending prompt to OpenAI: %s", prompt)
         response = openai_client.chat.completions.create(
-            model="chatgpt-4o-latest",
+            model="gpt-4o",
             messages=messages,  # type: ignore
             max_tokens=3000,
             temperature=0.5
@@ -344,7 +346,7 @@ Text Message:
             if hasattr(response, 'usage') and response.usage:
                 track_openai_usage_manual(
                     user_id=user_id,
-                    model="chatgpt-4o-latest",
+                    model="gpt-4o",
                     prompt_tokens=response.usage.prompt_tokens,
                     completion_tokens=response.usage.completion_tokens,
                     feature="tone_inference"
@@ -354,7 +356,7 @@ Text Message:
                 estimated_completion_tokens = 100  # Conservative estimate for tone inference
                 track_openai_usage_manual(
                     user_id=user_id,
-                    model="chatgpt-4o-latest",
+                    model="gpt-4o",
                     prompt_tokens=estimated_prompt_tokens,
                     completion_tokens=estimated_completion_tokens,
                     feature="tone_inference"
@@ -379,7 +381,7 @@ def analyze_convo_for_context(images: List[Dict], user_id: Optional[str] = None)
     Returns:
         List of context dictionaries
     """
-    empty_context = [{"situation": "none", "tone": "none", "confidence": 0.0}]
+    empty_context = [{"situation": "none", "confidence": 0.0}, {"tone": "none", "confidence": 0.0}]
     
     if not images:
         return empty_context
@@ -403,16 +405,21 @@ def analyze_convo_for_context(images: List[Dict], user_id: Optional[str] = None)
         if not image_parts:
             return empty_context
 
-        system_prompt = """You are an expert at analyzing conversation screenshots. Your task is to infer both the conversational situation and tone from the provided images. 
-
-For situation, consider: cold_open, recovery, escalation, de-escalation, call_to_action, subject_change, validation_seeking, etc.
-
-For tone, consider: warm, cool, playful, serious, defensive, open, closed, etc.
-
-Respond with a JSON object containing both situation and tone with confidence scores:
-{"situation": "<situation>", "tone": "<tone>", "confidence": 0.XX}
-
-If the images don't contain a conversation, return "none" for both with 0.0 confidence."""
+        system_prompt = """You are an expert assistant highly skilled in human interaction and behavioral analysis in the context of conversational interactions, especially those ocurring as text/direct messaging exchanges. Your task is to analyze the accompanying conversation depicted in the image or images to infer the situation surrounding the conversation and the tone of the conversation, particularly in the most recent messages or message. Assume messages come from informal, text-based conversations, often in early-stage romantic or social exchanges, such as on dating apps or social media. 
+        
+        You should first extract the conversation messages in order and correctly attribute each to either the user or the other person. Next, you should infer the likely conversational situation, which may be the user's unspoken intent at the most recent point in the conversation. Be attuned to not just the words themselves, but give equal consideration to indirect, implicit, and/or subtle indicators, which may be conveyed via subtext, word choice, indirect cues, soft pivots, and other such indicators (e.g., message length, emjoi and punctuation usage, timeperiod between messages, etc.). Messages may be short, ambiguous, or deliberately indirect—read between the lines where appropriate. Your analysis regarding situation should focus more on the user's perspective and intent behind the messages.
+        
+        Inferred situation should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference (lower values may be appropriate if the conversation is ambiguous or short). Consider whether the sender is attempting a recovery (e.g. after a misstep), setting up a call to action (cta), responding to a cta, reengaging after a long period of no contact, restarting a conversation after receiving no response, changing the subject, refining a message that may have been misunderstood or was unclear, a tone mismatch in which the user is evidently failing to pick up on social cues conveyed by the other person, or a "cold_open" where the sender is initiating contact without prior context, etc. 
+        
+        Next, infer the tone of the conversation, giving the greatest weight to the most recent message from the other person. Tone inference should be based on word choice, punctuation, style, and implicit emotional signals (e.g., emoji usage, message length, receptiveness to the user's messages, etc.). The tone should be 1-2 words; examples include: sincere, annoyed, sarcastic, playful, flirtatious, defensive, passive-aggressive, indifferent, enthusiastic, formal, etc. Be attuned to subtext, indirect cues, and soft pivots, and other subtle indicators. Your analysis should focus on the emotional intent behind the message(s), rather than literal meaning, and you should infer tone primarily from the other person -- that is, the tone should be inferred for the other person, not inferred for the user. Inferred tone should be 1-2 words, accompanied by a confidence score expressed as a float between 0 and 1 to indicate how confident you are in your inference (lower values may be appropriate if the conversation is ambiguous or short).
+        
+        Responses indicating that you are unable to infer a situation and/or tone are unacceptable, and you are prohibited from returning such responses. You already have a mechanism to convey uncertainty, which is the confidence score. If you are uncertain in your inferences, you are permitted to return very low confidence scores. Under no cirucmstances should you return an empty response or a response that does not conform to the expected JSON format.
+        
+        You should respond ONLY with a list of JSON objects in the following format:
+        [{"situation": <situation>, "confidence": 0.XX}, {"tone": <tone>, "confidence": 0.XX}]. For example, if you infer the situation is "cta_setup" with 85 percent confidence and the tone is "flirtatious" with 90 percent confidence, you would format your response like this:
+        [{"situation": "cta_setup", "confidence": 0.85}, {"tone": "flirtatious", "confidence": 0.90}].
+        
+        If the images don't contain a conversation, return "none" for both with 0.0 confidence."""
     
         user_prompt = """
         Here is/are the image/images of the conversation you should analyze. Please infer both situation and tone based on the images provided. Respond with a JSON object containing the inferred situation and tone, as described in the system prompt. If the images do not contain any conversation, you should return "none" for both situation and tone, with a confidence score of 0.0.
