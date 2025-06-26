@@ -200,10 +200,10 @@ def generate_spurs(
         # Process images if provided
     conversation_image_analysis = []
     if conversation_images and len(conversation_images) > 0:
-        logger.error(f"LOG INFO: Processing {len(conversation_images)} images for context analysis")
-        
         # Analyze images for conversation and profile context
         conversation_image_analysis = analyze_convo_for_context(conversation_images)
+        ## DEBUG
+        logger.error(f"LOG INFO: Conversation Image Analysis: {conversation_image_analysis}")
         
         if conversation_image_analysis and len(conversation_image_analysis) > 0:
             context_block += "\n*** CONTEXT FOR CONVERSATION SCREENSHOTS (images): \n"
@@ -215,6 +215,11 @@ def generate_spurs(
                         else:
                             v_str = str(v)
                         context_block += f" - {k}: {v_str}"
+        
+        ## DEBUG
+        logger.error(f"LOG INFO: CONTEXT BLOCK: {context_block}")
+        logger.error(f"LOG INFO: Conversation Image Analysis Length: {len(conversation_image_analysis)}")
+        logger.error(f"LOG INFO: Conversation Image Analysis: {conversation_image_analysis}")
 
     context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. You should suggest SPURs based on the"
     
@@ -234,7 +239,6 @@ def generate_spurs(
     context_block += ". "
     
     img_analysis_situation = ""
-    img_analysis_sit_confidence = 0
     img_analysis_tone = ""
     img_analysis_tone_confidence = 0
 

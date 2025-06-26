@@ -467,8 +467,15 @@ If the images don't contain a conversation, return "none" for both with 0.0 conf
         
         content = (response.choices[0].message.content or "")
         
+        ## DEBUG
+        logger.error(f"DEBUG: OpenAI response for conversation analysis: {content}")
+        
         # Extract JSON from response
         json_parsed_content = extract_json_block(content)
+        
+        ## DEBUG
+        logger.error(f"DEBUG: Parsed JSON content from OpenAI response: {json_parsed_content}")
+        
         if json_parsed_content:
             return json.loads(json_parsed_content)
         else:
