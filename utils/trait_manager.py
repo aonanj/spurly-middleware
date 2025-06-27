@@ -28,19 +28,19 @@ def downscale_image_from_bytes(image_bytes: bytes, max_dim: int = 1024) -> bytes
     return output_buffer.getvalue()
 
 def extract_json_block(text):
-    match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
+    # First, try to find a JSON code block with either an object or an array
+    match = re.search(r"```json\s*(\{.*?\}|\[.*?\])\s*```", text, re.DOTALL)
     if match:
-        return match.group(1)
-    elif (text.strip().startswith('{') and text.strip().endswith('}')) or (text.strip().startswith('[') and text.strip().endswith(']')):
-        return text.strip()
+        return match.group(1).strip()
+    
+    # If not wrapped in a code block, check if it looks like a JSON object or array
+    stripped = text.strip()
+    if (stripped.startswith('{') and stripped.endswith('}')) or (stripped.startswith('[') and stripped.endswith(']')):
+        return stripped
 
-    else:
-        logger.error(f"No JSON code block found in text: {text}")
-        raise ValueError(f"No JSON code block found. GPT response: {text}")
-
-
-
-
+    # If nothing matches, raise an error
+    logger.error(f"No JSON code block found in text: {text}")
+    raise ValueError(f"No JSON code block found. GPT response: {text}")
 
 def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """

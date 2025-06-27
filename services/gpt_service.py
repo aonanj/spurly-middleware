@@ -214,7 +214,7 @@ def generate_spurs(
                             v_str = str(v)
                         context_block += f" - {k}: {v_str}"
 
-    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for User to say to Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs based on the"
+    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for the User to say to the Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs based on the"
     
     if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
         context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
@@ -224,7 +224,9 @@ def generate_spurs(
     
     
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
-        context_block += " and the Connection Profile Context"
+        if context_block.endswith("provided"):
+            context_block += " and the"
+        context_block += " Connection Profile Context"
 
     if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
         context_block += " , where that information can be used to enrich or contribute to the Conversation -- keeping in mind the"
@@ -239,19 +241,18 @@ def generate_spurs(
         if conversation_image_analysis[1].get('confidence', 0) > 0.3:
             img_analysis_tone = (conversation_image_analysis[1].get('tone'))
                                    
-    if situation or topic or tone or (conversation_image_analysis and len(conversation_image_analysis) > 0):
+    if situation or topic or tone or img_analysis_situation or img_analysis_tone:
         context_block += "You further should consider the "
-    if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
-        context_block += "situation"
-    if (topic and topic != ""):
-        if context_block.endswith("situation"):
-            context_block += " and "
-        context_block += "topic"
-    if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
-        if context_block.endswith("situation") or context_block.endswith("topic"):
-            context_block += " and "
-        context_block += "tone"
-    if (conversation_images and len(conversation_images) > 0) or (conversation_messages and len(conversation_messages) > 0):
+        if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
+            context_block += "situation"
+        if (topic and topic != ""):
+            if context_block.endswith("situation"):
+                context_block += " and "
+            context_block += "topic"
+        if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
+            if context_block.endswith("situation") or context_block.endswith("topic"):
+                context_block += " and "
+            context_block += "tone"
         context_block += " of the Conversation"
     
     context_block += " to inform your SPUR suggestions. \n"
