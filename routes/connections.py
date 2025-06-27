@@ -126,7 +126,20 @@ def extract_image_bytes_from_request(field_name: str) -> List[bytes]:
                     except Exception as e:
                         logger.error(f"Failed to decode base64 image: {e}")
                         continue
-    
+    elif field_name in request.form:
+        img_data = request.form.get(field_name)
+        if img_data:
+            try:
+                image_bytes = base64.b64decode(img_data)
+                image_bytes_list.append(image_bytes)
+                #DEBUG
+                logger.error(f"Extracted image bytes from form field {field_name}")
+                logger.error(f"Image bytes length: {len(image_bytes)}") 
+                logger.error(f"Image bytes type: {type(image_bytes)}")
+            except Exception as e:
+                logger.error(f"Failed to decode base64 image: {e}")
+                
+
     return image_bytes_list
 
 
@@ -971,9 +984,15 @@ def extract_profile_data():
                 user_id = form_data.get('user_id', None)
                 return jsonify({"error": "Authentication error"}), 401
             
+        ## DEBUG
+        logger.error(f"IMG DATA: {form_data.get('image', None)}")
         
         img_list = extract_image_bytes_from_request('image')
         img_bytes = img_list[0] if img_list else None
+
+        ## DEBUG
+        logger.error(f"IMG LIST: {img_list}")
+        logger.error(f"IMG BYTES: {img_bytes}")
 
         if not img_bytes:
             return jsonify({"error": "No profile image provided"}), 400

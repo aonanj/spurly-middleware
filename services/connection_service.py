@@ -426,11 +426,16 @@ def get_profile_text(
                 "url": f"data:image/jpeg;base64,{base64_image}"
             }
         }]
+    
+    ## DEBUG
+    logger.error(f"IMG BYTES: {img_bytes[:100]}... (truncated)")
+    logger.error(f"RESIZED IMAGE BYTES: {resized_image_bytes[:100]}... (truncated)")
+    logger.error(f"IMAGE PARTS : {image_parts}")
 
     if not image_parts:
-        logger.error("No valid conversation images to process (gpt_service.py:generate_spurs).")
-    
-    
+        logger.error("No valid images to process (connection_service:get_profile_text).")
+
+
     if not openai_client:
         logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
         return {"error": "OpenAI client not initialized."}
@@ -482,6 +487,9 @@ def get_profile_text(
         
 
         content = (response.choices[0].message.content or "") if response.choices else ""
+        
+        ##DEBUG
+        logger.error(f"GPT Response for user {user_id}: {content}")
         
         json_parsed_content = {}
         extracted_profile_dict = {}
