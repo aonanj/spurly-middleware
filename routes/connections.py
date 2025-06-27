@@ -998,8 +998,10 @@ def extract_profile_data():
 
 
     
-            # Create the connection profile
+
         result = get_profile_text(user_id, img_bytes)
+        #DEBUG
+        logger.error(f"RESULT SENT TO FRONTEND: {result}")
 
         return jsonify(result), 200
         

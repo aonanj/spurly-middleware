@@ -482,7 +482,8 @@ def get_profile_text(
         
 
         content = (response.choices[0].message.content or "") if response.choices else ""
-        
+        #DEBUG
+        logger.error(f"EXTRACT GPT RESPONSE: {content}")
         
         json_parsed_content = {}
         extracted_profile_dict = {}
