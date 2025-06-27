@@ -496,7 +496,8 @@ def get_profile_text(
             ##DEBUG
             logger.error(f"LOG.INFO: GPT response for user {user_id} extracted JSON: {json_parsed_content}")
             
-            if isinstance(json_parsed_content, dict):
+            if isinstance(json_parsed_content, Dict):
+                logger.error("LOG.INFO: Extracted JSON content is a dictionary.")
                 if 'name' in json_parsed_content:
                     extracted_profile_dict['connection_name'] = json_parsed_content['name']
                 if 'age' in json_parsed_content:
@@ -505,9 +506,9 @@ def get_profile_text(
                 skip_keys = {"name", "age"}
                 extracted_profile_dict['connection_context_block'] = "\n".join(f"{k}: {v}" for k, v in json_parsed_content.items() if k not in skip_keys)
                 logger.error(f"LOG.INFO: Extracted profile dict for user {user_id}: {extracted_profile_dict}")
-                
-            logger.error(f"LOG.INFO: Extracted profile context block for user {user_id}: {extracted_profile_dict['connection_context_block']}")
-                
+            elif not isinstance(json_parsed_content, Dict):
+                logger.error(f"LOG.INFO: Extracted JSON content is not a dictionary: {json_parsed_content}")
+                logger.error(f"LOG.INFO: json_parsed_content type: {type(json_parsed_content)}")
 
         if extracted_profile_dict and len(extracted_profile_dict) > 0:
             return extracted_profile_dict
