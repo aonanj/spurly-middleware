@@ -397,7 +397,7 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
 @track_openai_usage('add_connection')
 def get_profile_text(
     user_id: str,
-    profile_image: Dict[str, Any],
+    img_bytes: bytes,
 ) -> Dict:
     """
     Generates spur responses based on the provided conversation context and profiles.
@@ -405,7 +405,7 @@ def get_profile_text(
     Args:
         user_id (str): User ID.
 
-        profile_image (dict, optional): Profile image with 'data' (raw bytes of image), 'filename', and 'mime_type'.
+        img_bytes (bytes, optional): Raw bytes of the profile image.
 
     Returns:
         Dictionary of profile text.
@@ -414,12 +414,11 @@ def get_profile_text(
     system_prompt = get_profile_text_system_prompt()
     user_prompt = get_profile_text_user_prompt()
 
-    image_bytes = profile_image.get("data")
-    if not image_bytes:
+    if not img_bytes:
         logger.error("Skipping profile image due to missing bytes.")
         return {"error": "Missing profile image data."}
 
-    resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+    resized_image_bytes = downscale_image_from_bytes(img_bytes, max_dim=1024)
     base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
     image_parts = [{
             "type": "image_url",

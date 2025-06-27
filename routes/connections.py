@@ -973,24 +973,23 @@ def extract_profile_data():
             
         
         img_list = extract_image_bytes_from_request('image')
-        connection_profile_image = img_list[0] if img_list else None
+        img_bytes = img_list[0] if img_list else None
 
-        if not connection_profile_image:
+        if not img_bytes:
             return jsonify({"error": "No profile image provided"}), 400
 
-        if len(connection_profile_image) > 1:
-            logger.error(f"User {user_id} uploaded {len(connection_profile_image)} photos, limiting to 1")
-            connection_profile_image = connection_profile_image[:1]
+        if len(img_list) > 1:
+            logger.error(f"User {user_id} uploaded {len(img_list)} photos, limiting to 1")
 
         # Validate image sizes
-        if not connection_profile_image or len(connection_profile_image) > MAX_PROFILE_IMAGE_SIZE_BYTES:
+        if not img_bytes or len(img_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
             return jsonify({"error": "Profile image is too large or empty"}), 400
 
 
 
     
             # Create the connection profile
-        result = get_profile_text(user_id, connection_profile_image)
+        result = get_profile_text(user_id, img_bytes)
 
         return jsonify(result), 200
         
