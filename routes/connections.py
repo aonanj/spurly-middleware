@@ -508,6 +508,9 @@ def fetch_single_connection():
             
         profile = get_connection_profile(user_id, connection_id)
         if profile:
+            #DEBUG
+            logger.error(f"Fetched connection profile for user {user_id} and connection {connection_id}: {profile.to_dict()}")
+            logger.error(f"JSON response: {jsonify(profile.to_dict())}")
 
             return jsonify(profile.to_dict())
         else:
