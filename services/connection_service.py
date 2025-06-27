@@ -1,6 +1,6 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
-from flask import current_app
+from flask import current_app, jsonify, json
 import base64
 from typing import List, Dict, Optional, Any
 from infrastructure.logger import get_logger
@@ -492,9 +492,7 @@ def get_profile_text(
             return {"error": "GPT response was empty or unhelpful. Please try again later."}
 
         else:
-            json_parsed_content = extract_json_block(content)
-            ##DEBUG
-            logger.error(f"LOG.INFO: GPT response for user {user_id} extracted JSON: {json_parsed_content}")
+            json_parsed_content = json.loads(extract_json_block(content))
             
             if isinstance(json_parsed_content, Dict):
                 logger.error("LOG.INFO: Extracted JSON content is a dictionary.")
@@ -505,10 +503,8 @@ def get_profile_text(
             
                 skip_keys = {"name", "age"}
                 extracted_profile_dict['connection_context_block'] = "\n".join(f"{k}: {v}" for k, v in json_parsed_content.items() if k not in skip_keys)
-                logger.error(f"LOG.INFO: Extracted profile dict for user {user_id}: {extracted_profile_dict}")
-            elif not isinstance(json_parsed_content, Dict):
-                logger.error(f"LOG.INFO: Extracted JSON content is not a dictionary: {json_parsed_content}")
-                logger.error(f"LOG.INFO: json_parsed_content type: {type(json_parsed_content)}")
+
+
 
         if extracted_profile_dict and len(extracted_profile_dict) > 0:
             return extracted_profile_dict

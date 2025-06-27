@@ -1000,8 +1000,6 @@ def extract_profile_data():
     
             # Create the connection profile
         result = get_profile_text(user_id, img_bytes)
-        ##DEBUG
-        logger.error(f"LOG.INFO: Extracted profile data for user {user_id}: {result}")
 
         return jsonify(result), 200
         
