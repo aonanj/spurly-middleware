@@ -1,5 +1,4 @@
-from .filters import apply_phrase_filter, apply_tone_overrides, safe_filter
-from flask import current_app
+from .filters import apply_phrase_filter, safe_filter
 from infrastructure.logger import get_logger
 import json
 
@@ -10,7 +9,6 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
     Parse GPT response into usable SPUR variants with safety filtering and fallbacks.
     """
     try:
-        user_id = user_profile.get("user_id")
         
         # Step 1: Sanitize and parse JSON-like GPT output
         cleaned = gpt_response.strip('`\n ').replace("```json", "").replace("```", "")
@@ -43,16 +41,6 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
             for key in sanitized_output
         }
         
-        logger.error({
-            "event": "spurly_generation_log",
-            "fallback_flags": fallback_flags,
-            "input_profile_summary": {
-                "user_tone": user_profile.get("tone"),
-                "connection_flirt": connection_profile.get("flirt_level"),
-                "connection_drinking": connection_profile.get("drinking"),
-            },
-            "filter_hits": [k for k, v in fallback_flags.items() if v],
-        })
 
         return sanitized_output
 

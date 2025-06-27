@@ -26,6 +26,52 @@ def get_system_prompt() -> str:
         logger.error("Unexpected error loading system prompt: %s", e, exc_info=True)
         raise  # Re-raise unexpected errors
 
+def get_profile_text_system_prompt() -> str:
+    """
+    Retrieves the system prompt used to prime the model.
+    """
+    system_prompt_path = current_app.config.get('PROFILE_TEXT_SYSTEM_PROMPT')  # Use .get for safety
+
+    if not system_prompt_path:
+        logger.error("PROFILE_TEXT_SYSTEM_PROMPT not found in Flask config.")
+        raise ValueError("System prompt path configuration is missing.")
+
+    try:
+        with open(system_prompt_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        logger.error("System prompt file not found at path: %s", system_prompt_path)
+        raise FileNotFoundError(f"System prompt file not found: {system_prompt_path}")
+    except IOError as e:
+        logger.error("Error reading system prompt file at path %s: %s", system_prompt_path, e)
+        raise IOError(f"Error reading system prompt file: {e}") from e
+    except Exception as e:
+        logger.error("Unexpected error loading system prompt: %s", e, exc_info=True)
+        raise  # Re-raise unexpected errors
+
+def get_profile_text_user_prompt() -> str:
+    """
+    Retrieves the user prompt used to prime the model.
+    """
+    user_prompt_path = current_app.config.get('PROFILE_TEXT_USER_PROMPT')  # Use .get for safety
+
+    if not user_prompt_path:
+        logger.error("PROFILE_TEXT_USER_PROMPT not found in Flask config.")
+        raise ValueError("User prompt path configuration is missing.")
+
+    try:
+        with open(user_prompt_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        logger.error("User prompt file not found at path: %s", user_prompt_path)
+        raise FileNotFoundError(f"User prompt file not found: {user_prompt_path}")
+    except IOError as e:
+        logger.error("Error reading user prompt file at path %s: %s", user_prompt_path, e)
+        raise IOError(f"Error reading user prompt file: {e}") from e
+    except Exception as e:
+        logger.error("Unexpected error loading user prompt: %s", e, exc_info=True)
+        raise  # Re-raise unexpected errors
+
 def build_prompt(selected_spurs: list[str], context_block: str) -> str:
     try:
         """

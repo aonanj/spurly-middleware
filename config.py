@@ -70,6 +70,8 @@ class Config:
     SPURLY_SYSTEM_PROMPT_PATH = os.environ.get("SPURLY_SYSTEM_PROMPT_PATH", "resources/spurly_system_prompt.txt")
     SPURLY_USER_PROMPT_PATH = os.environ.get("SPURLY_USER_PROMPT_PATH", "resources/spurly_user_prompt.txt")
     SPURLY_INFERENCE_PROMPT = os.environ.get("SPURLY_INFERENCE_PROMPT", "resources/spurly_inference_prompt.txt")
+    PROFILE_TEXT_SYSTEM_PROMPT = os.environ.get("PROFILE_TEXT_SYSTEM_PROMPT", "resources/get_profile_text_system_prompt.txt")
+    PROFILE_TEXT_USER_PROMPT = os.environ.get("PROFILE_TEXT_USER_PROMPT", "resources/get_profile_text_user_prompt.txt")
 
     SPUR_VARIANTS = (
         "main_spur",

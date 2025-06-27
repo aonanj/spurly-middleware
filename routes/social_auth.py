@@ -116,7 +116,7 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
             id_token,
             public_key_pem,
             algorithms=['RS256'],
-            audience=current_app.config.get('GOOGLE_CLIENT_ID'),
+            audience=current_app.config.get('GOOGLE_CLIENT_I    '),
             options={"verify_exp": True}
         )
         

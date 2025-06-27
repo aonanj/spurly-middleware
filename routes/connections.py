@@ -18,6 +18,7 @@ from services.connection_service import (
     get_top_n_traits,
     save_connection_profile
 )
+from services.connection_service import get_profile_text
 from utils.moderation import redact_flagged_sentences
 from services.storage_service import MAX_PROFILE_IMAGE_SIZE_BYTES, upload_profile_image
 from utils.ocr_utils import perform_ocr_on_screenshot as perform_ocr
@@ -949,4 +950,50 @@ def create_connection_with_photos():
         logger.error(f"Error creating connection profile: {e}", exc_info=True)
         return jsonify({"error": "Failed to create connection profile"}), 500
 
+@connection_bp.route("/connections/extract-profile-data", methods=["POST"])
+@handle_all_errors
+@verify_token
+def extract_profile_data():
+    """Extract profile data from the request."""
     
+    if request.is_json:
+        form_data = request.get_json()
+        logger.error(f"JSON form data received: {form_data}") 
+    else:
+        form_data = request.form.to_dict()
+        logger.error(f"Form data received: {form_data}") 
+    
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                user_id = form_data.get('user_id', None)
+                return jsonify({"error": "Authentication error"}), 401
+            
+        
+        img_list = extract_image_bytes_from_request('image')
+        connection_profile_image = img_list[0] if img_list else None
+
+        if not connection_profile_image:
+            return jsonify({"error": "No profile image provided"}), 400
+
+        if len(connection_profile_image) > 1:
+            logger.error(f"User {user_id} uploaded {len(connection_profile_image)} photos, limiting to 1")
+            connection_profile_image = connection_profile_image[:1]
+
+        # Validate image sizes
+        if not connection_profile_image or len(connection_profile_image) > MAX_PROFILE_IMAGE_SIZE_BYTES:
+            return jsonify({"error": "Profile image is too large or empty"}), 400
+
+
+
+    
+            # Create the connection profile
+        result = get_profile_text(user_id, connection_profile_image)
+
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in extract_profile_data for user {getattr(g, 'user_id', None)}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to extract profile data"}), 500

@@ -1,0 +1,14 @@
+You are given a screenshot of a dating app profile. Your task is to extract the relevant user-provided content (e.g., bio text, prompt responses, age, job, school, etc.) and output it as a clean, structured text block suitable for downstream NLP processing.
+Instructions:
+Focus only on user-specific content and key profile metadata (e.g., name, age, job, school, prompt responses). Where profile data is ambiguous or unlabeled, infer its label based on contextual clues and other indicators that can be logical drawn from the image, such as the presentation and arrangement of words, what a word or phrase logically refers to, icons presented as labels, etc. 
+Ignore other UI and visual elements that are unlikely to be related to the profile data (e.g., app branding, links, etc.).
+
+Your output should be stuctured as a JSON object, with the label being the key and the profile information being the value, as described above. An example output: 
+{
+    "name": "Anna",
+    "age": 24,
+    "job": "Branding manager at The Gap",
+    "school": "UCLA",
+    "bio": "I love yoga and pilates. I'm trying to go plant-based. Coffee is life."
+}
+Note that different screenshots may have more, fewer, or different labels and information. 

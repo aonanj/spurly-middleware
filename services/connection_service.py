@@ -1,11 +1,14 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
-from flask import current_app, g # jsonify removed as it's not typical for service layer
-
+from flask import current_app
+import base64
 from typing import List, Dict, Optional, Any
 from infrastructure.logger import get_logger
-from infrastructure.clients import get_firestore_db
+from infrastructure.clients import get_firestore_db, get_openai_client
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
+from utils.prompt_template import get_profile_text_system_prompt, get_profile_text_user_prompt
+from utils.usage_tracker import track_openai_usage, track_openai_usage_manual, estimate_tokens_from_messages
+from utils.trait_manager import downscale_image_from_bytes, extract_json_block
 
 logger = get_logger(__name__)
 
@@ -390,3 +393,120 @@ def delete_connection_profile(user_id: str, connection_id:str) -> dict:
     except Exception as e:
         logger.error(f"Error deleting conn profile {connection_id} for user {user_id}: {e}", exc_info=True)
         return {"error": f"Cannot delete connection profile: {str(e)}"}
+    
+@track_openai_usage('add_connection')
+def get_profile_text(
+    user_id: str,
+    profile_image: Dict[str, Any],
+) -> Dict:
+    """
+    Generates spur responses based on the provided conversation context and profiles.
+
+    Args:
+        user_id (str): User ID.
+
+        profile_image (dict, optional): Profile image with 'data' (raw bytes of image), 'filename', and 'mime_type'.
+
+    Returns:
+        Dictionary of profile text.
+    """
+    openai_client = get_openai_client()
+    system_prompt = get_profile_text_system_prompt()
+    user_prompt = get_profile_text_user_prompt()
+
+    image_bytes = profile_image.get("data")
+    if not image_bytes:
+        logger.error("Skipping profile image due to missing bytes.")
+        return {"error": "Missing profile image data."}
+
+    resized_image_bytes = downscale_image_from_bytes(image_bytes, max_dim=1024)
+    base64_image = base64.b64encode(resized_image_bytes).decode("utf-8")
+    image_parts = [{
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+        }]
+
+    if not image_parts:
+        logger.error("No valid conversation images to process (gpt_service.py:generate_spurs).")
+    
+    
+    if not openai_client:
+        logger.error("OpenAI client not initialized. Cannot generate spurs. Error at gpt_service.py:generate_spurs")
+        return {"error": "OpenAI client not initialized."}
+
+    user_content = [
+        {"type": "text", "text": user_prompt}
+    ]
+    if image_parts and len(image_parts) > 0:
+        user_content.append({"type": "text", "text": "The following image show the Profile from which you are to extract and label profile data: "})
+        user_content.extend(image_parts)
+
+    
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content}
+    ]
+
+    try:
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=8000,
+            temperature=0.45,
+            )
+        
+        # Manual usage tracking since decorator might not capture all details
+        if hasattr(response, 'usage') and response.usage:
+            track_openai_usage_manual(
+                user_id=user_id,
+                model="gpt-4o",
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                feature="add_connection"
+            )
+        else:
+            # Fallback to estimation
+            estimated_completion_tokens = 1000  # Conservative estimate for spur generation
+            track_openai_usage_manual(
+                user_id=user_id,
+                model="gpt-4o",
+                prompt_tokens=estimated_prompt_tokens,
+                completion_tokens=estimated_completion_tokens,
+                feature="add_connection"
+            )
+        
+
+        content = (response.choices[0].message.content or "") if response.choices else ""
+        
+        json_parsed_content = {}
+        extracted_profile_dict = {}
+        
+        if (not content or ("I can't assist with that" in content) or ("I can't help with that" in content) or ("unable to process your request" in content)):
+            logger.error(f"GPT response for user {user_id} was empty or unhelpful: {content}")
+            return {"error": "GPT response was empty or unhelpful. Please try again later."}
+
+        else:
+            json_parsed_content = extract_json_block(content)
+            if isinstance(json_parsed_content, dict):
+                if 'name' in json_parsed_content:
+                    extracted_profile_dict['connection_name'] = json_parsed_content['name']
+                if 'age' in json_parsed_content:
+                    extracted_profile_dict['connection_age'] = json_parsed_content['age']
+            
+                skip_keys = {"name", "age"}
+                extracted_profile_dict['connection_context_block'] = "\n".join(f"{k}: {v}" for k, v in json_parsed_content.items() if k not in skip_keys)
+
+        if extracted_profile_dict and len(extracted_profile_dict) > 0:
+            return extracted_profile_dict
+        else:
+            return {"error": "No profile data could be extracted from the image."}
+        
+    except Exception as e:
+        logger.error(f"Profile Data Extraction Failed — Error: {e}", exc_info=True)
+        return {"error": f"Profile Data Extraction Failed: {str(e)}"}
