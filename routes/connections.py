@@ -132,10 +132,7 @@ def extract_image_bytes_from_request(field_name: str) -> List[bytes]:
             try:
                 image_bytes = base64.b64decode(img_data)
                 image_bytes_list.append(image_bytes)
-                #DEBUG
-                logger.error(f"Extracted image bytes from form field {field_name}")
-                logger.error(f"Image bytes length: {len(image_bytes)}") 
-                logger.error(f"Image bytes type: {type(image_bytes)}")
+
             except Exception as e:
                 logger.error(f"Failed to decode base64 image: {e}")
                 
@@ -511,8 +508,7 @@ def fetch_single_connection():
             
         profile = get_connection_profile(user_id, connection_id)
         if profile:
-            # DEBUG 
-            logger.error(f"Fetched profile: {profile.to_dict()}")  # Debug log for fetched profile
+
             return jsonify(profile.to_dict())
         else:
             logger.error(f"Connection profile not found for user {user_id} and connection {connection_id}")
@@ -984,15 +980,10 @@ def extract_profile_data():
                 user_id = form_data.get('user_id', None)
                 return jsonify({"error": "Authentication error"}), 401
             
-        ## DEBUG
-        logger.error(f"IMG DATA: {form_data.get('image', None)}")
         
         img_list = extract_image_bytes_from_request('image')
         img_bytes = img_list[0] if img_list else None
 
-        ## DEBUG
-        logger.error(f"IMG LIST: {img_list}")
-        logger.error(f"IMG BYTES: {img_bytes}")
 
         if not img_bytes:
             return jsonify({"error": "No profile image provided"}), 400
@@ -1009,6 +1000,8 @@ def extract_profile_data():
     
             # Create the connection profile
         result = get_profile_text(user_id, img_bytes)
+        ##DEBUG
+        logger.error(f"LOG.INFO: Extracted profile data for user {user_id}: {result}")
 
         return jsonify(result), 200
         

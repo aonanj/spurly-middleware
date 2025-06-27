@@ -426,11 +426,6 @@ def get_profile_text(
                 "url": f"data:image/jpeg;base64,{base64_image}"
             }
         }]
-    
-    ## DEBUG
-    logger.error(f"IMG BYTES: {img_bytes[:100]}... (truncated)")
-    logger.error(f"RESIZED IMAGE BYTES: {resized_image_bytes[:100]}... (truncated)")
-    logger.error(f"IMAGE PARTS : {image_parts}")
 
     if not image_parts:
         logger.error("No valid images to process (connection_service:get_profile_text).")
@@ -488,8 +483,6 @@ def get_profile_text(
 
         content = (response.choices[0].message.content or "") if response.choices else ""
         
-        ##DEBUG
-        logger.error(f"GPT Response for user {user_id}: {content}")
         
         json_parsed_content = {}
         extracted_profile_dict = {}
@@ -500,6 +493,9 @@ def get_profile_text(
 
         else:
             json_parsed_content = extract_json_block(content)
+            ##DEBUG
+            logger.error(f"LOG.INFO: GPT response for user {user_id} extracted JSON: {json_parsed_content}")
+            
             if isinstance(json_parsed_content, dict):
                 if 'name' in json_parsed_content:
                     extracted_profile_dict['connection_name'] = json_parsed_content['name']
@@ -508,6 +504,10 @@ def get_profile_text(
             
                 skip_keys = {"name", "age"}
                 extracted_profile_dict['connection_context_block'] = "\n".join(f"{k}: {v}" for k, v in json_parsed_content.items() if k not in skip_keys)
+                logger.error(f"LOG.INFO: Extracted profile dict for user {user_id}: {extracted_profile_dict}")
+                
+            logger.error(f"LOG.INFO: Extracted profile context block for user {user_id}: {extracted_profile_dict['connection_context_block']}")
+                
 
         if extracted_profile_dict and len(extracted_profile_dict) > 0:
             return extracted_profile_dict

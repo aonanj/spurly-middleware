@@ -311,9 +311,7 @@ def process_image(user_id: str, image_file) -> List[Dict]:
             logger.error(f"No conversation messages extracted for user: {user_id}")
             return []  # Return empty list instead of raising error
         
-        logger.error(f"Successfully extracted {len(conversation_msgs)} messages for user: {user_id}")
-        #DEBUG
-        logger.error(f"Extracted messages: {conversation_msgs}")
+
         return conversation_msgs
         
     except OCRProcessingError:

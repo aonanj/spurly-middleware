@@ -354,8 +354,7 @@ def generate_spurs(
                     feature="spur_generation"
                 )
             
-            #DEBUG
-            logger.error(f"LOG.INFO: OpenAI response for user {user_id} on attempt {attempt+1}: {response}")
+
             content = (response.choices[0].message.content or "") if response.choices else ""
             
             spur_objects = []

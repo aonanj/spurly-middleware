@@ -174,8 +174,7 @@ class ConversationExtractor:
         Returns:
             True if likely a message
         """
-        #DEBUG
-        logger.error(f"Analyzing text for message likelihood: {text}")
+
         
         if len(text) < 1:
             return False
@@ -200,8 +199,7 @@ class ConversationExtractor:
         
         # Check if it contains common conversational words
         conversational_words = current_app.config.get('CONVERSATIONAL_WORDS', [])
-        # DEBUG
-        logger.error(f"Did conversational words match? {conversational_words}")
+
         
         text_lower = text.lower()
         if any(word in text_lower for word in conversational_words):
@@ -214,8 +212,7 @@ class ConversationExtractor:
         # Additional patterns for short but meaningful messages
         # Check for common short conversation words
         short_conversation_words = current_app.config.get('SHORT_CONVERSATIONAL_WORDS', [])
-        # DEBUG
-        logger.error(f"Did short conversation words match? {short_conversation_words}")
+
         if any(word in text_lower for word in short_conversation_words):
             return True
         
@@ -390,9 +387,7 @@ class ConversationExtractor:
                 
                 # Create MessageBlock
                 msg_block = MessageBlock(**block_info)
-                
-                # DEBUG
-                logger.error(f"Extracted block: {msg_block.text}")
+
                 
                 # Filter UI elements (including dates)
                 if self._is_ui_element(msg_block.text, msg_block.center_y, image_height):
@@ -440,8 +435,7 @@ class ConversationExtractor:
     
     def _is_valid_block(self, block: Any) -> bool:
         """Check if a block has valid structure and confidence."""
-        ##DEBUG
-        logger.error(f"_is_valid_block -- Validating block: {block.text if hasattr(block, 'text') else 'No text'}")
+
         if not block.bounding_box or not block.bounding_box.vertices:
             return False
         if len(block.bounding_box.vertices) != 4:
@@ -457,8 +451,6 @@ class ConversationExtractor:
             x_coords = [v.x for v in vertices]
             y_coords = [v.y for v in vertices]
             
-            #DEBUG
-            logger.error(f"_extract_block_info -- Extracting block info: {block.text if hasattr(block, 'text') else 'No text'}")
             
             # Get text
             text = get_text_from_element(block)
@@ -514,8 +506,7 @@ def get_text_from_element(element) -> str:
         if not block_text.strip() and hasattr(element, 'text'):
             block_text = element.text
         
-        #DEBUG
-        logger.error(f"get_text_from_element -- Extracted block text: {block_text}")
+
         return block_text.strip()
     except Exception as e:
         logger.error(f"Error in get_text_from_element: {str(e)}")
