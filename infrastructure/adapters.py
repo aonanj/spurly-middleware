@@ -1,9 +1,6 @@
-import json
-import requests
 import base64
-from typing import List, Dict, Optional
+from typing import List
 from flask import request, g
-from flask import jsonify
 
 from .logger import get_logger
 

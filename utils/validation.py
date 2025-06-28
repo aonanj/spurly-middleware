@@ -56,6 +56,8 @@ COMMON_PHRASES = [
     "nice chatting",
     "you strike me as",
     "nice talking",
+    "nice connecting",
+    "nice to connect",
 ]
 
 def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:

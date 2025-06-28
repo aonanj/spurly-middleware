@@ -7,7 +7,6 @@ from typing import Dict, Any
 import firebase_admin
 from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
-from functools import wraps
 import jwt
 from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, AuthError, ValidationError
 from services.user_service import get_user, update_user, create_user, get_user_by_email 

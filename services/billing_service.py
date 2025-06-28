@@ -10,7 +10,7 @@ This service provides functionality to:
 
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, List, Any
+from typing import Dict, Any
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
 from class_defs.billing_def import (
