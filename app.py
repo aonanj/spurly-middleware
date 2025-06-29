@@ -15,6 +15,7 @@ from routes.auth_routes import auth_bp
 from routes.social_auth import social_auth_bp
 from routes.profile_routes import profile_bp
 from routes.billing import billing_bp
+from routes.topics import diagnostic_bp
 
 
 def create_app():
@@ -44,6 +45,7 @@ def create_app():
     app.register_blueprint(user_management_bp)
     app.register_blueprint(generate_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(diagnostic_bp)
 
     level = app.config.get("LOGGER_LEVEL", "INFO")
     setup_logger(name="spurly", level=level, toFile=True, fileName="spurly.log")

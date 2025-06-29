@@ -1,11 +1,12 @@
 import base64
 from datetime import datetime, timezone
+import random
 import openai
 from typing import Optional, Dict, List
 from class_defs.profile_def import ConnectionProfile
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
-from infrastructure.clients import get_openai_client
+from infrastructure.clients import get_openai_client, get_firestore_db
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
 from services.connection_service import get_connection_profile, get_active_connection_firestore
 from services.user_service import get_user
@@ -195,7 +196,7 @@ def generate_spurs(
         if situation and situation != "":
             context_block += f" -Situation:  {situation}\n"
         if topic and topic != "":
-            context_block += f" -Topic:  {topic}\n\n"
+            context_block += f" -Topic(s):  {topic}\n\n"
     
         # Process images if provided
     conversation_image_analysis = []
@@ -242,7 +243,8 @@ def generate_spurs(
             img_analysis_tone = (conversation_image_analysis[1].get('tone'))
                                    
     if situation or topic or tone or img_analysis_situation or img_analysis_tone:
-        context_block += "You further should consider the "
+        if not context_block.endswith("based on the"):
+            context_block += "You further should consider the "
         if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
             context_block += "situation"
         if (topic and topic != ""):
@@ -495,3 +497,20 @@ def get_spurs_for_output(
         logger.error(f"Max regeneration attempts reached for user {user_id}. Some spurs may not meet quality standards.")
 
     return spurs
+
+
+def get_random_trending_topic():
+    try:
+        db = get_firestore_db()
+        doc = db.collection("trending_topics").document("weekly_pool").get()
+        if not doc.exists:
+            return None
+        topics = doc.to_dict().get("topics", [])
+        if not topics:
+            return None
+        return random.choice(topics).get("topic")
+    except Exception as e:
+        print(f"[WARN] Failed to fetch trending topic: {e}")
+        return None
+
+

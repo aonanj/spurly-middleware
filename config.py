@@ -9,6 +9,8 @@ class Config:
     
     OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
     
+    NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")
+    
     APP_OATH_KEY = os.environ.get("APP_OATH_KEY", "")
     
     APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "")
