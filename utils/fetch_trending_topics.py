@@ -1,7 +1,7 @@
 import requests
 from pytrends.request import TrendReq
 from datetime import datetime, timezone
-from flask import current_app
+import os
 from infrastructure.clients import get_firestore_db
 from infrastructure.logger import get_logger
 
@@ -10,7 +10,7 @@ db = get_firestore_db()
 logger = get_logger(__name__)
     
 # NewsAPI Setup
-NEWSAPI_KEY = current_app.config.get("NEWS_API_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 CATEGORIES = ["entertainment", "technology", "sports", "general"]
 
 def get_google_trends(limit=20):
@@ -26,7 +26,7 @@ def get_newsapi_topics(categories, limit_per=10):
             "country": "us",
             "category": cat,
             "pageSize": limit_per,
-            "apiKey": NEWSAPI_KEY
+            "apiKey": NEWS_API_KEY
         }
         r = requests.get(url, params=params)
         articles = r.json().get("articles", [])

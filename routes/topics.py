@@ -1,4 +1,5 @@
-from flask import Blueprint, jsonify, current_app
+from flask import Blueprint, jsonify
+import os
 from datetime import datetime, timezone
 import requests
 from pytrends.request import TrendReq
@@ -32,7 +33,7 @@ def get_trending_topics():
 
 
 # NewsAPI setup
-NEWSAPI_KEY = current_app.config.get("NEWS_API_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 CATEGORIES = ["entertainment", "technology", "sports", "general"]
 
 def is_safe_topic(text):
@@ -52,7 +53,7 @@ def get_newsapi_topics(categories, limit_per=10):
             "country": "us",
             "category": cat,
             "pageSize": limit_per,
-            "apiKey": NEWSAPI_KEY
+            "apiKey": NEWS_API_KEY
         }
         r = requests.get(url, params=params)
         articles = r.json().get("articles", [])
