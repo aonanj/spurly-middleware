@@ -1,6 +1,6 @@
 from class_defs.spur_def import Spur
 from flask import Blueprint, request, jsonify, g
-from gpt_training.anonymizer import anonymize_spur
+from gpt_training.training_data_collector import save_good_spur, save_bad_spur
 from infrastructure.token_validator import verify_token, handle_all_errors
 from services.spur_service import save_spur
 
@@ -23,9 +23,8 @@ def feedback():
 
     result = []
     if feedback_type == "thumbs_up":
-        result = save_spur(user_id, spur_obj.to_dict())
-        anonymize_spur(spur_obj, True)
+        result = save_good_spur(spur_obj)
     elif feedback_type == "thumbs_down":
-        anonymize_spur(spur_obj, False)
+        result = save_bad_spur(spur_obj)
 
-    return jsonify(result)
+    return jsonify(result), 200

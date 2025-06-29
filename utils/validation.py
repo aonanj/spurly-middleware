@@ -1,5 +1,7 @@
 from class_defs.spur_def import Spur
-from flask import current_app
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
 
 def validate_and_normalize_output(spur_dict, variants):
     """
@@ -23,6 +25,8 @@ def validate_and_normalize_output(spur_dict, variants):
         value = spur_dict.get(variant, "").strip()
         if not value or not isinstance(value, str) or len(value) > 1000:
             validated[variant] = fallback
+            ## DEBUG
+            logger.error(f"DEBUG (validation:validate_and_normalize_output) Invalid or missing value for {variant}: '{value}'. Using fallback: '{fallback}'")
         else:
             validated[variant] = value
 
@@ -75,6 +79,8 @@ def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
         message = getattr(spur, "text", "").lower()
         if any(phrase in message for phrase in COMMON_PHRASES):
             spurs_to_retry.append(spur.variant)
+            ##DEBUG
+            logger.error(f"Spur {spur.variant} flagged with text: {spur.text}")
         elif message == "" or message.isspace():
             spurs_to_retry.append(spur.variant) 
     return spurs_to_retry
