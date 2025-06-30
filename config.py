@@ -13,6 +13,9 @@ class Config:
     
     APP_OATH_KEY = os.environ.get("APP_OATH_KEY", "")
     
+    REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID", "")
+    REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET", "")
+    
     APPLE_CLIENT_ID = os.environ.get("APPLE_CLIENT_ID", "")
     APPLE_BUNDLE_ID = os.environ.get("APPLE_BUNDLE_ID", "")
     

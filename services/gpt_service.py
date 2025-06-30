@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timezone
+from flask import current_app
 import random
 import openai
 from typing import Optional, Dict, List
@@ -148,9 +149,13 @@ def generate_spurs(
     if not user:
         raise ValueError(f"User with ID {user_id} not found")
     user_profile_dict = user.to_dict()
-    if not selected_spurs:
-        selected_spurs = user_profile_dict['selected_spurs']
     
+    user_spurs_list = user_profile_dict.get('spurs', [])
+    if selected_spurs and len(selected_spurs) > 0:
+        user_spurs_list = selected_spurs
+    if not user_spurs_list or len(user_spurs_list) == 0:
+        user_spurs_list = current_app.config.get("SPUR_VARIANTS", [])
+
     connection_profile = None
     if connection_id and connection_id != get_null_connection_id(user_id):
         connection_profile = get_connection_profile(user_id, connection_id)
@@ -277,9 +282,19 @@ def generate_spurs(
         matching_trending_topics = trending_topics_matching_connection_interests(user_id, connection_id)
         if matching_trending_topics and len(matching_trending_topics) > 0:
             context_block += "(Note: No conversation messages, images, or topic provided. Here are some trending topics that match the Connection's interests: \n"
-            for t in matching_trending_topics:
-                context_block += f" - {t}\n"
-            context_block += " You should suggest one SPUR based on one of these trending topics. \n"
+            i = 0
+            for selected_spur in user_spurs_list:
+                context_block += f" - generate {selected_spur} based on {matching_trending_topics[i]}.\n"
+                if i == len(matching_trending_topics) - 1:
+                    break
+                i += 1
+            if i < len(user_spurs_list):
+                context_block += "Do not use any trending topics to generate "
+                for j in range(i, len(user_spurs_list)):
+                    context_block += f"{user_spurs_list[j]}"
+                    if j < len(user_spurs_list) - 1:
+                        context_block += ", "
+                context_block += "."
             context_block += ")\n"
         elif (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
             refresh_if_stale()
@@ -289,10 +304,10 @@ def generate_spurs(
                 logger.error(f"No topic or messages provided, using trending topic: {cold_open_topic_one}")
             else:
                 logger.error("No topic or messages provided, and no trending topics available.")
-            context_block += "(Note: This is a cold open with no context provided, so you should suggest one SPUR based on "
+            context_block += "(Note: This is a cold open with no context provided, so you should generate the main_spur based on "
             context_block += f"this trending topic: {cold_open_topic_one}, "
-            context_block += f" and one SPUR based on this trending topic: {cold_open_topic_two}. "
-            context_block += f" Do not suggest more than one SPUR for each trending topic.) \n"
+            context_block += f" and the banter_spur based on this trending topic: {cold_open_topic_two}. "
+            context_block += f" Do not use any trending topics to generate the warm_spur and the cool_spur.) \n"
         
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
