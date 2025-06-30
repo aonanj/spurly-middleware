@@ -40,7 +40,7 @@ RULES:
     •	Questions should feel like a continuation of the earlier part of the SPUR.
 15.	Questions must not sound demanding. They should invite Connection to share, not extract something from them.
 16.	SPURs must make sense in context. Cold opens should never imply prior chat history.
-17. Avoid using the em dash ("—") because it's rarely used in text and direct messaging. 
+17. Do not include an em dash (—) in any SPURs. 
 18.	Demographic Defaults: If no context is provided, assume User is male, Connection connection is female, and both are:
     •	Age 18–30
     •	U.S.-based

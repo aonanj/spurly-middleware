@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import random
 from flask import Blueprint, jsonify
+import re
 import os
 import praw
 from datetime import datetime, timezone
@@ -12,6 +13,9 @@ from trendspy import Trends
 diagnostic_bp = Blueprint("diagnostic", __name__)
 
 logger = get_logger(__name__)
+
+def strip_trailing_source(title):
+    return re.sub(r'\s*[-–|]\s*[^-–|]+$', '', title)
 
 def get_all_trending_topics():
     
@@ -100,8 +104,9 @@ def get_newsapi_topics(categories=CATEGORIES, limit_per=5):
             r = requests.get(url, params=params)
             articles = r.json().get("articles", [])
             for a in articles:
+                title = strip_trailing_source(a["title"])
                 results.append({
-                    "topic": a["title"],
+                    "topic": title,
                     "source": f"NewsAPI-{cat}"
                 })
         return results
@@ -109,7 +114,7 @@ def get_newsapi_topics(categories=CATEGORIES, limit_per=5):
         logger.error(f"ERROR in {__name__}: NewsAPI request failed with an error: {e}")
         return results
 
-def fetch_reddit_topics(subreddits=["TodayILearned", "MadeMeSmile", "UpliftingNews", "news", "goodnews"], limit=10):
+def fetch_reddit_topics(subreddits=["TodayILearned", "UpliftingNews", "news", "goodnews"], limit=10):
 
     results = []
     try:
