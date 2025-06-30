@@ -85,7 +85,7 @@ def get_google_trends(limit=5):
         return [] 
 
 
-def get_newsapi_topics(categories, limit_per=5):
+def get_newsapi_topics(categories=CATEGORIES, limit_per=5):
     
     results = []
     try:
@@ -123,7 +123,7 @@ def fetch_reddit_topics(subreddits=["TodayILearned", "MadeMeSmile", "UpliftingNe
         for sub in subreddits:
             subreddit = reddit.subreddit(sub)
             for post in subreddit.hot(limit=limit):
-                if not post.stickied and not post.over_18 and len(post.title) <= 150:
+                if not post.stickied and not post.over_18 and len(post.title) <= 300 and is_safe_topic(post.title):
                     results.append({
                         "topic": post.title,
                         "source": f"Reddit-{sub}",
