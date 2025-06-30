@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 import requests
 from infrastructure.clients import get_firestore_db
 from infrastructure.logger import get_logger
-from pytrends.request import TrendReq, exceptions
+from trendspy import Trends  
 
 diagnostic_bp = Blueprint("diagnostic", __name__)
 
@@ -34,7 +34,6 @@ def get_trending_topics():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-
 # NewsAPI setup
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 CATEGORIES = ["entertainment", "technology", "sports", "general"]
@@ -44,13 +43,11 @@ def is_safe_topic(text):
     return not any(word in text.lower() for word in banned_words)
 
 import logging
-from pytrends.request import TrendReq, exceptions  # Make sure to import exceptions
-
 
 
 def get_google_trends(limit=10):
     """
-    Fetches trending searches from Google Trends with error handling.
+    Fetches trending searches from Google Trends using trendspy with error handling.
 
     Args:
         limit (int): The maximum number of trends to return.
@@ -59,15 +56,58 @@ def get_google_trends(limit=10):
         list: A list of trending topics, or an empty list if an error occurs.
     """
     try:
-        pytrends = TrendReq(hl='en-US', tz=360)
-        df = pytrends.trending_searches(pn='united_states')
-        return [{"topic": row[0], "source": "GoogleTrends"} for row in df.head(limit).values]
-    except exceptions.ResponseError as e:
-        logger.error(f"Pytrends request failed with an error: {e}")
-        return [] # Return an empty list to prevent a crash
+        # Initialize trendspy
+        tr = Trends()
+        
+        # Get trending searches for the United States
+        trends_data = tr.trending_now(geo='US')
+        
+        # Format the results to match the expected output
+        results = []
+        if trends_data:
+            # Handle different possible return formats from trendspy
+            if isinstance(trends_data, list):
+                # If it returns a list of strings
+                for i, trend in enumerate(trends_data[:limit]):
+                    results.append({
+                        "topic": trend,
+                        "source": "GoogleTrends"
+                    })
+            elif isinstance(trends_data, dict):
+                # If it returns a dictionary with trends
+                trends_list = trends_data.get('trends', [])
+                for i, trend in enumerate(trends_list[:limit]):
+                    # Extract the topic name depending on the structure
+                    if isinstance(trend, dict):
+                        topic_name = trend.get('title', trend.get('topic', str(trend)))
+                    else:
+                        topic_name = str(trend)
+                    
+                    results.append({
+                        "topic": topic_name,
+                        "source": "GoogleTrends"
+                    })
+            else:
+                # If it's a pandas DataFrame or other format
+                # Convert to list and process
+                try:
+                    import pandas as pd
+                    if isinstance(trends_data, pd.DataFrame):
+                        for i, row in trends_data.head(limit).iterrows():
+                            results.append({
+                                "topic": str(row[0]) if len(row) > 0 else str(row),
+                                "source": "GoogleTrends"
+                            })
+                except ImportError:
+                    # If pandas is not available, try to convert to string
+                    logger.warning("Unexpected data format from trendspy, attempting string conversion")
+                    
+        return results
+        
     except Exception as e:
-        logger.error(f"An unexpected error occurred in get_google_trends: {e}")
-        return [] # Also handle other potential exceptions
+        logger.error(f"TrendsPy request failed with an error: {e}")
+        return []  # Return an empty list to prevent a crash
+
 
 def get_newsapi_topics(categories, limit_per=10):
     results = []
@@ -113,4 +153,3 @@ def refresh_trending_topics():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-
