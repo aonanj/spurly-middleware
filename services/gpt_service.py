@@ -222,50 +222,56 @@ def generate_spurs(
                             v_str = str(v)
                         context_block += f" - {k}: {v_str}"
 
-    context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for the User to say to the Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs based on the"
+    some_context = False
+    if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0) or (profile_images and len(profile_images) > 0) or (connection_profile and connection_id and connection_id != get_null_connection_id(user_id)) or (situation and situation != "") or (topic and topic != ""):
+        some_context = True
+        context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for the User to say to the Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs based on the "
     
-    if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
-        context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
-    
-    if(profile_images and len(profile_images) > 0):
-        context_block += " Profile Image(s) provided"
-    
-    
-    if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
-        if context_block.endswith("provided"):
-            context_block += " and the"
-        context_block += " Connection Profile Context"
+        if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
+            context_block += " Conversation provided. Your fundamental goal here is to keep the conversation engaging and relevant. Your suggestions should consider the"
+        
+        if(profile_images and len(profile_images) > 0):
+            context_block += " Profile Image(s) provided"
+        
+        
+        if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
+            if context_block.endswith("provided"):
+                context_block += " and the"
+            context_block += " Connection Profile Context"
 
-    if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
-        context_block += " , where that information can be used to enrich or contribute to the Conversation"
-    if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
+        if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
+            context_block += " , where that information can be used to enrich or contribute to the Conversation"
+        
         context_block += " -- keeping in mind the fundamental goal of steadily growing the Connection's interest in and desire for the User. "
 
-    img_analysis_situation = ""
-    img_analysis_tone = ""
+        img_analysis_situation = ""
+        img_analysis_tone = ""
 
-    if len(conversation_image_analysis) > 0:
-        if conversation_image_analysis[0].get('confidence', 0) > 0.3:
-            img_analysis_situation = (conversation_image_analysis[0].get('situation'))
-        if conversation_image_analysis[1].get('confidence', 0) > 0.3:
-            img_analysis_tone = (conversation_image_analysis[1].get('tone'))
-                                   
-    if situation or topic or tone or img_analysis_situation or img_analysis_tone:
-        if context_block.endswith(".") or context_block.endswith(". "):
-            context_block += "You should further consider the "
-        if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
-            context_block += "situation"
-        if (topic and topic != ""):
-            if context_block.endswith("situation"):
-                context_block += " and "
-            context_block += "topic"
-        if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
-            if context_block.endswith("situation") or context_block.endswith("topic"):
-                context_block += " and "
-            context_block += "tone"
-        context_block += " of the Conversation"
-    
-    context_block += " to inform your SPUR suggestions. \n"
+        if len(conversation_image_analysis) > 0:
+            if conversation_image_analysis[0].get('confidence', 0) > 0.3:
+                img_analysis_situation = (conversation_image_analysis[0].get('situation'))
+            if conversation_image_analysis[1].get('confidence', 0) > 0.3:
+                img_analysis_tone = (conversation_image_analysis[1].get('tone'))
+                                    
+        if situation or topic or tone or img_analysis_situation or img_analysis_tone:
+            if context_block.endswith(".") or context_block.endswith(". "):
+                context_block += "You should further consider the "
+            if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
+                context_block += "situation"
+            if (topic and topic != ""):
+                if context_block.endswith("situation"):
+                    context_block += " and "
+                context_block += "topic"
+            if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
+                if context_block.endswith("situation") or context_block.endswith("topic"):
+                    context_block += " and "
+                context_block += "tone"
+            context_block += " of the Conversation"
+        
+        context_block += " to inform your SPUR suggestions. \n"
+        
+    if not some_context:
+        context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for the User to say to the Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs for the User to say to a Connection. Your fundamental goal here is to help the User engage with and grow the Connection's interest in and desire for the User. \n"
     
     if(not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not topic or topic.strip() == ""):
         matching_trending_topics = trending_topics_matching_connection_interests(user_id, connection_id)
@@ -275,18 +281,18 @@ def generate_spurs(
                 context_block += f" - {t}\n"
             context_block += " You should suggest one SPUR based on one of these trending topics. \n"
             context_block += ")\n"
-    elif (not topic or topic.strip() == "") and (not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
-        refresh_if_stale()
-        cold_open_topic_one = get_random_trending_topic()
-        cold_open_topic_two = get_random_trending_topic()
-        if cold_open_topic_one:
-            logger.error(f"No topic or messages provided, using trending topic: {cold_open_topic_one}")
-        else:
-            logger.error("No topic or messages provided, and no trending topics available.")
-        context_block += "(Note: This is a cold open, so you should suggest one SPUR based on "
-        context_block += f"this trending topic: {cold_open_topic_one}, "
-        context_block += f" and one SPUR based on this trending topic: {cold_open_topic_two}. "
-        context_block += f" Do not suggest more than one SPUR for each trending topic.) \n"
+        elif (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
+            refresh_if_stale()
+            cold_open_topic_one = get_random_trending_topic()
+            cold_open_topic_two = get_random_trending_topic()
+            if cold_open_topic_one:
+                logger.error(f"No topic or messages provided, using trending topic: {cold_open_topic_one}")
+            else:
+                logger.error("No topic or messages provided, and no trending topics available.")
+            context_block += "(Note: This is a cold open with no context provided, so you should suggest one SPUR based on "
+            context_block += f"this trending topic: {cold_open_topic_one}, "
+            context_block += f" and one SPUR based on this trending topic: {cold_open_topic_two}. "
+            context_block += f" Do not suggest more than one SPUR for each trending topic.) \n"
         
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
