@@ -43,9 +43,11 @@ def get_all_trending_topics():
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 CATEGORIES = ["entertainment", "sports", "science", "general"]
 
-def is_safe_topic(text):
+def is_safe_topic(text: str) -> bool:
+    """Simple keyword-based filter to exclude sensitive topics."""
+    
     banned_words = ['murder', 'death', 'war', 'rape', 'sexual assault', 'israel', 'palestine', 'suicide', 'sale', 'bargain', 'poll', 'deal', 'die', 'russia', 'ukrain', 'gaza', 'strikes', 'buzzfeed', 'horoscope']
-    return not any(text.lower().contains(word) for word in banned_words)
+    return not any(word in text.lower() for word in banned_words)
 
 
 def get_google_trends(limit=5):
