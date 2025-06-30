@@ -306,7 +306,7 @@ def generate_spurs(
                 logger.error("No topic or messages provided, and no trending topics available.")
             context_block += "(Note: This is a cold open with no context provided, so you should generate the main_spur based on "
             context_block += f"this trending topic: {cold_open_topic_one}, "
-            context_block += f" and the banter_spur based on this trending topic: {cold_open_topic_two}. "
+            context_block += f"and the banter_spur based on this trending topic: {cold_open_topic_two}."
             context_block += f" Do not use any trending topics to generate the warm_spur and the cool_spur.) \n"
         
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
