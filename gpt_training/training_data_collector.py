@@ -28,7 +28,10 @@ def save_good_spur(good_spur: Spur) -> Dict[str, str]:
 
 	good_spur_id = ""
 	if 'spur_id' not in good_spur_dict or good_spur_dict['spur_id'] == "":
-		good_spur_id = good_spur_dict.get("spur_id", generate_spur_id(user_id))
+		good_spur_id = generate_spur_id(user_id)
+		good_spur_dict['spur_id'] = good_spur_id
+	else:
+		good_spur_id = good_spur_dict.get("spur_id", "")
 	
 	try:
 		db = get_firestore_db()
@@ -65,7 +68,10 @@ def save_bad_spur(bad_spur: Spur) -> Dict[str, str]:
 
 	bad_spur_id = ""
 	if 'spur_id' not in bad_spur_dict or bad_spur_dict['spur_id'] == "":
-		bad_spur_id = bad_spur_dict.get("spur_id", generate_spur_id(user_id))
+		bad_spur_id = generate_spur_id(user_id)
+		bad_spur_dict['spur_id'] = bad_spur_id
+	else:
+		bad_spur_id = bad_spur_dict.get("spur_id", "")
 
 	try:
 		db = get_firestore_db()

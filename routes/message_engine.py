@@ -131,7 +131,8 @@ def generate():
         refresh_if_stale()
         topic_one = get_random_trending_topic()
         topic_two = get_random_trending_topic()
-        topic = (f"{topic_one}; {topic_two}").strip()
+        topic_three = get_random_trending_topic()
+        topic = (f"{topic_one}; {topic_two}; {topic_three}").strip()
         if topic:
             logger.info(f"No topic or messages provided, using trending topic: {topic}")
         else:
