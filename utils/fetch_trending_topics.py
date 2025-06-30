@@ -1,5 +1,5 @@
 import requests
-from pytrends.request import TrendReq
+from pytrends.request import TrendReq, exceptions
 from datetime import datetime, timezone
 import os
 from infrastructure.clients import get_firestore_db
@@ -14,9 +14,16 @@ NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 CATEGORIES = ["entertainment", "technology", "sports", "general"]
 
 def get_google_trends(limit=20):
-    pytrends = TrendReq(hl='en-US', tz=360)
-    df = pytrends.trending_searches(pn='united_states')
-    return [{"topic": row[0], "source": "GoogleTrends"} for row in df.head(limit).values]
+    try:
+        pytrends = TrendReq(hl='en-US', tz=360)
+        df = pytrends.trending_searches(pn='united_states')
+        return [{"topic": row[0], "source": "GoogleTrends"} for row in df.head(limit).values]
+    except exceptions.ResponseError as e:
+        logger.error(f"Pytrends request failed with an error: {e}")
+        return [] # Return an empty list to prevent a crash
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in get_google_trends: {e}")
+        return [] # Also handle other potential exceptions
 
 def get_newsapi_topics(categories, limit_per=10):
     results = []

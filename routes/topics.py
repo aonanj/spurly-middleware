@@ -2,10 +2,13 @@ from flask import Blueprint, jsonify
 import os
 from datetime import datetime, timezone
 import requests
-from pytrends.request import TrendReq
 from infrastructure.clients import get_firestore_db
+from infrastructure.logger import get_logger
+from pytrends.request import TrendReq, exceptions
 
 diagnostic_bp = Blueprint("diagnostic", __name__)
+
+logger = get_logger(__name__)
 
 @diagnostic_bp.route("/topics", methods=["GET"])
 def get_trending_topics():
@@ -40,10 +43,31 @@ def is_safe_topic(text):
     banned_words = ['murder', 'trump', 'biden', 'death', 'war', 'scandal', 'suicide', 'shooting']
     return not any(word in text.lower() for word in banned_words)
 
+import logging
+from pytrends.request import TrendReq, exceptions  # Make sure to import exceptions
+
+
+
 def get_google_trends(limit=10):
-    pytrends = TrendReq(hl='en-US', tz=360)
-    df = pytrends.trending_searches(pn='united_states')
-    return [{"topic": row[0], "source": "GoogleTrends"} for row in df.head(limit).values]
+    """
+    Fetches trending searches from Google Trends with error handling.
+
+    Args:
+        limit (int): The maximum number of trends to return.
+
+    Returns:
+        list: A list of trending topics, or an empty list if an error occurs.
+    """
+    try:
+        pytrends = TrendReq(hl='en-US', tz=360)
+        df = pytrends.trending_searches(pn='united_states')
+        return [{"topic": row[0], "source": "GoogleTrends"} for row in df.head(limit).values]
+    except exceptions.ResponseError as e:
+        logger.error(f"Pytrends request failed with an error: {e}")
+        return [] # Return an empty list to prevent a crash
+    except Exception as e:
+        logger.error(f"An unexpected error occurred in get_google_trends: {e}")
+        return [] # Also handle other potential exceptions
 
 def get_newsapi_topics(categories, limit_per=10):
     results = []
