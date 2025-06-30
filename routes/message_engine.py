@@ -1,12 +1,10 @@
-from datetime import datetime, timezone
+
 from flask import Blueprint, request, jsonify, g
-from .topics import get_google_trends, get_newsapi_topics, is_safe_topic, CATEGORIES
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
 from infrastructure.id_generator import generate_conversation_id
-from infrastructure.clients import get_firestore_db
 from services.connection_service import get_active_connection_firestore
-from services.gpt_service import get_spurs_for_output, get_random_trending_topic
+from services.gpt_service import get_spurs_for_output
 from class_defs.conversation_def import Conversation
 from services.storage_service import ConversationStorage
 import json
@@ -58,7 +56,8 @@ def generate():
     if not connection_id:
         logger.info(f"No connection_id provided for user {user_id}, attempting to get active connection.")
         connection_id = get_active_connection_firestore(user_id)
-    
+
+
     # Parse conversation messages from JSON string
     conversation_messages = None
     conversation_messages_json = request.form.get("conversation_messages", None)
@@ -126,17 +125,7 @@ def generate():
         conversation_obj = Conversation.from_dict(conversation_dict)
         storage = ConversationStorage()
         storage.save_conversation(conversation=conversation_obj)
-    
-    if (not topic or topic.strip() == "") and (not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0):
-        refresh_if_stale()
-        topic_one = get_random_trending_topic()
-        topic_two = get_random_trending_topic()
-        topic_three = get_random_trending_topic()
-        topic = (f"{topic_one}; {topic_two}; {topic_three}").strip()
-        if topic:
-            logger.info(f"No topic or messages provided, using trending topic: {topic}")
-        else:
-            logger.warning("No topic or messages provided, and no trending topics available.")
+
 
     # Generate spurs with categorized images
     spur_objs = get_spurs_for_output(
@@ -175,42 +164,4 @@ def save_image_to_storage(image_data: bytes, user_id: str, index: int) -> str:
     # return storage_url
     raise NotImplementedError("Image storage functionality not yet implemented")
 
-from datetime import datetime, timedelta
-from firebase_admin import firestore
 
-
-def refresh_if_stale():
-    db = get_firestore_db()
-    doc_ref = db.collection("trending_topics").document("weekly_pool")
-    doc = doc_ref.get()
-
-    should_refresh = False
-
-    if not doc.exists:
-        should_refresh = True
-    else:
-        data = doc.to_dict()
-        last_updated_str = data.get("last_updated")
-        if not last_updated_str:
-            should_refresh = True
-        else:
-            try:
-                last_updated = datetime.fromisoformat(last_updated_str)
-                now = datetime.now(timezone.utc)
-                if (now - last_updated) >= timedelta(days=10):
-                    should_refresh = True
-            except Exception:
-                should_refresh = True
-
-    if should_refresh:
-        all_topics = get_google_trends() + get_newsapi_topics(CATEGORIES, limit_per=10)
-        filtered = [t for t in all_topics if is_safe_topic(t["topic"])]
-        doc_ref.set({
-            "topics": filtered,
-            "last_updated": datetime.now(timezone.utc).isoformat()
-        })
-        print(f"Refreshed {len(filtered)} topics.")
-        return True
-    else:
-        print("Trending topics are up to date.")
-        return False

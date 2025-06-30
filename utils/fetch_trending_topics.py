@@ -33,42 +33,13 @@ def get_google_trends(limit=10):
         # Format the results to match the expected output
         results = []
         if trends_data:
-            # Handle different possible return formats from trendspy
-            if isinstance(trends_data, list):
-                # If it returns a list of strings
-                for i, trend in enumerate(trends_data[:limit]):
-                    results.append({
-                        "topic": trend,
-                        "source": "GoogleTrends"
-                    })
-            elif isinstance(trends_data, dict):
-                # If it returns a dictionary with trends
-                trends_list = trends_data.get('trends', [])
-                for i, trend in enumerate(trends_list[:limit]):
-                    # Extract the topic name depending on the structure
-                    if isinstance(trend, dict):
-                        topic_name = trend.get('title', trend.get('topic', str(trend)))
-                    else:
-                        topic_name = str(trend)
-                    
-                    results.append({
-                        "topic": topic_name,
-                        "source": "GoogleTrends"
-                    })
-            else:
-                # If it's a pandas DataFrame or other format
-                # Convert to list and process
-                try:
-                    import pandas as pd
-                    if isinstance(trends_data, pd.DataFrame):
-                        for i, row in trends_data.head(limit).iterrows():
-                            results.append({
-                                "topic": str(row[0]) if len(row) > 0 else str(row),
-                                "source": "GoogleTrends"
-                            })
-                except ImportError:
-                    # If pandas is not available, try to convert to string
-                    logger.warning("Unexpected data format from trendspy, attempting string conversion")
+            # The trendspy library returns a list of TrendKeyword objects.
+            # We need to access the .keyword attribute to get the string.
+            for trend in trends_data[:limit]:
+                results.append({
+                    "topic": trend.keyword,  # Access the .keyword attribute here
+                    "source": "GoogleTrends"
+                })
                     
         return results
         

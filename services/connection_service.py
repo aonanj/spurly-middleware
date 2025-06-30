@@ -400,7 +400,7 @@ def get_profile_text(
     img_bytes: bytes,
 ) -> Dict:
     """
-    Generates spur responses based on the provided conversation context and profiles.
+    Takes an image byte array of a profile image and uses GPT-4o to extract profile text.
 
     Args:
         user_id (str): User ID.

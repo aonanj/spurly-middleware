@@ -10,6 +10,7 @@ from infrastructure.clients import get_openai_client, get_firestore_db
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
 from services.connection_service import get_connection_profile, get_active_connection_firestore
 from services.user_service import get_user
+from services.topic_service import get_random_trending_topic, refresh_if_stale
 from utils.gpt_output import parse_gpt_output
 from utils.prompt_template import build_prompt, get_system_prompt
 from utils.trait_manager import infer_tone, infer_situation, analyze_convo_for_context, downscale_image_from_bytes, extract_json_block
@@ -164,10 +165,16 @@ def generate_spurs(
     user_prompt_profile = get_user_profile_for_prompt(user_id)
     context_block += "\n".join(user_prompt_profile.values()) + "\n"
     
+    connection_context_block = None
+    connection_profile_text = None
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
         context_block += "*** CONNECTION PROFILE CONTEXT: \n"
         connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id)
         context_block += "\n".join(connection_prompt_profile.values()) + "\n"
+        if connection_profile.connection_context_block and connection_profile.connection_context_block.strip() != "":
+            connection_context_block = connection_profile.connection_context_block
+        if connection_profile.connection_profile_text and len(connection_profile.connection_profile_text) > 0:
+            connection_profile_text = connection_profile.connection_profile_text
 
     tone = None
     if conversation_messages and len(conversation_messages) > 0:
@@ -230,9 +237,10 @@ def generate_spurs(
         context_block += " Connection Profile Context"
 
     if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
-        context_block += " , where that information can be used to enrich or contribute to the Conversation -- keeping in mind the"
-    context_block += " fundamental goal of steadily growing the Connection's interest in and desire for the User. "
-    
+        context_block += " , where that information can be used to enrich or contribute to the Conversation"
+    if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
+        context_block += " -- keeping in mind the fundamental goal of steadily growing the Connection's interest in and desire for the User. "
+
     img_analysis_situation = ""
     img_analysis_tone = ""
 
@@ -243,8 +251,8 @@ def generate_spurs(
             img_analysis_tone = (conversation_image_analysis[1].get('tone'))
                                    
     if situation or topic or tone or img_analysis_situation or img_analysis_tone:
-        if not context_block.endswith("based on the"):
-            context_block += "You further should consider the "
+        if context_block.endswith(".") or context_block.endswith(". "):
+            context_block += "You should further consider the "
         if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
             context_block += "situation"
         if (topic and topic != ""):
@@ -258,6 +266,20 @@ def generate_spurs(
         context_block += " of the Conversation"
     
     context_block += " to inform your SPUR suggestions. \n"
+    
+    if (not topic or topic.strip() == "") and (not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
+        refresh_if_stale()
+        cold_open_topic_one = get_random_trending_topic()
+        cold_open_topic_two = get_random_trending_topic()
+        if cold_open_topic_one:
+            logger.error(f"No topic or messages provided, using trending topic: {cold_open_topic_one}")
+        else:
+            logger.error("No topic or messages provided, and no trending topics available.")
+        context_block += "(Note: This is a cold open, so you should suggest one SPUR based on "
+        context_block += f"this trending topic: {cold_open_topic_one}, "
+        context_block += f" and one SPUR based on this trending topic: {cold_open_topic_two}. "
+        context_block += f" Do not suggest more than one SPUR for each trending topic.) \n"
+        
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
     user_prompt = build_prompt(selected_spurs or [], context_block)
@@ -497,20 +519,4 @@ def get_spurs_for_output(
         logger.error(f"Max regeneration attempts reached for user {user_id}. Some spurs may not meet quality standards.")
 
     return spurs
-
-
-def get_random_trending_topic():
-    try:
-        db = get_firestore_db()
-        doc = db.collection("trending_topics").document("weekly_pool").get()
-        if not doc.exists:
-            return None
-        topics = doc.to_dict().get("topics", [])
-        if not topics:
-            return None
-        return random.choice(topics).get("topic")
-    except Exception as e:
-        print(f"[WARN] Failed to fetch trending topic: {e}")
-        return None
-
 
