@@ -1,14 +1,17 @@
 from class_defs.profile_def import ConnectionProfile
 from dataclasses import fields
-from flask import current_app, jsonify, json
+from flask import current_app, json
 import base64
+import json
 from typing import List, Dict, Optional, Any
+from openai.types.chat import ChatCompletionMessageParam
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db, get_openai_client
 from infrastructure.id_generator import generate_connection_id, get_null_connection_id
 from utils.prompt_template import get_profile_text_system_prompt, get_profile_text_user_prompt
 from utils.usage_tracker import track_openai_usage, track_openai_usage_manual, estimate_tokens_from_messages
 from utils.trait_manager import downscale_image_from_bytes, extract_json_block
+
 
 logger = get_logger(__name__)
 
@@ -512,3 +515,164 @@ def get_profile_text(
     except Exception as e:
         logger.error(f"Profile Data Extraction Failed — Error: {e}", exc_info=True)
         return {"error": f"Profile Data Extraction Failed: {str(e)}"}
+
+@track_openai_usage('topic_matching')
+def trending_topics_matching_connection_interests(user_id: str, connection_id: str) -> List[str]:
+    """
+    Returns a list of trending topics that are likely of interest to the connection
+    based on their profile information.
+    
+    Args:
+        user_id: The ID of the user
+        connection_id: The ID of the connection
+        
+    Returns:
+        List of trending topic strings that match the connection's interests
+    """
+    try:
+        # Get connection profile
+        connection_profile = get_connection_profile(user_id, connection_id)
+        if not connection_profile:
+            logger.error(f"Connection profile not found for user {user_id}, connection {connection_id}")
+            return []
+        
+        # Get all trending topics from Firestore (similar to get_random_trending_topic)
+        db = get_firestore_db()
+        doc = db.collection("trending_topics").document("weekly_pool").get()
+        
+        if not doc.exists:
+            logger.error("No trending topics found in Firestore")
+            return []
+        
+        topics_data = doc.to_dict().get("topics", [])
+        if not topics_data:
+            logger.error("No topics in trending topics pool")
+            return []
+        
+        # Extract just the topic strings
+        trending_topics = [topic.get("topic", "") for topic in topics_data if topic.get("topic")]
+        
+        if not trending_topics:
+            logger.error("No valid trending topics found")
+            return []
+        
+        # Build context about the connection
+        connection_context = ""
+        
+        # Add connection context block if available
+        if connection_profile.connection_context_block:
+            connection_context += f"Connection Context: {connection_profile.connection_context_block}\n\n"
+        
+        # Add profile text if available
+        if connection_profile.connection_profile_text:
+            if isinstance(connection_profile.connection_profile_text, list):
+                profile_text = " ".join(connection_profile.connection_profile_text)
+            else:
+                profile_text = str(connection_profile.connection_profile_text)
+            connection_context += f"Profile Information: {profile_text}\n\n"
+        
+        # Add personality traits if available
+        if connection_profile.personality_traits:
+            traits_str = ", ".join([trait.get("trait", "") for trait in connection_profile.personality_traits if trait.get("trait")])
+            if traits_str:
+                connection_context += f"Personality Traits: {traits_str}\n\n"
+        
+        # If no context is available, return empty list
+        if not connection_context.strip():
+            logger.error(f"No profile information available for connection {connection_id}")
+            return []
+        
+        # Prepare the prompt for OpenAI
+        system_prompt = """You are an expert at matching trending topics to people's interests based on their profile information. 
+Your task is to analyze a person's profile and identify which trending topics from a provided list would likely interest them.
+
+Consider all aspects of their profile including:
+- Their stated interests and hobbies
+- Their personality traits
+- Their profession or field of study
+- Any activities or preferences mentioned
+- Context clues about their lifestyle
+
+Be selective - only return topics that have a clear connection to their profile. It's better to return fewer highly relevant topics than many loosely related ones.
+
+Your response must be a JSON array of strings containing ONLY the trending topics that match (exactly as they appear in the provided list). 
+For example: ["NBA Finals", "Taylor Swift tour", "New iPhone release"]
+
+If no topics clearly match their interests, return an empty array: []"""
+
+        user_prompt = f"""Based on the following profile information, which of these trending topics would likely interest this person?
+
+{connection_context}
+
+Trending Topics:
+{json.dumps(trending_topics, indent=2)}
+
+Return ONLY a JSON array of the matching topic strings."""
+
+        # Call OpenAI
+        openai_client = get_openai_client()
+        if not openai_client:
+            logger.error("OpenAI client not initialized")
+            return []
+        
+        messages: List[ChatCompletionMessageParam] = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        
+        # Estimate tokens for manual tracking
+        estimated_prompt_tokens = estimate_tokens_from_messages(messages)
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=2000,
+            temperature=0.4
+        )
+        
+        # Manual usage tracking
+        if hasattr(response, 'usage') and response.usage:
+            track_openai_usage_manual(
+                user_id=user_id,
+                model="gpt-4o",
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                feature="topic_matching"
+            )
+        else:
+            # Fallback to estimation
+            estimated_completion_tokens = 200
+            track_openai_usage_manual(
+                user_id=user_id,
+                model="gpt-4o",
+                prompt_tokens=estimated_prompt_tokens,
+                completion_tokens=estimated_completion_tokens,
+                feature="topic_matching"
+            )
+        
+        # Parse the response
+        content = (response.choices[0].message.content or "").strip()
+        
+        try:
+            # Extract JSON array from response
+            matched_topics = json.loads(extract_json_block(content))
+            
+            if not isinstance(matched_topics, list):
+                logger.error(f"OpenAI returned non-list response: {matched_topics}")
+                return []
+            
+            # Validate that returned topics are actually in the trending topics list
+            valid_topics = [topic for topic in matched_topics if topic in trending_topics]
+            
+            if len(valid_topics) != len(matched_topics):
+                logger.warning(f"Some returned topics were not in the trending list. Original: {matched_topics}, Valid: {valid_topics}")
+            
+            return valid_topics
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Failed to parse OpenAI response for topic matching: {e}, Response: {content}")
+            return []
+            
+    except Exception as e:
+        logger.error(f"Error in trending_topics_matching_connection_interests: {e}", exc_info=True)
+        return []

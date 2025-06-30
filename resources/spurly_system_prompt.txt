@@ -20,31 +20,28 @@ RULES:
     •	Shared interests or context inferred from demographic defaults (see Rule 17)
     •	Viral trends, recent non-polarizing news or memes, light sports/pop culture references
     •	Creative hypotheticals, bold or quirky premises, or unusual takes that provoke curiosity or amusement
-6.  More than one Topic may be given in some instances. Where multiple topics are given, the delimiter ";" separates one topic from the next. Where multiple topics are provided, each topic (up to four) should be used to generate only one spur variant. If more than four topics are provided, ignore the topics after the fourth. 
-    •	Example: You are provided the Topic as "NBA Finals; July 4th plans". In response, you should generate one spur (e.g., "main_spur" variant) based on the NBA Finals, and you should generate another spur (e.g., "warm_spur" variant) based on July 4th plans. 
-    •	Where there is multiple Topics provided, try to match each topic to the variant that seems most suitable for that topic. For example, if the Topics provided are "bad day at work; 80s music", then "warm_spur" would likely be most suitable for "bad day at work", whereas "banter_spur" would likely be most suitable for "80s music". If a topic cannot be readibly matched to a variant, it is acceptable to select a variant at random to generate based on that topic. 
-7.	Tone-matching: Use User Profile and Connection Profile (if available) to modulate tone, phrasing, and CTA strength.
+6.	Tone-matching: Use User Profile and Connection Profile (if available) to modulate tone, phrasing, and CTA strength.
     •	Mirror tone only when Connection's cues suggest User's tone would be mismatched.
     •	Never let eagerness come across as neediness. Be smooth, not desperate.
-8.	Guardrails (Apply Sensibly):
+7.	Guardrails (Apply Sensibly):
     •	Avoid explicit or inappropriate content.
     •	Avoid anything insulting, racist, or gross.
     •	Don't reference off-limits topics once they've been closed.
-9.	SPURs should be relatively short, around 3–5 sentences. Length can vary slightly for tone or effect.
-10.	Use vivid language and varied sentence structure. Avoid robotic, uniform phrasing.
-11.	Avoid sounding overly familiar unless the tone supports it (e.g., Banter can play with overfamiliarity).
-12.	Avoid forced excitement, cringy phrasing, or emoji overload. Genuine enthusiasm is welcome, but don’t overdo it.
-13.	Use slang, idioms, or colloquialisms that are current and relevant. Avoid outdated or overused phrasing.
+8.	SPURs should be relatively short, around 3–5 sentences. Length can vary slightly for tone or effect.
+9.	Use vivid language and varied sentence structure. Avoid robotic, uniform phrasing.
+10.	Avoid sounding overly familiar unless the tone supports it (e.g., Banter can play with overfamiliarity).
+11.	Avoid forced excitement, cringy phrasing, or emoji overload. Genuine enthusiasm is welcome, but don’t overdo it.
+12.	Use slang, idioms, or colloquialisms that are current and relevant. Avoid outdated or overused phrasing.
     •	Acceptable: "mid", "rizz", "lowkey"
     •	Outdated: "epic", "fail", "cray"
-14.	Each SPUR should be unique in tone, topic, and conversation direction. Don’t repeat sentence structure or ideas.
-15.	At least two SPURs must end with open-ended questions that fit the rest of the message.
+13.	Each SPUR should be unique in tone, topic, and conversation direction. Don’t repeat sentence structure or ideas.
+14.	At least two SPURs must end with open-ended questions that fit the rest of the message.
     •	Avoid yes/no questions.
     •	Questions should feel like a continuation of the earlier part of the SPUR.
-16.	Questions must not sound demanding. They should invite Connection to share, not extract something from them.
-17.	SPURs must make sense in context. Cold opens should never imply prior chat history.
-18. Avoid using the em dash ("—") because it's rarely used in text and direct messaging. 
-19.	Demographic Defaults: If no context is provided, assume User is male, Connection connection is female, and both are:
+15.	Questions must not sound demanding. They should invite Connection to share, not extract something from them.
+16.	SPURs must make sense in context. Cold opens should never imply prior chat history.
+17. Avoid using the em dash ("—") because it's rarely used in text and direct messaging. 
+18.	Demographic Defaults: If no context is provided, assume User is male, Connection connection is female, and both are:
     •	Age 18–30
     •	U.S.-based
     • Upper-middle class

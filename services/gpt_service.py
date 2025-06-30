@@ -8,7 +8,7 @@ from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_openai_client, get_firestore_db
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
-from services.connection_service import get_connection_profile, get_active_connection_firestore
+from services.connection_service import get_connection_profile, get_active_connection_firestore, trending_topics_matching_connection_interests
 from services.user_service import get_user
 from services.topic_service import get_random_trending_topic, refresh_if_stale
 from utils.gpt_output import parse_gpt_output
@@ -267,7 +267,15 @@ def generate_spurs(
     
     context_block += " to inform your SPUR suggestions. \n"
     
-    if (not topic or topic.strip() == "") and (not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
+    if(not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not topic or topic.strip() == ""):
+        matching_trending_topics = trending_topics_matching_connection_interests(user_id, connection_id)
+        if matching_trending_topics and len(matching_trending_topics) > 0:
+            context_block += "(Note: No conversation messages, images, or topic provided. Here are some trending topics that match the Connection's interests: \n"
+            for t in matching_trending_topics:
+                context_block += f" - {t}\n"
+            context_block += " You should suggest one SPUR based on one of these trending topics. \n"
+            context_block += ")\n"
+    elif (not topic or topic.strip() == "") and (not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not connection_context_block or connection_context_block.strip() == "") and (not connection_profile_text or len(connection_profile_text) == 0):
         refresh_if_stale()
         cold_open_topic_one = get_random_trending_topic()
         cold_open_topic_two = get_random_trending_topic()
