@@ -281,15 +281,15 @@ def generate_spurs(
     if(not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not topic or topic.strip() == ""):
         matching_trending_topics = trending_topics_matching_connection_interests(user_id, connection_id)
         if matching_trending_topics and len(matching_trending_topics) > 0:
-            context_block += "(Note: No conversation messages, images, or topic provided. Here are some trending topics that match the Connection's interests: \n"
+            context_block += "(Note: No conversation messages, images, or topic provided. Here, you should:\n"
             i = 0
             for selected_spur in user_spurs_list:
                 context_block += f" - generate {selected_spur} based on {matching_trending_topics[i]}.\n"
-                if i == len(matching_trending_topics) - 1:
-                    break
                 i += 1
+                if i == len(matching_trending_topics):
+                    break
             if i < len(user_spurs_list):
-                context_block += "Do not use any trending topics to generate "
+                context_block += " - do not use any trending topics to generate "
                 for j in range(i, len(user_spurs_list)):
                     context_block += f"{user_spurs_list[j]}"
                     if j < len(user_spurs_list) - 1:
@@ -304,10 +304,20 @@ def generate_spurs(
                 logger.error(f"No topic or messages provided, using trending topic: {cold_open_topic_one}")
             else:
                 logger.error("No topic or messages provided, and no trending topics available.")
-            context_block += "(Note: This is a cold open with no context provided, so you should generate the main_spur based on "
-            context_block += f"this trending topic: {cold_open_topic_one}, "
-            context_block += f"and the banter_spur based on this trending topic: {cold_open_topic_two}."
-            context_block += f" Do not use any trending topics to generate the warm_spur and the cool_spur.) \n"
+            context_block += "(Note: This is a cold open with no context provided."
+            if 'main_spur' in user_spurs_list:
+                context_block += f" You should generate the main_spur based on this trending topic: {cold_open_topic_one}. "
+            if 'banter_spur' in user_spurs_list:
+                context_block += f"You should generate the banter_spur based on this trending topic: {cold_open_topic_two}. "
+            if 'warm_spur' in user_spurs_list or 'cool_spur' in user_spurs_list:
+                context_block += f"You should not use any trending topics to generate "
+                if 'warm_spur' in user_spurs_list:
+                    context_block += "the warm_spur "
+                    if 'cool_spur' in user_spurs_list:
+                        context_block += "and "
+                if 'cool_spur' in user_spurs_list:
+                    context_block += "the cool_spur"
+            context_block += f".) \n"
         
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
@@ -335,9 +345,6 @@ def generate_spurs(
                 "url": f"data:image/jpeg;base64,{base64_image}"
             }
         })
-
-    if not conversation_image_parts:
-        logger.error("No valid conversation images to process (gpt_service.py:generate_spurs).")
     
     profile_image_parts = []
     for image_data in profile_images or []:
@@ -384,8 +391,8 @@ def generate_spurs(
             response = openai_client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages,
-                max_tokens=8000,
-                temperature=1.2 if attempt == 0 else 0.75,
+                max_tokens=10000,
+                temperature=1 if attempt == 0 else 0.75,
                 )
             
             # Manual usage tracking since decorator might not capture all details
@@ -413,7 +420,7 @@ def generate_spurs(
             
             spur_objects = []
             
-            if selected_spurs and (not content or ("I can't assist with that" in content) or ("I can't help with that" in content) or ("unable to process your request" in content)):
+            if selected_spurs and (not content or ("can't assist" in content) or ("can't help" in content) or ("unable to process " in content) or ("unable to assist" in content) or ("unable to help" in content) or ("cannot assist" in content) or ("cannot help" in content) or ("cannot process" in content)):
                 for  variant in selected_spurs:
                     spur_objects.append(
                         Spur(
