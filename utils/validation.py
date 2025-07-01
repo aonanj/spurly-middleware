@@ -1,5 +1,6 @@
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
+from .filters import safe_filter
 
 logger = get_logger(__name__)
 
@@ -83,6 +84,10 @@ def spurs_to_regenerate(spurs: list[Spur]) -> list[str]:
             logger.error(f"Spur {spur.variant} flagged with text: {spur.text}")
         elif message == "" or message.isspace():
             spurs_to_retry.append(spur.variant) 
+        elif not safe_filter(message):
+            spurs_to_retry.append(spur.variant)
+            ##DEBUG
+            logger.error(f"Spur {spur.variant} failed safety filter with text: {spur.text}")
     return spurs_to_retry
 
 CONFIDENCE_THRESHOLDS = {

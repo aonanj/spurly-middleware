@@ -1,4 +1,4 @@
-from .filters import apply_phrase_filter, safe_filter
+from .filters import sanitize
 from infrastructure.logger import get_logger
 import json
 
@@ -13,36 +13,14 @@ def parse_gpt_output(gpt_response: str, user_profile: dict, connection_profile: 
         # Step 1: Sanitize and parse JSON-like GPT output
         cleaned = gpt_response.strip('`\n ').replace("```json", "").replace("```", "")
         parsed = json.loads(cleaned)
-        
-        
 
-        # Step 2: Check all expected fields are present
-        fallback_message = ""
         spur_keys = user_profile.get("spur_variants", [])  
-        if 'warm_spur' in spur_keys and safe_filter(parsed.get('warm_spur', '')):
-            fallback_message = parsed.get('warm_spur', '')
-        elif 'main_spur' in spur_keys and safe_filter(parsed.get('main_spur', '')):
-            fallback_message = parsed.get('main_spur', '')
-        elif 'cool_spur' in spur_keys and safe_filter(parsed.get('cool_spur', '')):
-            fallback_message = parsed.get('cool_spur', '')
-        elif 'banter_spur' in spur_keys  and safe_filter(parsed.get('banter_spur', '')):
-            fallback_message = parsed.get('banter_spur', '')
-
-        for key in spur_keys:
-            if key not in parsed or not parsed.get(key):
-                parsed[key] = fallback_message
-
-        # Step 3: Apply phrase filter and sanitization
-        sanitized_output = apply_phrase_filter(fallback_message, parsed)
-
-        warm_fallback = sanitized_output.get("warm_spur")
-        fallback_flags = {
-            key: warm_fallback and sanitized_output[key] == warm_fallback and key != "warm_spur"
-            for key in sanitized_output
-        }
         
+        for key in spur_keys:
+            if key in parsed and isinstance(parsed.get(key, ""), str):
+                parsed[key] = sanitize(parsed.get(key, "").strip())
 
-        return sanitized_output
+        return parsed
 
     except (json.JSONDecodeError, TypeError) as e:
         err_point = __package__ or __name__

@@ -91,61 +91,18 @@ def safe_filter(text: str) -> bool:
     """
     if not text or not isinstance(text, str):
         err_point = __package__ or __name__
-        logger.error(f"Error in filters.safe_filter (1): {err_point}")
+        logger.error(f"Error in filters.safe_filter (1): {err_point}; Invalid text input: {text}")
         return False
     if contains_blacklisted_phrase(text):
         err_point = __package__ or __name__
-        logger.error(f"Error in filters.safe_filter (2): {err_point}. Blacklisted phrase: {text}")
+        logger.error(f"Error in filters.safe_filter (2): {err_point}; Blacklisted phrase: {text}")
         return False
     if contains_expired_phrase(text):
         err_point = __package__ or __name__
-        logger.error(f"Error in filters.safe_filter (3): {err_point}")
+        logger.error(f"Error in filters.safe_filter (3): {err_point}; Expired phrase: {text}")
         return False
     if fails_regex_safety(text):
         err_point = __package__ or __name__
-        logger.error(f"Error in filters.safe_filter (4): {err_point}")
+        logger.error(f"Error in filters.safe_filter (4): {err_point}; Regex safety fail: {text}")
         return False
     return True
-
-
-def apply_phrase_filter(fallback_message, variants: Dict[str, str]) -> Dict[str, str]:
-    """
-    Run filtering logic over all SPUR variants and apply fallback if unsafe.
-    This should be run in the GPT output parsing pipeline before rendering.
-    """
-    
-    output = {}
-
-    for key, message in variants.items():
-        if safe_filter(message):
-            output[key] = sanitize(message)
-        else:
-            output[key] = fallback_message
-            logger.error(f"Filtered unsafe SPUR variant: {key} -> {output[key]}") 
-            err_point = __package__ or __name__
-            logger.error(f"Warning: {err_point}. Filtered unsafe SPUR variant: {key} -> {output[key]}")
-    return output
-
-def apply_tone_overrides(variants: Dict[str, str], user_profile: dict, connection_profile: dict) -> Dict[str, str]:
-    """
-    Adjusts or suppresses SPUR variants based on user/connection trait conflicts.
-    Replaces affected variants with warm_spur fallback if necessary.
-    """
-    fallback = " "
-    if variants.get("main_spur", ""):
-        fallback = variants.get("main_spur", "")
-    elif variants.get("warm_spur", ""):
-        fallback = variants.get("warm_spur", "")
-    elif variants.get("cool_spur", ""):
-        fallback = variants.get("cool_spur", "")
-    elif variants.get("banter_spur", ""):
-        fallback = variants.get("banter_spur", "")
-    output = variants.copy()
-
-
-    return output
-
-# Example integration (in output parser module):
-# parsed_output = json.loads(gpt_response)
-# safe_output = apply_phrase_filter(parsed_output)
-# proceed with safe_output

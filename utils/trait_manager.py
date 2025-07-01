@@ -196,7 +196,7 @@ def infer_personality_traits_from_openai_vision(image_files_data: List[Dict[str,
 
     return []
 
-def infer_situation(conversation, user_id: Optional[str] = None) -> dict:
+def infer_situation(conversation: List[Dict], user_id: Optional[str] = None) -> Dict:
     """
     Uses GPT to infer the likely conversational situation or intent behind a conversation.
     
@@ -229,7 +229,7 @@ Conversation:
 {json.dumps(conversation, indent=3)}
 """
 
-    if not conversation or conversation.isEmpty() or conversation.count == 0 or len(conversation) == 0:
+    if not conversation or conversation.count == 0 or len(conversation) == 0:
         logger.error("No conversation provided for situation inference.")
         return {"situation": "cold_open", "confidence": 0.0}
 

@@ -7,7 +7,7 @@ from typing import Optional, Dict, List
 from class_defs.profile_def import ConnectionProfile
 from class_defs.spur_def import Spur
 from infrastructure.logger import get_logger
-from infrastructure.clients import get_openai_client, get_firestore_db
+from infrastructure.clients import get_openai_client
 from infrastructure.id_generator import generate_spur_id, get_null_connection_id, generate_conversation_id
 from services.connection_service import get_connection_profile, get_active_connection_firestore, trending_topics_matching_connection_interests
 from services.user_service import get_user
@@ -150,7 +150,7 @@ def generate_spurs(
         raise ValueError(f"User with ID {user_id} not found")
     user_profile_dict = user.to_dict()
     
-    user_spurs_list = user_profile_dict.get('spurs', [])
+    user_spurs_list = user_profile_dict.get('selected_spurs', [])
     if selected_spurs and len(selected_spurs) > 0:
         user_spurs_list = selected_spurs
     if not user_spurs_list or len(user_spurs_list) == 0:
@@ -308,9 +308,9 @@ def generate_spurs(
             if 'main_spur' in user_spurs_list:
                 context_block += f" You should generate the main_spur based on this trending topic: {cold_open_topic_one}. "
             if 'banter_spur' in user_spurs_list:
-                context_block += f"You should generate the banter_spur based on this trending topic: {cold_open_topic_two}. "
+                context_block += f"You should generate the banter_spur based on this trending topic: {cold_open_topic_two}"
             if 'warm_spur' in user_spurs_list or 'cool_spur' in user_spurs_list:
-                context_block += f"You should not use any trending topics to generate "
+                context_block += f". You should not use any trending topics to generate "
                 if 'warm_spur' in user_spurs_list:
                     context_block += "the warm_spur "
                     if 'cool_spur' in user_spurs_list:

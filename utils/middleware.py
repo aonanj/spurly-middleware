@@ -2,7 +2,6 @@ from flask import request, jsonify
 from functools import wraps
 from infrastructure.logger import get_logger
 from .moderation import moderate_topic
-import utils.trait_manager as trait_manager
 
 logger = get_logger(__name__)
 
