@@ -78,6 +78,11 @@ class Config:
     PROFILE_TEXT_SYSTEM_PROMPT = os.environ.get("PROFILE_TEXT_SYSTEM_PROMPT", "resources/get_profile_text_system_prompt.txt")
     PROFILE_TEXT_USER_PROMPT = os.environ.get("PROFILE_TEXT_USER_PROMPT", "resources/get_profile_text_user_prompt.txt")
 
+    ## SendGrid Support Email Config
+    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
+    SUPPORT_FROM_EMAIL = os.environ.get("SUPPORT_FROM_EMAIL", "noreply@spurly.io")
+    SUPPORT_TO_EMAIL = os.environ.get("SUPPORT_TO_EMAIL", "support@spurly@spurl.io")
+
     SPUR_VARIANTS = (
         "main_spur",
         "warm_spur",

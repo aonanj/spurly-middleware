@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
+from infrastructure.email_service import email_service  # Add this import
 import uuid
 
 logger = get_logger(__name__)
@@ -82,7 +83,9 @@ def submit_support_request():
             "updated_at": datetime.now(timezone.utc),
             "assigned_to": None,
             "resolution": None,
-            "notes": []
+            "notes": [],
+            "email_sent_to_support": False,  # Track email status
+            "confirmation_email_sent": False  # Track confirmation status
         }
         
         # Save to Firestore
@@ -103,11 +106,45 @@ def submit_support_request():
         
         logger.info(f"Support request {support_request_id} created for user {data['user_id']}")
         
+        # Send emails asynchronously to not block the response
+        # Option 1: Send synchronously (simpler but slower)
+        email_to_support_sent = False
+        confirmation_email_sent = False
+        
+        try:
+            # Send email to support team
+            email_to_support_sent = email_service.send_support_request_to_team(support_request)
+            if email_to_support_sent:
+                support_ref.update({"email_sent_to_support": True})
+                logger.info(f"Support email sent for request {support_request_id}")
+            else:
+                logger.error(f"Failed to send support email for request {support_request_id}")
+        except Exception as e:
+            logger.error(f"Error sending support email for request {support_request_id}: {str(e)}")
+        
+        try:
+            # Send confirmation email to user
+            confirmation_email_sent = email_service.send_support_request_confirmation(support_request)
+            if confirmation_email_sent:
+                support_ref.update({"confirmation_email_sent": True})
+                logger.info(f"Confirmation email sent for request {support_request_id}")
+            else:
+                logger.error(f"Failed to send confirmation email for request {support_request_id}")
+        except Exception as e:
+            logger.error(f"Error sending confirmation email for request {support_request_id}: {str(e)}")
+        
+        # Return success even if emails fail - the support request is still saved
+        response_message = "Support request submitted successfully"
+        if not email_to_support_sent:
+            response_message += ". Note: There was an issue sending the notification email, but your request has been saved."
+        
         return jsonify({
             "success": True,
-            "message": "Support request submitted successfully",
+            "message": response_message,
             "request_id": support_request_id,
-            "status": "pending"
+            "status": "pending",
+            "email_sent": email_to_support_sent,
+            "confirmation_sent": confirmation_email_sent
         }), 201
         
     except Exception as e:
