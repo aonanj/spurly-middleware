@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 support_bp = Blueprint("support", __name__)
 
-@support_bp.route("/api/user-support", methods=["POST"])
+@support_bp.route("/user-support", methods=["POST"])
 @handle_all_errors
 @verify_token
 def submit_support_request():
