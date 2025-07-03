@@ -111,12 +111,15 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode('utf-8')
         
+        ##DEBUG
+        logger.error(f"Google client ID: {os.environ.get('GOOGLE_CLIENT_ID')}")
+        
         # Decode and verify the token
         decoded_token = jwt.decode(
             id_token,
             public_key_pem,
             algorithms=['RS256'],
-            audience=current_app.config.get('GOOGLE_CLIENT_I    '),
+            audience=os.environ.get('GOOGLE_CLIENT_ID'),
             options={"verify_exp": True}
         )
         
