@@ -84,11 +84,11 @@ def fetch_selected_spurs_bp():
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
 
-@user_management_bp.route("/update-selected-spurs", methods=["POST"])
+@user_management_bp.route("/update-spurs-prefs", methods=["POST"])
 @handle_all_errors
 @verify_token
-def update_selected_spurs_bp():
-    
+def update_spurs_prefs_bp():
+
     if request.is_json:
         form_data = request.get_json()
     else:
@@ -108,17 +108,40 @@ def update_selected_spurs_bp():
         if "selected_spurs" in form_data and isinstance(form_data.get("selected_spurs"), list):
             selected_spurs = form_data.get("selected_spurs", [])
             
+        model_temp_preference = None
+        if "model_temp_preference" in form_data:
+            temp_value = form_data.get("model_temp_preference", None)
+            if isinstance(temp_value, float):
+                model_temp_preference = temp_value
+            elif temp_value and isinstance(temp_value, (str, int)):
+                model_temp_preference = float(temp_value)
+
+        using_trending_topics = None
+        if "using_trending_topics" in form_data:
+            if isinstance(form_data.get("using_trending_topics"), bool):
+                using_trending_topics = form_data.get("using_trending_topics")
+            elif isinstance(form_data.get("using_trending_topics"), str):
+                trending_topics_value = form_data.get("using_trending_topics")
+                if trending_topics_value and trending_topics_value.lower() in ('true', '1', 'yes', 'on'):
+                    using_trending_topics = True
+                elif trending_topics_value and trending_topics_value.lower() in ('false', '0', 'no', 'off'):
+                    using_trending_topics = False
+
         if len(selected_spurs) > 0:
             # Ensure all items in selected_spurs are strings
             selected_spurs_validated = [str(spur) for spur in selected_spurs if spur is not None]
-            updated_user_profile = update_spur_preferences(user_id, selected_spurs_validated)
+        else:
+            selected_spurs_validated = []
             
-            return jsonify({
-                "user_id": updated_user_profile.user_id,
-                "selected_spurs:": updated_user_profile.selected_spurs,
-            }), 200
+        # Ensure using_trending_topics is bool or None
+        using_trending_topics_bool = using_trending_topics if isinstance(using_trending_topics, (bool, type(None))) else None
+        updated_user_profile = update_spur_preferences(user_id, selected_spurs_validated, using_trending_topics_bool, model_temp_preference)
+            
+        return jsonify({
+            "user_id": updated_user_profile.user_id,
+            "selected_spurs:": updated_user_profile.selected_spurs,
+        }), 200
         
-        return jsonify({"message": "No spurs selected"}), 200
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
@@ -273,17 +296,10 @@ def set_model_temp_preference_bp():
             model_temp_preference_float = float(model_temp_preference)
             updated_user_profile = update_user_model_temp_preference(user_id=user_id, model_temp_preference=model_temp_preference_float)
             return jsonify({
-                "user_id": updated_user_profile.get("user_id", user_id),
-                "model_temp_preference": updated_user_profile.get("model_temp_preference", 1.0),
+                "user_id": user_id,
+                "model_temp_preference": updated_user_profile.get("model_temp_preference", 1.05),
             }), 200
-
-            
-            return jsonify({
-                "user_id": updated_user_profile.user_id,
-                "selected_spurs:": updated_user_profile.selected_spurs,
-            }), 200
-        
-        return jsonify({"message": "No spurs selected"}), 200
+        return jsonify({"user_id": user_id, "message": "model temperature preference not provided"}), 201
     except Exception as e:
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)

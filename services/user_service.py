@@ -170,7 +170,9 @@ def update_user(
     selected_spurs: Optional[List[str]] = None,
     email: Optional[str] = None,
     auth_provider: Optional[str] = None,
-    auth_provider_id: Optional[str] = None
+    auth_provider_id: Optional[str] = None,
+    using_trending_topics: Optional[bool] = None,
+    model_temp_preference: Optional[float] = None
 ) -> UserProfile:
     """
     Update an existing user's information.
@@ -182,6 +184,9 @@ def update_user(
         user_context_block: User's context/profile text (optional)
         selected_spurs: List of selected spur variants (optional)
         email: User's email (optional, usually shouldn't change)
+        using_trending_topics: Whether the user is using trending topics (optional)
+        model_temp_preference: User's model temperature preference (optional)
+        
         
     Returns:
         Updated UserProfile object
@@ -231,6 +236,15 @@ def update_user(
         if auth_provider_id is not None:
             update_data.update({"auth_provider_id": auth_provider_id})
             user.auth_provider_id = auth_provider_id
+        
+        if using_trending_topics is not None:
+            update_data.update({"using_trending_topics": using_trending_topics})
+            user.using_trending_topics = using_trending_topics
+            
+        if model_temp_preference is not None:
+            update_data.update({"model_temp_preference": model_temp_preference})
+            user.model_temp_preference = model_temp_preference
+            
     except Exception as e:
         logger.error(f"Error getting update_data for {user_id}: {str(e)}", exc_info=True)
         raise ValueError(f"Error getting update_data for user: {str(e)}")
@@ -353,18 +367,20 @@ def get_or_create_user_from_auth(
 
 # Utility functions for specific operations
 
-def update_spur_preferences(user_id: str, selected_spurs: List[str]) -> UserProfile:
+def update_spur_preferences(user_id: str, selected_spurs: Optional[List[str]], using_trending_topics: Optional[bool], model_temp_preference: Optional[float]) -> UserProfile:
     """
     Update user's spur preferences.
     
     Args:
         user_id: The unique user identifier
         selected_spurs: List of selected spur variants
-        
+        using_trending_topics: Whether the user is using trending topics
+        model_temp_preference: User's model temperature preference
+
     Returns:
         Updated UserProfile object
     """
-    return update_user(user_id=user_id, selected_spurs=selected_spurs)
+    return update_user(user_id=user_id, selected_spurs=selected_spurs, using_trending_topics=using_trending_topics, model_temp_preference=model_temp_preference)
 
 def get_selected_spurs(user_id: str) -> List[str]:
     """

@@ -165,15 +165,15 @@ def generate_spurs(
             connection_profile = get_connection_profile(user_id, active_connection_id)
 
     # Initialize context_block first
-    context_block = "*** USER PROFILE CONTEXT:\n"
-    context_block += "(This is a summary about the user for whom you are generating SPURs. Use this to understand the user's personality, interests, and preferences so that your generated SPURs are more natural to the user. But don't assume that anything in the User Profile Context is interesting to or likely to grab the attention of the Connection.)\n"
+    context_block = "*** USER PROFILE:\n"
+    context_block += "(This profile is a summary about the user for whom you are generating SPURs. Use this to understand the user's personality, interests, and preferences so that your generated SPURs are more natural to the user. But don't assume that anything in the User Profile Context is interesting to or likely to grab the attention of the Connection.)\n"
     user_prompt_profile = get_user_profile_for_prompt(user_id)
     context_block += "\n".join(user_prompt_profile.values()) + "\n"
     
     connection_context_block = None
     connection_profile_text = None
     if connection_profile and connection_id and connection_id != get_null_connection_id(user_id):
-        context_block += "*** CONNECTION PROFILE CONTEXT: \n"
+        context_block += "*** CONNECTION PROFILE: \n"
         connection_prompt_profile = get_connection_profile_for_prompt(user_id, connection_id)
         context_block += "\n".join(connection_prompt_profile.values()) + "\n"
         if connection_profile.connection_context_block and connection_profile.connection_context_block.strip() != "":
@@ -247,7 +247,8 @@ def generate_spurs(
         if (conversation_messages and len(conversation_messages) > 0) or (conversation_images and len(conversation_images) > 0):
             context_block += " , where that information can be used to enrich or contribute to the Conversation"
         
-        context_block += " -- keeping in mind the fundamental goal of steadily growing the Connection's interest in and desire for the User. "
+        if context_block.endswith("provided") or context_block.endswith("Context") or context_block.endswith("Conversation"):
+            context_block += " -- keeping in mind the fundamental goal of steadily growing the Connection's interest in and desire for the User. "
 
         img_analysis_situation = ""
         img_analysis_tone = ""
@@ -261,17 +262,17 @@ def generate_spurs(
         if situation or topic or tone or img_analysis_situation or img_analysis_tone:
             if context_block.endswith(".") or context_block.endswith(". "):
                 context_block += "You should further consider the "
-            if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
-                context_block += "situation"
-            if (topic and topic != ""):
-                if context_block.endswith("situation"):
-                    context_block += " and "
-                context_block += "topic"
-            if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
-                if context_block.endswith("situation") or context_block.endswith("topic"):
-                    context_block += " and "
-                context_block += "tone"
-            context_block += " of the Conversation"
+        if (situation and situation != "") or (img_analysis_situation and img_analysis_situation != ""):
+            context_block += "situation"
+        if (topic and topic != ""):
+            if context_block.endswith("situation"):
+                context_block += " and "
+            context_block += "topic"
+        if (tone and tone != "") or (img_analysis_tone and img_analysis_tone != ""):
+            if context_block.endswith("situation") or context_block.endswith("topic"):
+                context_block += " and "
+            context_block += "tone"
+        context_block += " of the Conversation"
         
         context_block += " to inform your SPUR suggestions. \n"
         
