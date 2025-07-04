@@ -139,7 +139,9 @@ def update_spurs_prefs_bp():
             
         return jsonify({
             "user_id": updated_user_profile.user_id,
-            "selected_spurs:": updated_user_profile.selected_spurs,
+            "selected_spurs": updated_user_profile.selected_spurs,
+            "using_trending_topics": updated_user_profile.using_trending_topics,
+            "model_temp_preference": updated_user_profile.model_temp_preference,
         }), 200
         
     except Exception as e:
