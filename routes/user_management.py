@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, g, current_app
 import re
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
-from services.user_service import update_user_profile, get_user, get_selected_spurs, update_spur_preferences, update_user
+from services.user_service import update_user_profile, get_user, get_selected_spurs, update_spur_preferences, update_user, update_user_using_trending_topics, update_user_model_temp_preference
 
 user_management_bp = Blueprint("user_management", __name__)
 logger = get_logger(__name__)
@@ -162,4 +162,131 @@ def update_email_bp():
         err_point = __package__ or __name__
         logger.error("[%s] Error: %s", err_point, e)
         return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
+@user_management_bp.route("/using-trending-topics", methods=["GET"])
+@handle_all_errors
+@verify_token
+def is_using_trending_topics_bp():
+
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                err_point = __package__ or __name__
+                logger.error(f"Error: User ID is None in {err_point}")
+                return jsonify({"error": f"[{err_point}] - Error"}), 400
+        
+        user_profile = get_user(user_id)
+        return jsonify({"user_id": user_profile.user_id if user_profile else None, "using_trending_topics": user_profile.using_trending_topics if user_profile else False}), 200
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] user_management:is_using_trending_topics Error: %s", err_point, e)
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
+@user_management_bp.route("/set-using-trending-topics", methods=["POST"])
+@handle_all_errors
+@verify_token
+def set_using_trending_topics_bp():
+
+    if request.is_json:
+        form_data = request.get_json()
+    else:
+        form_data = request.form.to_dict()
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = form_data.get("user_id", None)
+            if not user_id:
+                user_id = current_app.config.get("user_id", None)
+                if not user_id:
+                    err_point = __package__ or __name__
+                    logger.error(f"Error: User ID is None in {err_point}")
+                    return jsonify({"error": f"[{err_point}] - Error"}), 400
+        using_trending_topics = form_data.get("use_trending_topics", None)
+
+        if using_trending_topics is not None:
+            # Convert string to boolean
+            using_trending_topics_bool = using_trending_topics if isinstance(using_trending_topics, bool) else str(using_trending_topics).lower() in ('true', '1', 'yes', 'on')
+            updated_user_profile = update_user_using_trending_topics(user_id=user_id, using_trending_topics=using_trending_topics_bool)
+            return jsonify({
+                "user_id": updated_user_profile.get("user_id", user_id),
+                "using_trending_topics": updated_user_profile.get("using_trending_topics", False),
+            }), 200
+
+            
+            return jsonify({
+                "user_id": updated_user_profile.user_id,
+                "selected_spurs:": updated_user_profile.selected_spurs,
+            }), 200
+        
+        return jsonify({"message": "No spurs selected"}), 200
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
+@user_management_bp.route("/get-model-temp-preference", methods=["GET"])
+@handle_all_errors
+@verify_token
+def get_model_temp_preference_bp():
+
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = current_app.config.get("user_id", None)
+            if not user_id:
+                err_point = __package__ or __name__
+                logger.error(f"Error: User ID is None in {err_point}")
+                return jsonify({"error": f"[{err_point}] - Error"}), 400
+        
+        user_profile = get_user(user_id)
+        return jsonify({"user_id": user_profile.user_id if user_profile else None, "model_temp_preference": user_profile.model_temp_preference if user_profile else 1.0}), 200
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] user_management:get_model_temp_preference Error: %s", err_point, e)
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
+@user_management_bp.route("/set-model-temp-preference", methods=["POST"])
+@handle_all_errors
+@verify_token
+def set_model_temp_preference_bp():
+
+    if request.is_json:
+        form_data = request.get_json()
+    else:
+        form_data = request.form.to_dict()
+    try:
+        user_id = getattr(g, "user_id", None)
+        if not user_id:
+            user_id = form_data.get("user_id", None)
+            if not user_id:
+                user_id = current_app.config.get("user_id", None)
+                if not user_id:
+                    err_point = __package__ or __name__
+                    logger.error(f"Error: User ID is None in {err_point}")
+                    return jsonify({"error": f"[{err_point}] - Error"}), 400
+        model_temp_preference = form_data.get("model_temp_preference", None)
+
+        if model_temp_preference is not None:
+            # Convert to float
+            model_temp_preference_float = float(model_temp_preference)
+            updated_user_profile = update_user_model_temp_preference(user_id=user_id, model_temp_preference=model_temp_preference_float)
+            return jsonify({
+                "user_id": updated_user_profile.get("user_id", user_id),
+                "model_temp_preference": updated_user_profile.get("model_temp_preference", 1.0),
+            }), 200
+
+            
+            return jsonify({
+                "user_id": updated_user_profile.user_id,
+                "selected_spurs:": updated_user_profile.selected_spurs,
+            }), 200
+        
+        return jsonify({"message": "No spurs selected"}), 200
+    except Exception as e:
+        err_point = __package__ or __name__
+        logger.error("[%s] Error: %s", err_point, e)
+        return jsonify({'error': f"[{err_point}] - Error: {str(e)}"}), 500
+
 

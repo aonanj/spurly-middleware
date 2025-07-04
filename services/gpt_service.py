@@ -278,7 +278,7 @@ def generate_spurs(
     if not some_context:
         context_block += f"\n*** INSTRUCTIONS: Please generate a set of SPURs suggested for the User to say to the Connection. Using the User Profile Context as a guide for the role you're assisting with here, suggest SPURs for the User to say to a Connection. Your fundamental goal here is to help the User engage with and grow the Connection's interest in and desire for the User. \n"
     
-    if(not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not topic or topic.strip() == ""):
+    if user.isUsingTrendingTopics() and ((not conversation_messages or len(conversation_messages) == 0) and (not conversation_images or len(conversation_images) == 0) and (not profile_images or len(profile_images) == 0) and (not topic or topic.strip() == "")):
         matching_trending_topics = trending_topics_matching_connection_interests(user_id, connection_id)
         if matching_trending_topics and len(matching_trending_topics) > 0:
             context_block += "(Note: No conversation messages, images, or topic provided. Here, you should:\n"
@@ -382,6 +382,8 @@ def generate_spurs(
         {"role": "user", "content": user_content}
     ]
     
+    temp = user.getModelTempPreference() if user.getModelTempPreference() else 1.0
+    
     for attempt in range(3):  # 1 initial + 2 retries
         try:
             
@@ -392,7 +394,7 @@ def generate_spurs(
                 model="gpt-4o",
                 messages=messages,
                 max_tokens=10000,
-                temperature=1 if attempt == 0 else 0.75,
+                temperature=temp if attempt == 0 else (temp - 0.2),
                 )
             
             # Manual usage tracking since decorator might not capture all details

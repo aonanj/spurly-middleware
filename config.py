@@ -81,7 +81,13 @@ class Config:
     ## SendGrid Support Email Config
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
     SUPPORT_FROM_EMAIL = os.environ.get("SUPPORT_FROM_EMAIL", "noreply@spurly.io")
-    SUPPORT_TO_EMAIL = os.environ.get("SUPPORT_TO_EMAIL", "support@spurly@spurl.io")
+    SUPPORT_TO_EMAIL = os.environ.get("SUPPORT_TO_EMAIL", "support@spurly.io")
+
+    MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY", "")
+    MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN", "mg.spurly.io")  # Or sandbox domain for testing
+    MAILGUN_API_BASE = os.environ.get("MAILGUN_API_BASE", "https://api.mailgun.net/v3")  # Use https://api.eu.mailgun.net/v3 for EU region
+    SUPPORT_FROM_EMAIL = os.environ.get("SUPPORT_FROM_EMAIL", "noreply@mg.spurly.io")  # Or noreply@mg.spurly.io
+    SUPPORT_TO_EMAIL = os.environ.get("SUPPORT_TO_EMAIL", "support@spurly.io")
 
     SPUR_VARIANTS = (
         "main_spur",

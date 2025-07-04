@@ -58,12 +58,16 @@ class UserProfile:
     age: Optional[int] = None
     user_context_block: Optional[str] = None
     selected_spurs: List[str] = field(default_factory=list)
+    using_trending_topics: Optional[bool] = False
+    model_temp_preference: Optional[float] = 1.05
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert user object to dictionary for Firestore"""
         data = asdict(self)
+        data.pop('_use_trending_topics', None) 
+        data.pop('_model_temp_preference', None)
         # Convert datetime objects to ISO format strings
         data['created_at'] = self.created_at.isoformat()
         data['updated_at'] = self.updated_at.isoformat()
@@ -78,25 +82,19 @@ class UserProfile:
             data['created_at'] = datetime.fromisoformat(data['created_at'])
         if isinstance(data.get('updated_at'), str):
             data['updated_at'] = datetime.fromisoformat(data['updated_at'])
+          
         profile_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data.items() if k in profile_fields}
         return cls(**filtered_data)
 
-    def to_dict_alt(self) -> Dict[str, Any]:
-        # Ensure default_factory lists are included even if empty
-        d = {}
-        for f in fields(self):
-            value = getattr(self, f.name)
-            if isinstance(value, list) and not value and callable(f.default_factory):
-                    d[f.name] = f.default_factory()
-            elif isinstance(value, datetime):
-                d[f.name] = value.isoformat()
-            elif f.name.strip().lower() == "selected_spurs" and value and isinstance(value, list):
-                d[f.name] = ", ".join(value)
-            elif value:
-                d[f.name] = value
-        return d
-    
+    def isUsingTrendingTopics(self) -> bool:
+        """Check if the user has opted to use trending topics"""
+        return self.using_trending_topics if self.using_trending_topics is not None else False
+
+    def getModelTempPreference(self) -> float:
+        """Get the user's model temperature preference"""
+        return self.model_temp_preference if self.model_temp_preference is not None else 1.0
+
     
     @classmethod
     def get_attr_as_str(cls, profile_instance: "UserProfile", attr_key: str) -> str:

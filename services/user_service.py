@@ -408,3 +408,107 @@ def update_user_profile(user_id: str, name: str, age: int, user_context_block: O
         selected_spurs=selected_spurs,
         email=email
     )
+
+def update_user_using_trending_topics(
+    user_id: str,
+    using_trending_topics: bool
+) -> dict:
+    """
+    Update an existing user's information.
+    
+    Args:
+        user_id: The unique user identifier
+        using_trending_topics: Whether the user is using trending topics
+        
+    Returns:
+        dict: Updated user information
+        
+    Raises:
+        ValueError: If user doesn't exist
+    """
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    # Get existing user
+    user = get_user(user_id)
+    if not user:
+        raise ValueError(f"User not found: {user_id}")
+    
+    try:
+        # Update fields if provided
+        update_data = {}
+        update_data.update({
+            "updated_at": datetime.now(timezone.utc)
+        })
+
+        if using_trending_topics is not None:
+            update_data.update({"using_trending_topics": using_trending_topics })
+
+    except Exception as e:
+        logger.error(f"Error getting update_data for {user_id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Error getting update_data for user: {str(e)}")
+    
+
+    try:
+        db = get_firestore_db()
+        user_ref = db.collection("users").document(user_id)
+        user_ref.update(update_data)
+        
+        logger.error(f"LOG.INFO: Updated user: {user_id}")
+        return {"user_id": user_id, "using_trending_topics": using_trending_topics}
+        
+    except Exception as e:
+        logger.error(f"Error updating user {user_id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Failed to update user: {str(e)}")
+
+def update_user_model_temp_preference(
+    user_id: str,
+    model_temp_preference: float
+) -> dict:
+    """
+    Update an existing user's information.
+    
+    Args:
+        user_id: The unique user identifier
+        model_temp_preference: The model temperature preference for the user
+
+    Returns:
+        dict: Updated user information
+        
+    Raises:
+        ValueError: If user doesn't exist
+    """
+    if not user_id:
+        raise ValueError("user_id is required")
+    
+    # Get existing user
+    user = get_user(user_id)
+    if not user:
+        raise ValueError(f"User not found: {user_id}")
+    
+    try:
+        # Update fields if provided
+        update_data = {}
+        update_data.update({
+            "updated_at": datetime.now(timezone.utc)
+        })
+
+        if model_temp_preference is not None:
+            update_data.update({"model_temp_preference": model_temp_preference })
+
+    except Exception as e:
+        logger.error(f"Error getting update_data for {user_id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Error getting update_data for user: {str(e)}")
+    
+
+    try:
+        db = get_firestore_db()
+        user_ref = db.collection("users").document(user_id)
+        user_ref.update(update_data)
+        
+        logger.error(f"LOG.INFO: Updated user: {user_id}")
+        return {"user_id": user_id, "model_temp_preference": model_temp_preference}
+
+    except Exception as e:
+        logger.error(f"Error updating user {user_id}: {str(e)}", exc_info=True)
+        raise ValueError(f"Failed to update user: {str(e)}")
