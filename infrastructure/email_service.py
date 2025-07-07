@@ -175,7 +175,7 @@ New Support Request
 Request ID: {support_request['request_id']}
 User ID: {support_request['user_id']}
 From: {support_request['name']} ({support_request['email']})
-Subject: {support_request['subject']}
+Subject: ‼️{support_request['subject']}
 Priority: {support_request['priority']}
 Submitted: {support_request['created_at']}
 

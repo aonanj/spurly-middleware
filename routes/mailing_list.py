@@ -18,14 +18,16 @@ def mailerlite_webhook():
         email = data.get('email', '')
         if not email or email == '':
             email = request.form.get('email', '')
-        name = data.get("name", "")
-        source = data.get("source", "")
-        signup_time = data.get("date_subscribe", "")
+        source = data.get('source', '')
+        if not source or source == '':
+            source = request.form.get('source', '')
+        signup_time = data.get('subscribed_at', '')
+        if not signup_time or signup_time == '':
+            signup_time = request.form.get('subscribed_at', '')
 
         subject = "📬 New Spurly Email Subscriber"
         text = f"New subscriber joined the Spurly mailing list:\n\n" \
                f"Email: {email}\n" \
-               f"Name: {name or '(no name)'}\n" \
                f"Source: {source or 'unknown'}\n" \
                f"Signup time: {signup_time or 'unknown'}"
 
