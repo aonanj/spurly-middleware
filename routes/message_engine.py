@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, g
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
@@ -7,6 +6,7 @@ from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from class_defs.conversation_def import Conversation
 from services.storage_service import ConversationStorage
+from utils.usage_middleware import check_usage_limit_api, estimate_spur_generation_tokens
 import json
 
 generate_bp = Blueprint("generate", __name__)
@@ -106,6 +106,35 @@ def generate():
                     logger.error(f"Error processing profile image {idx}: {e}")
     
     
+    # Estimate tokens needed for this request
+    estimated_tokens = estimate_spur_generation_tokens(
+        conversation_messages=conversation_messages,
+        conversation_images=conversation_images,
+        profile_images=profile_images
+    )
+    
+    # Check if user has sufficient tokens
+    from services.billing_service import check_user_usage_limit
+    limit_status = check_user_usage_limit(user_id)
+    
+    if "error" in limit_status:
+        logger.error(f"Error checking usage limit for user {user_id}: {limit_status['error']}")
+        return jsonify({'error': "Failed to check usage limits"}), 500
+    
+    remaining_tokens = limit_status.get("remaining_tokens", 0)
+    
+    if remaining_tokens < estimated_tokens:
+        logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+        return jsonify({
+            "error": "Insufficient tokens",
+            "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
+            "remaining_tokens": remaining_tokens,
+            "required_tokens": estimated_tokens,
+            "subscription_tier": limit_status.get("subscription_tier", "unknown"),
+            "usage_percentage": limit_status.get("usage_percentage", 0),
+            "upgrade_required": True
+        }), 402  # Payment Required
+    
     # Save conversation if messages provided
     if conversation_messages:
         if not conversation_id or conversation_id.strip() == "":
@@ -144,6 +173,8 @@ def generate():
     return jsonify({
         "user_id": user_id,
         "spurs": spurs,
+        "estimated_tokens": estimated_tokens,
+        "remaining_tokens": remaining_tokens - estimated_tokens
     })
 
 

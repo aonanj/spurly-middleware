@@ -27,6 +27,8 @@ from PIL import Image
 import io
 import base64
 from werkzeug.datastructures import FileStorage
+from utils.usage_middleware import estimate_trait_inference_tokens
+from services.billing_service import check_user_usage_limit
 
 logger = get_logger(__name__)
 
@@ -591,6 +593,30 @@ def analyze_connection_photos():
         if len(connection_photo_images) > 4:
             logger.error(f"User {user_id} uploaded {len(connection_photo_images)} photos, limiting to 4")
             connection_photo_images = connection_photo_images[:4]
+
+        # Estimate tokens needed for photo analysis
+        estimated_tokens = estimate_trait_inference_tokens(len(connection_photo_images))
+        
+        # Check if user has sufficient tokens
+        limit_status = check_user_usage_limit(user_id)
+        
+        if "error" in limit_status:
+            logger.error(f"Error checking usage limit for user {user_id}: {limit_status['error']}")
+            return jsonify({'error': "Failed to check usage limits"}), 500
+        
+        remaining_tokens = limit_status.get("remaining_tokens", 0)
+        
+        if remaining_tokens < estimated_tokens:
+            logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+            return jsonify({
+                "error": "Insufficient tokens",
+                "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
+                "remaining_tokens": remaining_tokens,
+                "required_tokens": estimated_tokens,
+                "subscription_tier": limit_status.get("subscription_tier", "unknown"),
+                "usage_percentage": limit_status.get("usage_percentage", 0),
+                "upgrade_required": True
+            }), 402  # Payment Required
 
         # Validate image sizes
         valid_images = []

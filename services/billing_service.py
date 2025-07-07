@@ -165,8 +165,8 @@ def update_billing_profile_usage(user_id: str, tokens: int, cost: float) -> None
                 billing_profile = reset_billing_cycle(billing_profile)
             
             # Update usage
-            billing_profile.current_month_tokens += tokens
-            billing_profile.current_month_cost += cost
+            billing_profile.current_week_tokens += tokens
+            billing_profile.current_week_cost += cost
             billing_profile.updated_at = datetime.now(timezone.utc)
             
             # Update the document
@@ -174,8 +174,8 @@ def update_billing_profile_usage(user_id: str, tokens: int, cost: float) -> None
         else:
             # Create new profile if doesn't exist
             billing_profile = BillingProfile(user_id=user_id)
-            billing_profile.current_month_tokens = tokens
-            billing_profile.current_month_cost = cost
+            billing_profile.current_week_tokens = tokens
+            billing_profile.current_week_cost = cost
             billing_ref.set(billing_profile.to_dict())
         
     except Exception as e:
@@ -194,13 +194,13 @@ def reset_billing_cycle(billing_profile: BillingProfile) -> BillingProfile:
     """
     now = datetime.now(timezone.utc)
     
-    # Calculate next billing cycle (monthly)
+    # Calculate next billing cycle (weekly)
     if billing_profile.billing_cycle_end <= now:
         # Start new billing cycle
         billing_profile.billing_cycle_start = now
-        billing_profile.billing_cycle_end = now + timedelta(days=30)
-        billing_profile.current_month_tokens = 0
-        billing_profile.current_month_cost = 0.0
+        billing_profile.billing_cycle_end = now + timedelta(days=7)
+        billing_profile.current_week_tokens = 0
+        billing_profile.current_week_cost = 0.0
         billing_profile.updated_at = now
         
         logger.info(f"Reset billing cycle for user {billing_profile.user_id}")
@@ -289,12 +289,12 @@ def check_user_usage_limit(user_id: str) -> Dict[str, Any]:
         return {
             "user_id": user_id,
             "subscription_tier": billing_profile.subscription_tier,
-            "monthly_limit": billing_profile.monthly_token_limit,
-            "current_usage": billing_profile.current_month_tokens,
+            "weekly_limit": billing_profile.weekly_token_limit,
+            "current_usage": billing_profile.current_week_tokens,
             "remaining_tokens": billing_profile.get_remaining_tokens(),
             "usage_percentage": billing_profile.get_usage_percentage(),
             "is_over_limit": billing_profile.is_over_limit(),
-            "current_cost": billing_profile.current_month_cost,
+            "current_cost": billing_profile.current_week_cost,
             "billing_cycle_end": billing_profile.billing_cycle_end.isoformat()
         }
         
@@ -324,7 +324,7 @@ def upgrade_subscription(user_id: str, new_tier: str) -> BillingProfile:
         tier_config = SUBSCRIPTION_TIERS[new_tier]
         
         billing_profile.subscription_tier = new_tier
-        billing_profile.monthly_token_limit = tier_config["monthly_token_limit"]
+        billing_profile.weekly_token_limit = tier_config["weekly_token_limit"]
         billing_profile.updated_at = datetime.now(timezone.utc)
         
         # Save to Firestore

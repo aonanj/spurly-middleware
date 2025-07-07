@@ -42,7 +42,7 @@ def get_usage():
     
     try:
         # Get days parameter
-        days = request.args.get("days", 30, type=int)
+        days = request.args.get("days", 7, type=int)
         if days <= 0 or days > 365:
             days = 30  # Default to 30 days if invalid
         
@@ -107,11 +107,11 @@ def get_subscription():
             "success": True,
             "subscription": {
                 "tier": billing_profile.subscription_tier,
-                "monthly_limit": billing_profile.monthly_token_limit,
-                "current_usage": billing_profile.current_month_tokens,
+                "weekly_limit": billing_profile.weekly_token_limit,
+                "current_usage": billing_profile.current_week_tokens,
                 "remaining_tokens": billing_profile.get_remaining_tokens(),
                 "usage_percentage": billing_profile.get_usage_percentage(),
-                "current_cost": billing_profile.current_month_cost,
+                "current_cost": billing_profile.current_week_cost,
                 "billing_cycle_start": billing_profile.billing_cycle_start.isoformat(),
                 "billing_cycle_end": billing_profile.billing_cycle_end.isoformat(),
                 "auto_renew": billing_profile.auto_renew
@@ -160,11 +160,11 @@ def upgrade_subscription_route():
             "message": f"Successfully upgraded to {new_tier} tier",
             "subscription": {
                 "tier": billing_profile.subscription_tier,
-                "monthly_limit": billing_profile.monthly_token_limit,
-                "current_usage": billing_profile.current_month_tokens,
+                "weekly_limit": billing_profile.weekly_token_limit,
+                "current_usage": billing_profile.current_week_tokens,
                 "remaining_tokens": billing_profile.get_remaining_tokens(),
                 "usage_percentage": billing_profile.get_usage_percentage(),
-                "current_cost": billing_profile.current_month_cost,
+                "current_cost": billing_profile.current_week_cost,
                 "billing_cycle_start": billing_profile.billing_cycle_start.isoformat(),
                 "billing_cycle_end": billing_profile.billing_cycle_end.isoformat()
             }
@@ -189,8 +189,8 @@ def get_available_tiers():
         public_tiers = {}
         for tier_name, tier_config in SUBSCRIPTION_TIERS.items():
             public_tiers[tier_name] = {
-                "monthly_token_limit": tier_config["monthly_token_limit"],
-                "monthly_cost": tier_config["monthly_cost"],
+                "weekly_token_limit": tier_config["weekly_token_limit"],
+                "weekly_cost": tier_config["weekly_cost"],
                 "features": tier_config["features"]
             }
         

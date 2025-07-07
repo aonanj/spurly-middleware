@@ -68,6 +68,35 @@ def ocr_scan():
             logger.error("Empty images list provided for user_id: %s", user_id)
             return jsonify({"error": "No images provided"}), 400
 
+        # Estimate tokens needed for OCR processing
+        from utils.usage_middleware import estimate_spur_generation_tokens
+        estimated_tokens = estimate_spur_generation_tokens(
+            conversation_images=images_data,
+            profile_images=[]
+        )
+        
+        # Check if user has sufficient tokens
+        from services.billing_service import check_user_usage_limit
+        limit_status = check_user_usage_limit(user_id)
+        
+        if "error" in limit_status:
+            logger.error(f"Error checking usage limit for user {user_id}: {limit_status['error']}")
+            return jsonify({'error': "Failed to check usage limits"}), 500
+        
+        remaining_tokens = limit_status.get("remaining_tokens", 0)
+        
+        if remaining_tokens < estimated_tokens:
+            logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+            return jsonify({
+                "error": "Insufficient tokens",
+                "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
+                "remaining_tokens": remaining_tokens,
+                "required_tokens": estimated_tokens,
+                "subscription_tier": limit_status.get("subscription_tier", "unknown"),
+                "usage_percentage": limit_status.get("usage_percentage", 0),
+                "upgrade_required": True
+            }), 402  # Payment Required
+
         batch_results = []
 
         for idx, image_info in enumerate(images_data):
@@ -235,6 +264,33 @@ def ocr_scan_multipart():
         if not files or all(not f.filename for f in files):
             logger.error("No image files provided in request for user_id: %s", user_id)
             return jsonify({"error": "Missing 'images' in request"}), 400
+
+        # Estimate tokens needed for OCR processing
+        estimated_tokens = estimate_spur_generation_tokens(
+            conversation_images=files,
+            profile_images=[]
+        )
+        
+        # Check if user has sufficient tokens
+        limit_status = check_user_usage_limit(user_id)
+        
+        if "error" in limit_status:
+            logger.error(f"Error checking usage limit for user {user_id}: {limit_status['error']}")
+            return jsonify({'error': "Failed to check usage limits"}), 500
+        
+        remaining_tokens = limit_status.get("remaining_tokens", 0)
+        
+        if remaining_tokens < estimated_tokens:
+            logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+            return jsonify({
+                "error": "Insufficient tokens",
+                "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
+                "remaining_tokens": remaining_tokens,
+                "required_tokens": estimated_tokens,
+                "subscription_tier": limit_status.get("subscription_tier", "unknown"),
+                "usage_percentage": limit_status.get("usage_percentage", 0),
+                "upgrade_required": True
+            }), 402  # Payment Required
 
         batch_results = []
 

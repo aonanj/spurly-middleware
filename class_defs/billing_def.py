@@ -16,9 +16,9 @@ UsageRecord:
 BillingProfile:
     user_id: str - Unique identifier for the user.
     subscription_tier: str - Subscription tier (e.g., 'free', 'basic', 'premium').
-    monthly_token_limit: int - Monthly token allowance.
-    current_month_tokens: int - Tokens used in current billing cycle.
-    current_month_cost: float - Cost incurred in current billing cycle.
+    weekly_token_limit: int - Weekly token allowance.
+    current_week_tokens: int - Tokens used in current billing cycle.
+    current_week_cost: float - Cost incurred in current billing cycle.
     billing_cycle_start: datetime - Start of current billing cycle.
     billing_cycle_end: datetime - End of current billing cycle.
     payment_method_id: Optional[str] - Payment method identifier.
@@ -67,9 +67,9 @@ class BillingProfile:
     """User billing profile and subscription information"""
     user_id: str
     subscription_tier: str = "free"  # free, basic, premium
-    monthly_token_limit: int = 10000  # Default free tier limit
-    current_month_tokens: int = 0
-    current_month_cost: float = 0.0
+    weekly_token_limit: int = 100000  # Default free tier limit (weekly)
+    current_week_tokens: int = 0
+    current_week_cost: float = 0.0
     billing_cycle_start: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     billing_cycle_end: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     payment_method_id: Optional[str] = None
@@ -95,23 +95,31 @@ class BillingProfile:
             if isinstance(data.get(field_name), str):
                 data[field_name] = datetime.fromisoformat(data[field_name])
         
+        # Handle migration from old monthly field names to new weekly field names
+        if 'monthly_token_limit' in data and 'weekly_token_limit' not in data:
+            data['weekly_token_limit'] = data.pop('monthly_token_limit')
+        if 'current_month_tokens' in data and 'current_week_tokens' not in data:
+            data['current_week_tokens'] = data.pop('current_month_tokens')
+        if 'current_month_cost' in data and 'current_week_cost' not in data:
+            data['current_week_cost'] = data.pop('current_month_cost')
+        
         profile_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data.items() if k in profile_fields}
         return cls(**filtered_data)
 
     def get_remaining_tokens(self) -> int:
         """Get remaining tokens for current billing cycle"""
-        return max(0, self.monthly_token_limit - self.current_month_tokens)
+        return max(0, self.weekly_token_limit - self.current_week_tokens)
     
     def get_usage_percentage(self) -> float:
-        """Get usage as percentage of monthly limit"""
-        if self.monthly_token_limit == 0:
+        """Get usage as percentage of weekly limit"""
+        if self.weekly_token_limit == 0:
             return 0.0
-        return min(100.0, (self.current_month_tokens / self.monthly_token_limit) * 100)
+        return min(100.0, (self.current_week_tokens / self.weekly_token_limit) * 100)
     
     def is_over_limit(self) -> bool:
-        """Check if user has exceeded monthly token limit"""
-        return self.current_month_tokens >= self.monthly_token_limit
+        """Check if user has exceeded weekly token limit"""
+        return self.current_week_tokens >= self.weekly_token_limit
 
 # OpenAI pricing constants (as of 2024)
 OPENAI_PRICING = {
@@ -129,21 +137,21 @@ OPENAI_PRICING = {
     }
 }
 
-# Subscription tier definitions
+# Subscription tier definitions (weekly limits)
 SUBSCRIPTION_TIERS = {
     "free": {
-        "monthly_token_limit": 10000,
-        "monthly_cost": 0.0,
+        "weekly_token_limit": 100000,  
+        "weekly_cost": 0.0,
         "features": ["basic_spur_generation", "limited_trait_inference"]
     },
     "basic": {
-        "monthly_token_limit": 50000,
-        "monthly_cost": 9.99,
+        "weekly_token_limit": 250000,  # 
+        "weekly_cost": 2.50,  # ~$10 monthly equivalent
         "features": ["unlimited_spur_generation", "trait_inference", "conversation_analysis"]
     },
     "premium": {
-        "monthly_token_limit": 200000,
-        "monthly_cost": 29.99,
+        "weekly_token_limit": 500000,  # 
+        "weekly_cost": 7.50,  # ~$30 monthly equivalent
         "features": ["unlimited_spur_generation", "trait_inference", "conversation_analysis", "priority_support"]
     }
 } 
