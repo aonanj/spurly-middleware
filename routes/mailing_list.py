@@ -15,13 +15,12 @@ NOTIFY_TO = os.getenv("SUPPORT_TO_EMAIL")            # your personal address for
 def mailerlite_webhook():
     try:
         data = request.get_json()
-        email = data.get("subscriber", "unknown")
+        email = data.get('email', '')
+        if not email or email == '':
+            email = request.form.get('email', '')
         name = data.get("name", "")
         source = data.get("source", "")
         signup_time = data.get("date_subscribe", "")
-        
-        #DEBUG
-        logger.error(f"Received MailerLite webhook data: {data}")
 
         subject = "📬 New Spurly Email Subscriber"
         text = f"New subscriber joined the Spurly mailing list:\n\n" \
