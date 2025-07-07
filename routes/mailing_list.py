@@ -1,8 +1,10 @@
 import os
 from flask import Blueprint, request, jsonify
 import requests
+from infrastructure.logger import get_logger
 
 mailerlite_webhook_bp = Blueprint("mailerlite_webhook", __name__)
+logger = get_logger(__name__)
 
 MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY")
 MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN")  # e.g., "mg.spurly.io"
@@ -13,10 +15,13 @@ NOTIFY_TO = os.getenv("SUPPORT_TO_EMAIL")            # your personal address for
 def mailerlite_webhook():
     try:
         data = request.get_json()
-        email = data.get("email", "unknown")
+        email = data.get("subscriber", "unknown")
         name = data.get("name", "")
         source = data.get("source", "")
         signup_time = data.get("date_subscribe", "")
+        
+        #DEBUG
+        logger.error(f"Received MailerLite webhook data: {data}")
 
         subject = "📬 New Spurly Email Subscriber"
         text = f"New subscriber joined the Spurly mailing list:\n\n" \
