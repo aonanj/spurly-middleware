@@ -295,7 +295,7 @@ def delete_user(user_id: str) -> Dict[str, str]:
                 for doc in docs:
                     doc.reference.delete()
         
-        delete_subcollections(user_ref, ["connections", "messages", "conversations"])
+        delete_subcollections(user_ref, ["connections", "messages", "conversations", "spurs", "settings", "usage", "billing"])
         
         # Delete the user document
         user_ref.delete()

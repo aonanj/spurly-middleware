@@ -413,31 +413,22 @@ def apple_auth():
         raise ValidationError("Email is required but not provided")
     
     # Build name from provided data
-    full_name = data.get('full_name', {})
-    if not full_name or full_name == {}:
-        full_name = token_data.get('fullName', {})
-    ##DEBUG
-    logger.error(f"Full name data from Apple: {full_name}")
-    name_parts = []
-    if full_name.get('given_name'):
-        name_parts.append(full_name['given_name'])
-    if full_name.get('family_name'):
-        name_parts.append(full_name['family_name'])
-    if full_name.get('givenName'):
-        name_parts.append(full_name['givenName'])
-    if full_name.get('familyName'):
-        name_parts.append(full_name['familyName'])
-    if full_name.get('namePrefix'):
-        name_parts.append(full_name['namePrefix'])
-    if full_name.get('nameSuffix'):
-        name_parts.append(full_name['nameSuffix'])
-    if full_name.get('name_prefix'):
-        name_parts.append(full_name['name_prefix'])
-    if full_name.get('name_suffix'):
-        name_parts.append(full_name['name_suffix'])
-    name = ' '.join(name_parts) if name_parts else None
-    
-    if full_name.get('nickname'):
+    full_name = data.get('name', {})
+    name_parts = ""
+    if 'namePrefix' in full_name:
+        name_parts += full_name['namePrefix']
+        name_parts += " "
+    if 'givenName' in full_name:
+        name_parts += full_name['givenName']
+    if 'familyName' in full_name:
+        if 'givenName' in full_name:
+            name_parts += " "
+        name_parts += full_name['familyName']
+    if 'nameSuffix' in full_name:
+        name_parts += " "
+        name_parts += full_name['nameSuffix']
+
+    if 'nickname' in full_name:
         name = full_name['nickname']
     
     # Get or create user
