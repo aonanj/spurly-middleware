@@ -395,6 +395,18 @@ def apple_auth():
     apple_user_id = token_data.get('sub')
     email = token_data.get('email') or data.get('email')
     
+    #DEBUG:
+    logger.error(f"JSON data received for Apple auth: {json.dumps(data, indent=2)}")
+    logger.error(f"Token data received for Apple auth: {json.dumps(token_data, indent=2)}")
+    if 'name' in token_data:
+        logger.error(f"Apple user name: {token_data.get('name')}")
+    if 'full_name' in token_data:
+        logger.error(f"Apple full_name: {token_data.get('full_name')}")
+    if 'user_name' in token_data:
+        logger.error(f"Apple user_name: {token_data.get('user_name')}")
+    if 'user' in token_data:
+        logger.error(f"Apple user: {token_data.get('user')}")
+    
     # Validate required fields
     if not apple_user_id:
         raise ValidationError("Apple user ID not found in token")
