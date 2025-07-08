@@ -383,6 +383,9 @@ def apple_auth():
     identity_token = data.get('identity_token')
     authorization_code = data.get('authorization_code')
     
+    ##DEBUG:
+    logger.error(f"Apple auth data: {data}")
+    
     if not identity_token:
         raise ValidationError("identity_token is required")
     if not authorization_code:
@@ -390,6 +393,9 @@ def apple_auth():
     
     # Verify token
     token_data = verify_apple_token(identity_token)
+    
+    ##DEBUG
+    logger.error(f"Apple token data: {token_data}")
     
     # Extract user information
     apple_user_id = token_data.get('sub')
@@ -408,6 +414,8 @@ def apple_auth():
     
     # Build name from provided data
     full_name = data.get('full_name', {})
+    if not full_name or full_name == {}:
+        full_name = token_data.get('fullName', {})
     ##DEBUG
     logger.error(f"Full name data from Apple: {full_name}")
     name_parts = []
