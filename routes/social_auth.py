@@ -395,7 +395,11 @@ def apple_auth():
     apple_user_id = token_data.get('sub')
     email = token_data.get('email') or data.get('email')
     
-    
+    if not email or email == "":
+        if apple_user_id:
+            existing_user = get_user(apple_user_id)
+            email = existing_user.email if existing_user else None
+
     # Validate required fields
     if not apple_user_id:
         raise ValidationError("Apple user ID not found in token")
