@@ -414,19 +414,19 @@ def apple_auth():
     
     # Build name from provided data
     full_name = data.get('name', {})
-    name_parts = ""
+    name = ""
     if 'namePrefix' in full_name:
-        name_parts += full_name['namePrefix']
-        name_parts += " "
+        name += full_name['namePrefix']
+        name += " "
     if 'givenName' in full_name:
-        name_parts += full_name['givenName']
+        name += full_name['givenName']
     if 'familyName' in full_name:
         if 'givenName' in full_name:
-            name_parts += " "
-        name_parts += full_name['familyName']
+            name += " "
+        name += full_name['familyName']
     if 'nameSuffix' in full_name:
-        name_parts += " "
-        name_parts += full_name['nameSuffix']
+        name += " "
+        name += full_name['nameSuffix']
 
     if 'nickname' in full_name:
         name = full_name['nickname']
