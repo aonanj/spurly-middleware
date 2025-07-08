@@ -395,17 +395,6 @@ def apple_auth():
     apple_user_id = token_data.get('sub')
     email = token_data.get('email') or data.get('email')
     
-    #DEBUG:
-    logger.error(f"JSON data received for Apple auth: {json.dumps(data, indent=2)}")
-    logger.error(f"Token data received for Apple auth: {json.dumps(token_data, indent=2)}")
-    if 'name' in token_data:
-        logger.error(f"Apple user name: {token_data.get('name')}")
-    if 'full_name' in token_data:
-        logger.error(f"Apple full_name: {token_data.get('full_name')}")
-    if 'user_name' in token_data:
-        logger.error(f"Apple user_name: {token_data.get('user_name')}")
-    if 'user' in token_data:
-        logger.error(f"Apple user: {token_data.get('user')}")
     
     # Validate required fields
     if not apple_user_id:
@@ -415,12 +404,29 @@ def apple_auth():
     
     # Build name from provided data
     full_name = data.get('full_name', {})
+    ##DEBUG
+    logger.error(f"Full name data from Apple: {full_name}")
     name_parts = []
     if full_name.get('given_name'):
         name_parts.append(full_name['given_name'])
     if full_name.get('family_name'):
         name_parts.append(full_name['family_name'])
+    if full_name.get('givenName'):
+        name_parts.append(full_name['givenName'])
+    if full_name.get('familyName'):
+        name_parts.append(full_name['familyName'])
+    if full_name.get('namePrefix'):
+        name_parts.append(full_name['namePrefix'])
+    if full_name.get('nameSuffix'):
+        name_parts.append(full_name['nameSuffix'])
+    if full_name.get('name_prefix'):
+        name_parts.append(full_name['name_prefix'])
+    if full_name.get('name_suffix'):
+        name_parts.append(full_name['name_suffix'])
     name = ' '.join(name_parts) if name_parts else None
+    
+    if full_name.get('nickname'):
+        name = full_name['nickname']
     
     # Get or create user
     user_data = get_or_create_user(
