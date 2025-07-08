@@ -500,6 +500,12 @@ def facebook_auth():
         raise ValidationError("Email permission is required for authentication")
     
     # Get or create user
+    currentUser = get_user(facebook_user_id)
+    if currentUser:
+        name = currentUser.name 
+    if not name or name == "":
+        name = fb_user.get('name')
+        
     user_data = get_or_create_user(
         user_id=facebook_user_id,
         provider='facebook',
