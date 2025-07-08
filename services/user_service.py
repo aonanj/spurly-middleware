@@ -264,56 +264,68 @@ def update_user(
 
 def delete_user(user_id: str) -> Dict[str, str]:
     """
-    Delete a user and all their related data.
-    
+    Delete a user and all their related data from Firestore.
+
+    This function recursively deletes all documents and subcollections under a user's
+    main document to ensure all data is removed.
+
     Args:
-        user_id: The unique user identifier
-        
+        user_id: The unique user identifier.
+
     Returns:
-        Status dictionary
-        
+        A dictionary with a status message confirming the deletion.
+
     Raises:
-        ValueError: If user doesn't exist
+        ValueError: If the user_id is not provided or the user does not exist.
     """
     if not user_id:
         raise ValueError("user_id is required")
-    
-    # Check if user exists
+
     user = get_user(user_id)
     if not user:
         raise ValueError(f"User not found: {user_id}")
-    
+
     try:
         db = get_firestore_db()
         user_ref = db.collection("users").document(user_id)
-        
-        # Delete subcollections
-        def delete_subcollections(parent_ref, subcollection_names):
-            for name in subcollection_names:
-                sub_ref = parent_ref.collection(name)
-                docs = sub_ref.stream()
-                for doc in docs:
-                    doc.reference.delete()
-        
-        delete_subcollections(user_ref, ["connections", "messages", "conversations", "spurs", "settings", "usage", "billing"])
-        
-        # Delete the user document
-        user_ref.delete()
-        
+
+        # Start the recursive deletion
+        _delete_collection_recursively(user_ref)
+
         # Delete from Firebase Auth if using email provider
-        # For social providers, the user can still exist in Firebase Auth
-        if user.auth_provider == 'email':
+        if user.auth_provider == 'password':
             try:
                 auth.delete_user(user.auth_provider_id)
+                logger.error(f"LOG.INFO: Deleted Firebase Auth user: {user.auth_provider_id}")
             except Exception as e:
                 logger.error(f"Failed to delete Firebase Auth user: {str(e)}")
-        
+
         logger.error(f"LOG.INFO: Deleted user: {user_id}")
-        return {"status": "User successfully deleted"}
-        
+        return {"status": "User and all related data successfully deleted"}
+
     except Exception as e:
         logger.error(f"Error deleting user {user_id}: {str(e)}", exc_info=True)
         raise ValueError(f"Failed to delete user: {str(e)}")
+
+
+def _delete_collection_recursively(doc_ref):
+    """
+    Recursively delete a document and all its subcollections.
+
+    Args:
+        doc_ref: A reference to the document to delete.
+    """
+    # Get all subcollections of the document
+    collections = doc_ref.collections()
+    for collection in collections:
+        # Get all documents in the subcollection
+        docs = collection.stream()
+        for doc in docs:
+            # Recursively delete each document in the subcollection
+            _delete_collection_recursively(doc.reference)
+
+    # After all subcollections are deleted, delete the document itself
+    doc_ref.delete()
 
 def get_or_create_user_from_auth(
     user_id: str,
