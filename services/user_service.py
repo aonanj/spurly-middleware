@@ -367,7 +367,7 @@ def get_or_create_user_from_auth(
 
 # Utility functions for specific operations
 
-def update_spur_preferences(user_id: str, selected_spurs: Optional[List[str]], using_trending_topics: Optional[bool], model_temp_preference: Optional[float]) -> UserProfile:
+def update_spur_preferences(user_id: str, selected_spurs: Optional[List[str]], using_trending_topics: Optional[bool] = False, model_temp_preference: Optional[float] = 1.05) -> UserProfile:
     """
     Update user's spur preferences.
     

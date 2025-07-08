@@ -6,7 +6,8 @@ import base64
 # Configuration
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 
-from services.classifiers import classify_image
+from services.billing_service import check_user_usage_limit
+from utils.usage_middleware import estimate_spur_generation_tokens
 from services.ocr_service import process_image
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger

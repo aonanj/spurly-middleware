@@ -192,26 +192,47 @@ def firebase_register():
             raise ValidationError("User already registered")
 
         # Create or update user in your database
-        user_data = create_or_update_user_from_firebase(firebase_user, firebase_id_token)
+        ##user_data = create_or_update_user_from_firebase(firebase_user, firebase_id_token)
+        user_data = get_user(firebase_user['user_id'])
+        
+        if not user_data:
+            raise ValidationError("User not found")
+        
+        # Convert to dict if it's a UserProfile object
+        user_dict = user_data.to_dict() if isinstance(user_data, UserProfile) else user_data
+        user_id = user_dict['user_id']
         
         # Create your own JWT tokens
         access_token, refresh_token = create_jwt_token(
-            user_id=user_data['user_id'],
-            email=user_data['email'],
+            user_id=user_id,
+            email=user_dict['email'],
             provider=auth_provider
         )
         
-        # Log successful registration
-        logger.error(f"New user registered via Firebase: {user_data['user_id']}")
+        firebase_custom_token = None
+        try:
+            firebase_custom_token = firebase_admin_auth.create_custom_token(user_id)
+            if(isinstance(firebase_custom_token, bytes)):
+                firebase_custom_token = firebase_custom_token.decode('utf-8')
+        except Exception as e:
+            logger.error(f"Error creating Firebase custom token: {e}")
         
-        return jsonify({
+        json_response = {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 3600,
-            "user_id": user_data['user_id'],
-            "email": user_data['email']
-        }), 201
+            "user_id": user_id,
+            "email": email
+        }
+        
+        if user_dict.get('name'):
+            json_response['name'] = user_dict['name']
+        
+        if firebase_custom_token:
+            json_response['firebase_custom_token'] = firebase_custom_token
+            
+        return json_response, 200
         
     except ValidationError:
         logger.error("Firebase registration validation error", exc_info=True)

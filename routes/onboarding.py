@@ -4,7 +4,7 @@ from functools import wraps
 
 from infrastructure.logger import get_logger
 from infrastructure.token_validator import verify_token, handle_all_errors
-from services.user_service import update_user_profile, get_user
+from services.user_service import update_user_profile, get_user, update_spur_preferences
 
 onboarding_bp = Blueprint("onboarding", __name__)
 logger = get_logger(__name__)
@@ -90,10 +90,20 @@ def onboarding():
             email=user.email
         )
         
+        using_trending_topics = user.using_trending_topics
+        if using_trending_topics is None:
+            # Default to False if not set
+            using_trending_topics = False
+        
+        model_temp_preference = user.model_temp_preference
+        if model_temp_preference is None:
+            # Default to 1.05 if not set
+            model_temp_preference = 1.05
+        
         # Update spur preferences if provided
         if selected_spurs is not None:
-            from services.user_service import update_spur_preferences
-            update_spur_preferences(user_id, selected_spurs)
+            update_spur_preferences(user_id, selected_spurs, 
+                                    using_trending_topics, model_temp_preference)
         
         logger.error(f"LOG.INFO: Onboarding completed for user: {user_id}")
         

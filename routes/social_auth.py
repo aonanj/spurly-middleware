@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timezone
 from functools import wraps, lru_cache
 from typing import Dict, Optional, Tuple, Any
+from firebase_admin import auth as firebase_admin_auth
 
 import jwt
 import jwt.algorithms
@@ -49,6 +50,17 @@ def _jwk_to_rsa_public_key(jwk: Dict[str, str]) -> RSAPublicKey:
     if not isinstance(key, RSAPublicKey):
         raise ValueError("Expected an RSA *public* key, got a private key.")
     return key
+
+def create_firebase_custom_token(user_id: str) -> str:
+    """Create a Firebase custom token for the user"""
+    try:
+        # Create custom token with the user_id
+        custom_token = firebase_admin_auth.create_custom_token(user_id)
+        return custom_token.decode('utf-8') if isinstance(custom_token, bytes) else custom_token
+    except Exception as e:
+        logger.error(f"Failed to create Firebase custom token: {str(e)}")
+        # Don't fail the auth flow if custom token creation fails
+        return ""
 
 
 @lru_cache(maxsize=128)
@@ -335,10 +347,13 @@ def google_auth():
         provider='google'
     )
     
+    # Create Firebase custom token
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
+    
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Google authentication for user: {user_data['user_id']}")
     
-    return jsonify({
+    response_data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "Bearer",
@@ -346,7 +361,13 @@ def google_auth():
         "user_id": user_data['user_id'],
         "email": user_data['email'],
         "name": user_data['name']
-    }), 200
+    }
+    
+    # Include Firebase custom token if created successfully
+    if firebase_custom_token:
+        response_data["firebase_custom_token"] = firebase_custom_token
+    
+    return jsonify(response_data), 200
 
 @social_auth_bp.route('/apple', methods=['POST'])
 @handle_all_errors
@@ -406,18 +427,27 @@ def apple_auth():
         provider='apple'
     )
     
+    # Create Firebase custom token
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
+    
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Apple authentication for user: {user_data['user_id']}")
-    
-    return jsonify({
+
+    response_data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "Bearer",
         "expires_in": 3600,
         "user_id": user_data['user_id'],
         "email": user_data['email'],
-        "name": user_data['name'],
-    }), 200
+        "name": user_data['name']
+    }
+    
+    # Include Firebase custom token if created successfully
+    if firebase_custom_token:
+        response_data["firebase_custom_token"] = firebase_custom_token
+    
+    return jsonify(response_data), 200
 
 @social_auth_bp.route('/facebook', methods=['POST'])
 @handle_all_errors
@@ -468,18 +498,27 @@ def facebook_auth():
         provider='facebook'
     )
     
+    # Create Firebase custom token
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
+    
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Facebook authentication for user: {user_data['user_id']}")
-    
-    return jsonify({
+
+    response_data = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "Bearer",
         "expires_in": 3600,
         "user_id": user_data['user_id'],
         "email": user_data['email'],
-        "name": user_data['name'],
-    }), 200
+        "name": user_data['name']
+    }
+    
+    # Include Firebase custom token if created successfully
+    if firebase_custom_token:
+        response_data["firebase_custom_token"] = firebase_custom_token
+    
+    return jsonify(response_data), 200
 
 @social_auth_bp.route('/refresh', methods=['POST'])
 @handle_all_errors
