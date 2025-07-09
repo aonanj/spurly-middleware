@@ -366,6 +366,8 @@ def google_auth():
     # Include Firebase custom token if created successfully
     if firebase_custom_token:
         response_data["firebase_custom_token"] = firebase_custom_token
+        
+    response_data["auth_provider"] = "google.com"
     
     return jsonify(response_data), 200
 
@@ -461,7 +463,8 @@ def apple_auth():
         "expires_in": 3600,
         "user_id": user_data['user_id'],
         "email": user_data['email'],
-        "name": user_data['name']
+        "name": user_data['name'],
+        "auth_provider": "apple.com"
     }
     
     # Include Firebase custom token if created successfully
@@ -538,7 +541,8 @@ def facebook_auth():
         "expires_in": 3600,
         "user_id": user_data['user_id'],
         "email": user_data['email'],
-        "name": user_data['name']
+        "name": user_data['name'],
+        "auth_provider": "facebook.com"
     }
     
     # Include Firebase custom token if created successfully

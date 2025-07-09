@@ -65,6 +65,21 @@ def create_jwt_token(user_id: str, email: str, name: Optional[str] = None,
 def get_user_id_from_token(id_token):
     decoded_token = firebase_admin_auth.verify_id_token(id_token)
     return decoded_token['uid']
+
+def get_formatted_auth_provider(provider: str) -> str:
+    """
+    Format the auth provider string to match Firebase conventions.
+    Converts 'google.com' to 'google', 'apple.com' to 'apple', etc.
+    """
+    if "apple" in provider.lower():
+        return "apple.com"
+    elif "google" in provider.lower():
+        return "google.com"
+    elif "facebook" in provider.lower():
+        return "facebook.com"
+    else:
+        return provider.lower().strip()
+    
         
 def handle_all_errors(f):
     """

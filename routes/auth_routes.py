@@ -8,7 +8,7 @@ import firebase_admin
 from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
 import jwt
-from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, AuthError, ValidationError
+from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, get_formatted_auth_provider, AuthError, ValidationError
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
 from class_defs.profile_def import UserProfile
@@ -232,6 +232,9 @@ def firebase_register():
         if firebase_custom_token:
             json_response['firebase_custom_token'] = firebase_custom_token
             
+        if auth_provider and auth_provider != "":
+            json_response['auth_provider'] = get_formatted_auth_provider(auth_provider)
+
         return json_response, 200
         
     except ValidationError:
@@ -332,6 +335,8 @@ def firebase_login():
         }
         if user_dict.get('name'):
             json_response['name'] = user_dict['name']
+
+        json_response['auth_provider'] = get_formatted_auth_provider(auth_provider)
 
 
         # Log successful login
