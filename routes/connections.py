@@ -510,10 +510,6 @@ def fetch_single_connection():
             
         profile = get_connection_profile(user_id, connection_id)
         if profile:
-            #DEBUG
-            logger.error(f"Fetched connection profile for user {user_id} and connection {connection_id}: {profile.to_dict()}")
-            logger.error(f"JSON response: {jsonify(profile.to_dict())}")
-
             return jsonify(profile.to_dict())
         else:
             logger.error(f"Connection profile not found for user {user_id} and connection {connection_id}")
@@ -1024,13 +1020,7 @@ def extract_profile_data():
         if not img_bytes or len(img_bytes) > MAX_PROFILE_IMAGE_SIZE_BYTES:
             return jsonify({"error": "Profile image is too large or empty"}), 400
 
-
-
-    
-
         result = get_profile_text(user_id, img_bytes)
-        #DEBUG
-        logger.error(f"RESULT SENT TO FRONTEND: {result}")
 
         return jsonify(result), 200
         

@@ -322,11 +322,7 @@ def generate_spurs(
         
     context_block += "You should suggest one SPUR for the following SPUR variants: \n"
     
-    user_prompt = build_prompt(selected_spurs or [], context_block)
-    
-    ## DEBUG
-    logger.error(f"LOG.INFO: User prompt for GPT generation: {user_prompt}")
-    
+    user_prompt = build_prompt(selected_spurs or [], context_block)    
 
     openai_client = get_openai_client()
     system_prompt = get_system_prompt()

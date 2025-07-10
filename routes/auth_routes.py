@@ -365,7 +365,9 @@ def logout():
                     return jsonify({"error": "Authentication error"}), 401
 
     try:
-        clear_active_connection_firestore(user_id)
+        user = get_user(user_id)
+        if user:
+            clear_active_connection_firestore(user_id)
 
         setattr(g, "user_id", None)
         setattr(g, "email", None)

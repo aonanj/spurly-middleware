@@ -696,8 +696,10 @@ def logout():
             user_id = payload.get('uid')
         
         logger.error(f"LOG.INFO: User logged out: {user_id}")
-
-        clear_active_connection_firestore(user_id)
+        
+        user = get_user(user_id)
+        if user:
+            clear_active_connection_firestore(user_id)
 
         setattr(g, "user_id", None)
         setattr(g, "email", None)
