@@ -61,6 +61,17 @@ def create_firebase_custom_token(user_id: str, additional_claims: Dict[str, Any]
         logger.error(f"Failed to create Firebase custom token: {str(e)}")
         # Don't fail the auth flow if custom token creation fails
         return ""
+    
+def user_exists_in_firebase(user_id: str) -> bool:
+    """Check if user exists in Firebase Auth"""
+    try:
+        firebase_admin_auth.get_user(user_id)
+        return True
+    except firebase_admin_auth.UserNotFoundError:
+        return False
+    except Exception as e:
+        logger.error(f"Error checking Firebase user: {e}")
+        return False 
 
 
 @lru_cache(maxsize=128)
@@ -346,14 +357,21 @@ def google_auth():
         email=user_data['email'],
         name=user_data['name'],
         provider='google'
-    )
+    ) 
     
-    firebase_dict = {
-        'email': email,
-        'name': name,
-        'provider': 'google.com'
-    }
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+    # IMPORTANT: Only create Firebase custom token if user already exists in Firebase
+    firebase_custom_token = None
+    if user_exists_in_firebase(user_data['user_id']):
+        firebase_dict = {
+            'email': email,
+            'name': name,
+            'provider': 'google.com'
+        }
+        firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+        logger.info(f"User {user_data['user_id']} exists in Firebase, using custom token")
+    else:
+        logger.info(f"User {user_data['user_id']} not in Firebase, will use provider sign-in")
+
     
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Google authentication for user: {user_data['user_id']}")
@@ -456,13 +474,19 @@ def apple_auth():
         provider='apple'
     )
     
-    # Create Firebase custom token
-    firebase_dict = {
-        'email': email,
-        'name': name,
-        'provider': 'apple.com'
-    }
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+    # IMPORTANT: Only create Firebase custom token if user already exists in Firebase
+    firebase_custom_token = None
+    if user_exists_in_firebase(user_data['user_id']):
+        firebase_dict = {
+            'email': email,
+            'name': name,
+            'provider': 'apple.com'
+        }
+        firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+        logger.info(f"User {user_data['user_id']} exists in Firebase, using custom token")
+    else:
+        logger.info(f"User {user_data['user_id']} not in Firebase, will use provider sign-in")
+
 
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Apple authentication for user: {user_data['user_id']}")
@@ -542,13 +566,19 @@ def facebook_auth():
         provider='facebook'
     )
     
-    # Create Firebase custom token
-    firebase_dict = {
-        'email': email,
-        'name': name,
-        'provider': 'facebook.com'
-    }
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+    # IMPORTANT: Only create Firebase custom token if user already exists in Firebase
+    firebase_custom_token = None
+    if user_exists_in_firebase(user_data['user_id']):
+        firebase_dict = {
+            'email': email,
+            'name': name,
+            'provider': 'facebook.com'
+        }
+        firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+        logger.info(f"User {user_data['user_id']} exists in Firebase, using custom token")
+    else:
+        logger.info(f"User {user_data['user_id']} not in Firebase, will use provider sign-in")
+
 
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Facebook authentication for user: {user_data['user_id']}")
