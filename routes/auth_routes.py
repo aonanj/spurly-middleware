@@ -18,12 +18,6 @@ auth_bp = Blueprint('auth_bp', __name__, url_prefix='/api/auth')
 
 logger = logging.getLogger(__name__)
 
-# Import shared functions from social_auth.py
-
-# Initialize Firebase Admin SDK (do this once in your app initialization)
-# Make sure to set the path to your service account key file
-# cred = credentials.Certificate('path/to/your/firebase-service-account-key.json')
-# firebase_admin.initialize_app(cred)
 
 # Email validation regex
 EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -297,6 +291,9 @@ def firebase_login():
                       
         # Create or update user in your database
         user_data = get_user(firebase_user['user_id'])
+        if user_data and user_data.auth_provider and 'password' not in user_data.auth_provider:
+            logger.error(f"LOG.ERROR: User {user_data.user_id} (email {user_data.email}) attempted to sign in with password but is registered with {user_data.auth_provider}")
+            raise AuthError("email registered with different provider. sign in using: " + user_data.auth_provider)
 
         if not user_data:
             user_data = create_or_update_user_from_firebase(firebase_user, firebase_id_token)

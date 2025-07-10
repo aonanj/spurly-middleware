@@ -51,11 +51,11 @@ def _jwk_to_rsa_public_key(jwk: Dict[str, str]) -> RSAPublicKey:
         raise ValueError("Expected an RSA *public* key, got a private key.")
     return key
 
-def create_firebase_custom_token(user_id: str) -> str:
+def create_firebase_custom_token(user_id: str, additional_claims: Dict[str, Any]) -> str:
     """Create a Firebase custom token for the user"""
     try:
         # Create custom token with the user_id
-        custom_token = firebase_admin_auth.create_custom_token(user_id)
+        custom_token = firebase_admin_auth.create_custom_token(user_id, developer_claims=additional_claims)
         return custom_token.decode('utf-8') if isinstance(custom_token, bytes) else custom_token
     except Exception as e:
         logger.error(f"Failed to create Firebase custom token: {str(e)}")
@@ -122,9 +122,6 @@ def verify_google_token(id_token: str) -> Dict[str, Any]:
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         ).decode('utf-8')
-        
-        ##DEBUG
-        logger.error(f"Google client ID: {os.environ.get('GOOGLE_CLIENT_ID')}")
         
         # Decode and verify the token
         decoded_token = jwt.decode(
@@ -328,8 +325,12 @@ def google_auth():
         raise ValidationError("Google user ID not found in token")
     if not email:
         raise ValidationError("Email not found in token")
-    
-    # Get or create user
+
+    existing_user = get_user(google_user_id)
+    if existing_user:
+        if existing_user.auth_provider and 'google' not in existing_user.auth_provider:
+            logger.error(f"LOG.ERROR: User {existing_user.user_id} (email {existing_user.email}) attempted to sign in with Google but is registered with {existing_user.auth_provider}")
+            raise AuthError("email registered with different provider. sign in using: " + existing_user.auth_provider)
 
     user_data = get_or_create_user(
         user_id=google_user_id,
@@ -347,8 +348,12 @@ def google_auth():
         provider='google'
     )
     
-    # Create Firebase custom token
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
+    firebase_dict = {
+        'email': email,
+        'name': name,
+        'provider': 'google.com'
+    }
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
     
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Google authentication for user: {user_data['user_id']}")
@@ -384,9 +389,7 @@ def apple_auth():
     
     identity_token = data.get('identity_token')
     authorization_code = data.get('authorization_code')
-    
-    ##DEBUG:
-    logger.error(f"Apple auth data: {data}")
+
     
     if not identity_token:
         raise ValidationError("identity_token is required")
@@ -396,13 +399,16 @@ def apple_auth():
     # Verify token
     token_data = verify_apple_token(identity_token)
     
-    ##DEBUG
-    logger.error(f"Apple token data: {token_data}")
-    
     # Extract user information
-    apple_user_id = token_data.get('sub')
+    apple_user_id = token_data.get('sub', '')
     email = token_data.get('email') or data.get('email')
     
+    existing_user = get_user(apple_user_id)
+    if existing_user:
+        if existing_user.auth_provider and 'apple' not in existing_user.auth_provider:
+            logger.error(f"LOG.ERROR: User {existing_user.user_id} (email {existing_user.email}) attempted to sign in with Apple but is registered with {existing_user.auth_provider}")
+            raise AuthError("email registered with different provider. sign in using: " + existing_user.auth_provider)
+
     if not email or email == "":
         if apple_user_id:
             existing_user = get_user(apple_user_id)
@@ -451,8 +457,13 @@ def apple_auth():
     )
     
     # Create Firebase custom token
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
-    
+    firebase_dict = {
+        'email': email,
+        'name': name,
+        'provider': 'apple.com'
+    }
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Apple authentication for user: {user_data['user_id']}")
 
@@ -508,6 +519,9 @@ def facebook_auth():
     # Get or create user
     currentUser = get_user(facebook_user_id)
     if currentUser:
+        if currentUser.auth_provider and 'facebook' not in currentUser.auth_provider:
+            logger.error(f"LOG.ERROR: User {currentUser.user_id} (email {currentUser.email}) attempted to sign in with Facebook but is registered with {currentUser.auth_provider}")
+            raise AuthError("email registered with different provider. sign in using: " + currentUser.auth_provider)
         name = currentUser.name 
     if not name or name == "":
         name = fb_user.get('name')
@@ -529,8 +543,13 @@ def facebook_auth():
     )
     
     # Create Firebase custom token
-    firebase_custom_token = create_firebase_custom_token(user_data['user_id'])
-    
+    firebase_dict = {
+        'email': email,
+        'name': name,
+        'provider': 'facebook.com'
+    }
+    firebase_custom_token = create_firebase_custom_token(user_data['user_id'], firebase_dict)
+
     # Log successful authentication
     logger.error(f"LOG.INFO: Successful Facebook authentication for user: {user_data['user_id']}")
 
