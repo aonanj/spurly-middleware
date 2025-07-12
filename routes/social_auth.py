@@ -342,6 +342,8 @@ def google_auth():
         if existing_user.auth_provider and 'google' not in existing_user.auth_provider:
             logger.error(f"LOG.ERROR: User {existing_user.user_id} (email {existing_user.email}) attempted to sign in with Google but is registered with {existing_user.auth_provider}")
             raise AuthError("email registered with different provider. sign in using: " + existing_user.auth_provider)
+        if existing_user.name and existing_user.name != name:
+            name = existing_user.name
 
     user_data = get_or_create_user(
         user_id=google_user_id,
@@ -456,6 +458,9 @@ def apple_auth():
 
     if 'nickname' in full_name:
         name = full_name['nickname']
+    
+    if existing_user and existing_user.name and existing_user.name != name:
+        name = existing_user.name 
     
     # Get or create user
     user_data = get_or_create_user(
