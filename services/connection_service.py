@@ -502,7 +502,7 @@ def get_profile_text(
                 if 'age' in json_parsed_content:
                     extracted_profile_dict['connection_age'] = json_parsed_content['age']
             skip_keys = {"name", "age"}
-            extracted_profile_dict['connection_context_block'] = "\n • ".join(f"{k.lower()}: {v.lower()}. " for k, v in json_parsed_content.items() if k not in skip_keys)
+            extracted_profile_dict['connection_context_block'] += "\n".join(f" • {k.lower()}: {v.lower()}. " for k, v in json_parsed_content.items() if k not in skip_keys)
 
         if extracted_profile_dict and len(extracted_profile_dict) > 0:
             return extracted_profile_dict
