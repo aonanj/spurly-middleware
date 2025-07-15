@@ -9,6 +9,7 @@ from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
 import jwt
 from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, get_formatted_auth_provider, AuthError, ValidationError, verify_app_check_token
+from infrastructure.app_account_mapper import ensure_token_mapping
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
 from class_defs.profile_def import UserProfile
@@ -195,6 +196,7 @@ def firebase_register():
         # Convert to dict if it's a UserProfile object
         user_dict = user_data.to_dict() if isinstance(user_data, UserProfile) else user_data
         user_id = user_dict['user_id']
+        ensure_token_mapping(user_id) 
         
         # Create your own JWT tokens
         access_token, refresh_token = create_jwt_token(
@@ -274,7 +276,9 @@ def firebase_login():
         
         setattr(g, "user_id", user_id)
         current_app.config['user_id'] = user_id
-        
+        if user_id:
+            ensure_token_mapping(user_id)
+
         email = ""
         if firebase_user.get('email'):
             email = firebase_user.get('email', '').strip().lower()

@@ -9,6 +9,7 @@ from appstoreserverlibrary.signed_data_verifier import (
 from appstoreserverlibrary.models import Environment
 from infrastructure.email_service import email_service 
 from infrastructure.logger import get_logger
+from infrastructure.app_account_mapper import uid_from_token
 
 logger = get_logger(__name__)
 
@@ -76,6 +77,8 @@ def apple_subscription_webhook():
     notif_id = None
     tx = None
     notification_type = None
+    token = None
+    firebase_uid = None
     plan = PLAN_MAP["free"]  # Initialize with default plan
     if decoded and decoded.data:
         env         = decoded.data.environment                      # Sandbox | Production
@@ -99,8 +102,14 @@ def apple_subscription_webhook():
         renew       = verifier.verify_and_decode_renewal_info(decoded.data.signedRenewalInfo)
         uid         = tx.appAccountToken             # set on‑device at purchase
         
-        logger.error(f"LOG.INFO: Apple subscription webhook received for user {uid} in {env} environment")
-        
+        if tx and tx.appAccountToken:
+            token = tx.appAccountToken
+            firebase_uid = uid_from_token(token)
+            if not firebase_uid:
+                abort(422, "Cannot map appAccountToken to firebase UID")
+
+        logger.error(f"LOG.INFO: Apple subscription webhook received for user {firebase_uid} in {env} environment")
+
         tx_pid = tx.productId
         next_pid = renew.autoRenewProductId or tx_pid
         
@@ -129,8 +138,8 @@ def apple_subscription_webhook():
     new_status = STATUS_MAP.get(status_key, "unknown") if status_key is not None else "unknown"
 
     # ----------------- Firestore idempotent update -------------------------
-    doc_ref = fs.collection("users").document(uid).collection("billing").document("profile")
-    logger.error(f"LOG.INFO: Updating subscription status for user {uid} to {new_status} with plan {plan['tier']}")
+    doc_ref = fs.collection("users").document(firebase_uid).collection("billing").document("profile")
+    logger.error(f"LOG.INFO: Updating subscription status for user {firebase_uid} to {new_status} with plan {plan['tier']}")
 
     @firestore.transactional
     def _update_if_new(txn):
@@ -146,12 +155,12 @@ def apple_subscription_webhook():
                 "subscription_tier": plan["tier"],
                 "expiresDateMs": tx.expiresDate if tx else None,
                 "lastNotifs": seen + [notif_id],
-                "updatedAt": firestore.SERVER_TIMESTAMP,
+                "updated_at": firestore.SERVER_TIMESTAMP,
             },
             merge=True,
         )
-        
-        logger.error(f"LOG.INFO: Updated subscription status for user {uid} to {new_status} with plan {plan['tier']}")
+
+        logger.error(f"LOG.INFO: Updated subscription status for user {firebase_uid} to {new_status} with plan {plan['tier']}")
 
     _update_if_new(fs.transaction())
     return jsonify(ok=True)

@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
 
 from infrastructure.token_validator import AuthError, ValidationError, handle_all_errors, create_jwt_token
+from infrastructure.app_account_mapper import ensure_token_mapping
 
 from services.user_service import get_user, update_user, create_user
 from services.connection_service import clear_active_connection_firestore
@@ -393,7 +394,9 @@ def google_auth():
         response_data["firebase_custom_token"] = firebase_custom_token
         
     response_data["auth_provider"] = "google.com"
-    
+
+    ensure_token_mapping(user_data['user_id'])
+
     return jsonify(response_data), 200
 
 @social_auth_bp.route('/apple', methods=['POST'])
@@ -510,6 +513,8 @@ def apple_auth():
     # Include Firebase custom token if created successfully
     if firebase_custom_token:
         response_data["firebase_custom_token"] = firebase_custom_token
+        
+    ensure_token_mapping(user_data['user_id'])
     
     return jsonify(response_data), 200
 
@@ -602,6 +607,8 @@ def facebook_auth():
     # Include Firebase custom token if created successfully
     if firebase_custom_token:
         response_data["firebase_custom_token"] = firebase_custom_token
+        
+    ensure_token_mapping(user_data['user_id'])
     
     return jsonify(response_data), 200
 
