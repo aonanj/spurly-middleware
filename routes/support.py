@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from infrastructure.token_validator import verify_token, handle_all_errors
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
-from infrastructure.email_service import email_service  # Add this import
+from infrastructure.email_service import email_service  
 import uuid
 
 logger = get_logger(__name__)
@@ -218,7 +218,9 @@ def list_user_support_requests():
     try:
         user_id = getattr(g, "user_id", None)
         if not user_id:
-            return jsonify({"error": "Invalid authentication state"}), 401
+            user_id = request.args.get("user_id")
+            if not user_id:
+                return jsonify({"error": "Invalid authentication state"}), 401
         
         # Get query parameters
         status_filter = request.args.get("status")
@@ -259,3 +261,50 @@ def list_user_support_requests():
         user_id = getattr(g, "user_id", None)
         logger.error(f"Error listing support requests for user {user_id}: {str(e)}", exc_info=True)
         return jsonify({"error": "Failed to list support requests"}), 500
+    
+@support_bp.route("/apple-subscription-notification", methods=["POST"])
+@handle_all_errors
+def receive_subscription_notification():
+    """
+    Endpoint to receive App Store Server notifications regarding subscription events.
+
+    Expected payload (example structure from Apple):
+    {
+        "notification_type": "DID_RENEW",
+        "subtype": "INITIAL_BUY",
+        "data": {...}
+    }
+
+    Sends an email containing the notification type and full payload.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Invalid or missing JSON payload"}), 400
+
+        notification_type = data.get("notification_type", "UNKNOWN")
+        subtype = data.get("subtype", "N/A")
+
+        subject = f"Apple Subscription Notification: {notification_type} ({subtype})"
+        message = f"Received Apple subscription notification:\n\n{data}"
+
+        email_service.send_email(
+            to_email="admin@spurly.io",
+            subject=subject,
+            html_content=message
+        )
+        
+        db = get_firestore_db()
+        doc_ref = db.collection("users").document(data["user_id"]).collection("apple_subscription_notifications").document()
+        doc_ref.set({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "notification_type": notification_type,
+            "subtype": subtype,
+            "raw_payload": data
+        })
+
+        return jsonify({"status": "notification received"}), 200
+
+    except Exception as e:
+        logger.error(f"Error processing subscription notification: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500

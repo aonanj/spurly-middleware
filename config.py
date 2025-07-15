@@ -63,12 +63,12 @@ class Config:
 
     
 
-    ## Algolia credentials
-    ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
-    ALGOLIA_ADMIN_KEY = os.getenv("ALGOLIA_ADMIN_KEY")
-    ALGOLIA_CONVERSATIONS_INDEX = os.getenv("ALGOLIA_CONVERSATIONS_INDEX", "conversations")
-    ALGOLIA_SEARCH_RESULTS_LIMIT = os.getenv("ALGOLIA_SEARCH_RESULTS_LIMIT", 20)
-    ALGOLIA_WRITE_API_KEY = os.getenv("ALGOLIA_WRITE_API_KEY", "")
+    # ## Algolia credentials
+    # ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID")
+    # ALGOLIA_ADMIN_KEY = os.getenv("ALGOLIA_ADMIN_KEY")
+    # ALGOLIA_CONVERSATIONS_INDEX = os.getenv("ALGOLIA_CONVERSATIONS_INDEX", "conversations")
+    # ALGOLIA_SEARCH_RESULTS_LIMIT = os.getenv("ALGOLIA_SEARCH_RESULTS_LIMIT", 20)
+    # ALGOLIA_WRITE_API_KEY = os.getenv("ALGOLIA_WRITE_API_KEY", "")
 
     ENABLE_AUTH = os.environ.get("ENABLE_AUTH", "True").lower() == "true"
     

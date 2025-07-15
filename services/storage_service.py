@@ -3,8 +3,7 @@ from datetime import datetime, timezone, timedelta
 from flask import g, current_app
 from google.cloud import firestore
 from google.cloud import storage 
-from infrastructure.clients import get_firestore_db, get_algolia_client
-from infrastructure.id_generator import generate_conversation_id 
+from infrastructure.clients import get_firestore_db
 from infrastructure.logger import get_logger
 import uuid
 from werkzeug.utils import secure_filename
@@ -169,37 +168,37 @@ class ConversationStorage:
                 
         return payload
     
-    def _index_to_algolia_background(self, conversation: Conversation, 
-                                    conversation_text: str) -> None:
-        """Index to Algolia in a background thread."""
-        def _do_index():
-            try:
-                algolia_client = get_algolia_client()
-                if not algolia_client or not conversation_text:
-                    return
+    # def _index_to_algolia_background(self, conversation: Conversation, 
+    #                                 conversation_text: str) -> None:
+    #     """Index to Algolia in a background thread."""
+    #     def _do_index():
+    #         try:
+    #             algolia_client = get_algolia_client()
+    #             if not algolia_client or not conversation_text:
+    #                 return
                     
-                index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
-                if not index_name:
-                    logger.error("Algolia index name not configured")
-                    return
+    #             index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+    #             if not index_name:
+    #                 logger.error("Algolia index name not configured")
+    #                 return
                 
-                payload = self._prepare_algolia_payload(conversation, conversation_text)
-                algolia_client.save_object(index_name, payload)
-                logger.error(f"LOG.INFO: Indexed conversation {conversation.conversation_id} to Algolia")
+    #             payload = self._prepare_algolia_payload(conversation, conversation_text)
+    #             algolia_client.save_object(index_name, payload)
+    #             logger.error(f"LOG.INFO: Indexed conversation {conversation.conversation_id} to Algolia")
                 
-            except Exception as e:
-                logger.error(f"Failed to index to Algolia: {e}", exc_info=True)
-            finally:
-                # Clean up thread reference
-                with self._algolia_lock:
-                    if threading.current_thread() in self._algolia_thread_pool:
-                        self._algolia_thread_pool.remove(threading.current_thread())
+    #         except Exception as e:
+    #             logger.error(f"Failed to index to Algolia: {e}", exc_info=True)
+    #         finally:
+    #             # Clean up thread reference
+    #             with self._algolia_lock:
+    #                 if threading.current_thread() in self._algolia_thread_pool:
+    #                     self._algolia_thread_pool.remove(threading.current_thread())
         
-        # Start background thread
-        thread = threading.Thread(target=_do_index, daemon=True)
-        with self._algolia_lock:
-            self._algolia_thread_pool.append(thread)
-        thread.start()
+    #     # Start background thread
+    #     thread = threading.Thread(target=_do_index, daemon=True)
+    #     with self._algolia_lock:
+    #         self._algolia_thread_pool.append(thread)
+    #     thread.start()
     
     def save_conversation(self, conversation: Conversation) -> Dict[str, str]:
         """
@@ -242,7 +241,7 @@ class ConversationStorage:
             logger.error(f"LOG.INFO: Saved conversation {conversation.conversation_id} to Firestore")
             
             # Index to Algolia in background thread
-            self._index_to_algolia_background(conversation, conversation_text)
+            #self._index_to_algolia_background(conversation, conversation_text)
             
             return {
                 "success": "conversation saved",
@@ -319,22 +318,22 @@ class ConversationStorage:
             logger.error(f"LOG.INFO: Deleted conversation {conversation_id} from Firestore")
             
             # Delete from Algolia in background
-            def _delete_from_algolia():
-                try:
-                    algolia_client = get_algolia_client()
-                    index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+            # def _delete_from_algolia():
+            #     try:
+            #         algolia_client = get_algolia_client()
+            #         index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
                     
-                    if algolia_client and index_name:
-                        algolia_client.delete_object(
-                            index_name=index_name, 
-                            object_id=conversation_id
-                        )
-                        logger.error(f"LOG.INFO: Deleted conversation {conversation_id} from Algolia")
-                except Exception as e:
-                    logger.error(f"Failed to delete from Algolia: {e}", exc_info=True)
+            #         if algolia_client and index_name:
+            #             algolia_client.delete_object(
+            #                 index_name=index_name, 
+            #                 object_id=conversation_id
+            #             )
+            #             logger.error(f"LOG.INFO: Deleted conversation {conversation_id} from Algolia")
+            #     except Exception as e:
+            #         logger.error(f"Failed to delete from Algolia: {e}", exc_info=True)
             
-            thread = threading.Thread(target=_delete_from_algolia, daemon=True)
-            thread.start()
+            # thread = threading.Thread(target=_delete_from_algolia, daemon=True)
+            # thread.start()
             
             return {"success": f"conversation_id {conversation_id} deleted"}
             
@@ -353,23 +352,23 @@ class ConversationStorage:
             List of matching conversations
         """
         try:
-            if params.keyword:
-                return self._search_with_algolia(params)
-            else:
-                return self._search_with_firestore(params)
-                
+            # if params.keyword:
+            #     return self._search_with_algolia(params)
+            # else:
+            #     return self._search_with_firestore(params)
+           return self._search_with_firestore(params)     
         except Exception as e:
             logger.error(f"Search failed: {e}", exc_info=True)
             return []
     
-    def _search_with_algolia(self, params: ConversationSearchParams) -> List[Conversation]:
-        """Searches conversations using Algolia."""
-        algolia_client = get_algolia_client()
-        index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
+    # def _search_with_algolia(self, params: ConversationSearchParams) -> List[Conversation]:
+    #     """Searches conversations using Algolia."""
+    #     algolia_client = get_algolia_client()
+    #     index_name = current_app.config.get('ALGOLIA_CONVERSATIONS_INDEX')
         
-        if not algolia_client or not index_name:
-            logger.error("Algolia not available, falling back to Firestore")
-            return self._search_with_firestore(params)
+    #     if not algolia_client or not index_name:
+    #         logger.error("Algolia not available, falling back to Firestore")
+    #         return self._search_with_firestore(params)
         
         try:
             # Build Algolia filters

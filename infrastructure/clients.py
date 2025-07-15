@@ -1,6 +1,6 @@
 # infrastructure/clients.py
 
-from algoliasearch.search.client import SearchClientSync
+#from algoliasearch.search.client import SearchClientSync
 import firebase_admin
 from firebase_admin import firestore, credentials
 from google.oauth2 import service_account
@@ -18,7 +18,7 @@ from .logger import get_logger
 _vision_client = None
 _openai_client = None
 _algolia_client = None
-_algolia_index = None 
+#_algolia_index = None 
 _firestore_db = None
 
 logger = get_logger(__name__)
@@ -42,7 +42,7 @@ def init_clients(app):
             if not cred_path or not os.path.exists(cred_path):
                  raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
             cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716-a5.firebasestorage.app'})
+            firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716.firebasestorage.app'})
             logger.error("LOG.INFO: Firebase Admin initialized.")
         else:
              logger.error("LOG.INFO: Firebase Admin already initialized.")
@@ -76,22 +76,22 @@ def init_clients(app):
         raise RuntimeError("Vision client has not been initialized.")
 
     # --- Algolia Search Client ---
-    try:
-        algolia_app_id = os.getenv("ALGOLIA_APP_ID")
-        algolia_search_api_key = os.getenv("ALGOLIA_SEARCH_API_KEY")
-        algolia_index_name = os.getenv("ALGOLIA_INDEX_NAME")
+    # try:
+    #     algolia_app_id = os.getenv("ALGOLIA_APP_ID")
+    #     algolia_search_api_key = os.getenv("ALGOLIA_SEARCH_API_KEY")
+    #     algolia_index_name = os.getenv("ALGOLIA_INDEX_NAME")
 
-        if not all([algolia_app_id, algolia_search_api_key, algolia_index_name]):
-            raise ValueError("Algolia configuration (APP_ID, SEARCH_API_KEY, INDEX_NAME) missing.")
+    #     if not all([algolia_app_id, algolia_search_api_key, algolia_index_name]):
+    #         raise ValueError("Algolia configuration (APP_ID, SEARCH_API_KEY, INDEX_NAME) missing.")
 
-        _algolia_client = SearchClientSync(algolia_app_id, algolia_search_api_key)
-        logger.error(f"LOG.INFO: Algolia client initialized for index: {algolia_index_name}")
-    except Exception as e:
-        logger.error("Failed to initialize Algolia client: %s", e, exc_info=True)
-        # Decide if this should be a fatal error (raise RuntimeError) or allow fallback
-        logger.error("Algolia client failed to initialize. Keyword search will be unavailable.")
-        _algolia_client = None
-        _algolia_index = None # Ensure index is None if client fails
+    #     _algolia_client = SearchClientSync(algolia_app_id, algolia_search_api_key)
+    #     logger.error(f"LOG.INFO: Algolia client initialized for index: {algolia_index_name}")
+    # except Exception as e:
+    #     logger.error("Failed to initialize Algolia client: %s", e, exc_info=True)
+    #     # Decide if this should be a fatal error (raise RuntimeError) or allow fallback
+    #     logger.error("Algolia client failed to initialize. Keyword search will be unavailable.")
+    #     _algolia_client = None
+    #     _algolia_index = None # Ensure index is None if client fails
 
     # --- OpenAI Client ---
     try:
@@ -140,11 +140,11 @@ def get_openai_client() -> openai.OpenAI:
             raise RuntimeError("OpenAI client has not been initialized.")
     return _openai_client
 
-def get_algolia_client():
-    """ Safely returns the initialized Algolia index instance. """
-    if _algolia_client is None:
-           return None
-    return _algolia_client
+# def get_algolia_client():
+#     """ Safely returns the initialized Algolia index instance. """
+#     if _algolia_client is None:
+#            return None
+#     return _algolia_client
 
 
 def refresh_vision_client():
