@@ -77,6 +77,8 @@ class Config:
     SPURLY_INFERENCE_PROMPT = os.environ.get("SPURLY_INFERENCE_PROMPT", "resources/spurly_inference_prompt.txt")
     PROFILE_TEXT_SYSTEM_PROMPT = os.environ.get("PROFILE_TEXT_SYSTEM_PROMPT", "resources/get_profile_text_system_prompt.txt")
     PROFILE_TEXT_USER_PROMPT = os.environ.get("PROFILE_TEXT_USER_PROMPT", "resources/get_profile_text_user_prompt.txt")
+    
+    ROOT_CERT = os.environ.get("APPLE_ROOT_CA_PATH", "resources/AppleRootCA-G3.cer")
 
     ## SendGrid Support Email Config
     SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY", "")
