@@ -2,15 +2,15 @@ from setuptools import setup, find_packages
 
 setup(
     name="spurly",
-    version="0.2.5",
+    version="0.66",
     description="Conversational messaging AI assistant with contextual awareness.",
-    author="phaeton order llc",
+    author="phaethon order llc",
     author_email="admin@spurly.io",
-    url="https://github.com/aonanj/spurly",
-    license="MIT",
+    url="https://github.com/aonanj/spurly-middleware",
+    license="Copyright (c) 2025 Phaethon Order LLC. All rights reserved.",
     packages=find_packages(exclude=["tests", "docs"]),
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.11",
     install_requires=[
         # Core Framework & Web
         "Flask>=3.1.1",  # [cite: 1]
@@ -56,7 +56,7 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: Non-OSI Approved :: Proprietary",
         "Operating System :: OS Independent",
     ],
 )
