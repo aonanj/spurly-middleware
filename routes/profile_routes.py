@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from functools import wraps
 from typing import Dict, Optional, Any
 import os
-from infrastructure.token_validator import verify_token, handle_all_errors, AuthError
+from infrastructure.token_validator import verify_token, handle_all_errors, AuthError, verify_app_check_token
 from services.user_service import get_user  # Import your user service
 
 from flask import Blueprint, jsonify, g
@@ -24,6 +24,7 @@ def get_user_profile(user_id: str) -> Optional[Dict[str, Any]]:
 @profile_bp.route('/<user_id>', methods=['GET'])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_profile(user_id: str):
     """Get user profile by ID"""
     # Verify user is accessing their own profile or has permission

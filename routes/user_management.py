@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g, current_app
 import re
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from services.user_service import update_user_profile, get_user, get_selected_spurs, update_spur_preferences, update_user, update_user_using_trending_topics, update_user_model_temp_preference
 
@@ -17,6 +17,7 @@ def validate_email(email: str) -> bool:
 @user_management_bp.route("/user", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def update_user_bp():
     try:
         data = request.get_json()
@@ -48,6 +49,7 @@ def update_user_bp():
 @user_management_bp.route("/user", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_user_bp():
     try:
         user_id = getattr(g, "user_id", None)
@@ -65,6 +67,7 @@ def get_user_bp():
 @user_management_bp.route("/get-selected-spurs", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def fetch_selected_spurs_bp():
     try:
         user_id = getattr(g, "user_id", None)
@@ -87,6 +90,7 @@ def fetch_selected_spurs_bp():
 @user_management_bp.route("/update-spurs-prefs", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def update_spurs_prefs_bp():
 
     if request.is_json:
@@ -152,6 +156,7 @@ def update_spurs_prefs_bp():
 @user_management_bp.route("/update-email", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def update_email_bp():
     
     if request.is_json:
@@ -191,6 +196,7 @@ def update_email_bp():
 @user_management_bp.route("/using-trending-topics", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def is_using_trending_topics_bp():
 
     try:
@@ -212,6 +218,7 @@ def is_using_trending_topics_bp():
 @user_management_bp.route("/set-using-trending-topics", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def set_using_trending_topics_bp():
 
     if request.is_json:
@@ -254,6 +261,7 @@ def set_using_trending_topics_bp():
 @user_management_bp.route("/get-model-temp-preference", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_model_temp_preference_bp():
 
     try:
@@ -275,6 +283,7 @@ def get_model_temp_preference_bp():
 @user_management_bp.route("/set-model-temp-preference", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def set_model_temp_preference_bp():
 
     if request.is_json:

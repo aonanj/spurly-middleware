@@ -3,7 +3,7 @@ from flask import Blueprint, request, jsonify, current_app, g
 from functools import wraps
 
 from infrastructure.logger import get_logger
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from services.user_service import update_user_profile, get_user, update_spur_preferences
 
 onboarding_bp = Blueprint("onboarding", __name__)
@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 @onboarding_bp.route("/api/onboarding", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def onboarding():
     """
     Complete user onboarding by updating their profile with additional information.
@@ -127,6 +128,7 @@ def onboarding():
 @onboarding_bp.route("/api/onboarding/status", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def onboarding_status():
     """
     Check if the current user has completed onboarding.

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from infrastructure.id_generator import generate_conversation_id
 from services.connection_service import get_active_connection_firestore
@@ -15,6 +15,7 @@ logger = get_logger(__name__)
 @generate_bp.route("/generate", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 ##@enrich_context
 ##@sanitize_topic
 def generate():

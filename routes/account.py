@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from services.user_service import delete_user
 
@@ -9,6 +9,7 @@ logger = get_logger(__name__)
 @account_bp.route("/delete", methods=["DELETE"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def delete_account():
     """
     Deletes a registered user's account and all associated data.

@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from firebase_admin import auth as firebase_admin_auth
+from firebase_admin import app_check
+
 
 logger = get_logger(__name__)
 
@@ -210,4 +212,27 @@ def verify_token(f):
         except jwt.InvalidTokenError as e:
             raise AuthError(f"Invalid token: {str(e)}", 401)
             
+    return decorated_function
+
+def verify_app_check_token(f):
+    """Decorator to verify Firebase App Check token"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        app_check_token = request.headers.get('X-Firebase-AppCheck')
+        
+        if not app_check_token:
+            logger.error("Firebase App Check Error: missing App Check token")
+            raise AuthError("App Check token is required", 401)
+        
+        try:
+            # Verify the App Check token
+            verified_token = app_check.verify_token(app_check_token)
+            setattr(g, "app_check_token", verified_token)
+             
+            return f(*args, **kwargs)
+        except app_check.InvalidTokenError as e:
+            logger.error(f"Firebase App Check Error: Invalid App Check token: {str(e)}")
+            raise AuthError(f"Invalid App Check token: {str(e)}", 401)
+
+    
     return decorated_function

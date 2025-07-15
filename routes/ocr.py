@@ -9,7 +9,7 @@ MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 from services.billing_service import check_user_usage_limit
 from utils.usage_middleware import estimate_spur_generation_tokens
 from services.ocr_service import process_image
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 
 logger = get_logger(__name__)
@@ -20,6 +20,7 @@ ocr_bp = Blueprint('ocr', __name__)
 @ocr_bp.route('/scan', methods=['POST'])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def ocr_scan():
     """
     Endpoint to process multiple images sent as bytes for OCR.
@@ -250,6 +251,7 @@ def ocr_scan():
 @ocr_bp.route('/scan-multipart', methods=['POST'])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def ocr_scan_multipart():
     """
     Alternative endpoint that accepts images as multipart/form-data.

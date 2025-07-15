@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, g
 from datetime import datetime, timezone
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from infrastructure.clients import get_firestore_db
 from infrastructure.email_service import email_service  
@@ -13,6 +13,7 @@ support_bp = Blueprint("support", __name__)
 @support_bp.route("/user-support", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def submit_support_request():
     """
     Submit a support request from a user.
@@ -155,6 +156,7 @@ def submit_support_request():
 @support_bp.route("/api/user-support/<request_id>", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_support_request(request_id: str):
     """
     Get a specific support request by ID.
@@ -204,6 +206,7 @@ def get_support_request(request_id: str):
 @support_bp.route("/api/user-support/list", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def list_user_support_requests():
     """
     List all support requests for the authenticated user.

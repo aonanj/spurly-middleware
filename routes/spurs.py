@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, g, current_app
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from services.spur_service import get_spur, get_saved_spurs, delete_saved_spur, save_spur
 
@@ -12,6 +12,7 @@ spurs_bp = Blueprint("spurs", __name__)
 @spurs_bp.route("/get-spurs", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def fetch_saved_spurs_bp():
     user_id = getattr(g, "user_id", None)
     if not user_id:
@@ -63,6 +64,7 @@ def fetch_saved_spurs_bp():
 @spurs_bp.route("/save-spur", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def save_spur_bp():
     data = request.get_json()
     user_id = getattr(g, "user_id", None)
@@ -82,6 +84,7 @@ def save_spur_bp():
 @spurs_bp.route("/delete-spur", methods=["DELETE"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def delete_saved_spurs_bp():
     
     data = request.get_json()
@@ -105,6 +108,7 @@ def delete_saved_spurs_bp():
 @spurs_bp.route("/get-spur/<spur_id>", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_spur_bp(spur_id):
     user_id = getattr(g, "user_id", None)
     if not user_id:

@@ -8,7 +8,7 @@ import firebase_admin
 from firebase_admin import auth as firebase_admin_auth
 from flask import Blueprint, request, jsonify, current_app, g
 import jwt
-from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, get_formatted_auth_provider, AuthError, ValidationError
+from infrastructure.token_validator import verify_token, handle_all_errors, create_jwt_token, get_formatted_auth_provider, AuthError, ValidationError, verify_app_check_token
 from services.user_service import get_user, update_user, create_user, get_user_by_email 
 from services.connection_service import clear_active_connection_firestore
 from class_defs.profile_def import UserProfile
@@ -351,6 +351,7 @@ def firebase_login():
 @auth_bp.route('/logout', methods=['POST'])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def logout():
     """Logout user and invalidate tokens"""
     

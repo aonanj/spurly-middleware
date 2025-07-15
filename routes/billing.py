@@ -9,7 +9,7 @@ This module provides endpoints for:
 """
 
 from flask import Blueprint, request, jsonify, g
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from services.billing_service import (
     get_user_usage_summary,
@@ -26,6 +26,7 @@ billing_bp = Blueprint("billing", __name__)
 @billing_bp.route("/api/billing/usage", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_usage():
     """
     Get current user's usage statistics.
@@ -60,6 +61,7 @@ def get_usage():
 @billing_bp.route("/api/billing/limits", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_limits():
     """
     Get current user's usage limits and status.
@@ -89,6 +91,7 @@ def get_limits():
 @billing_bp.route("/api/billing/subscription", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_subscription():
     """
     Get current user's subscription information.
@@ -125,6 +128,7 @@ def get_subscription():
 @billing_bp.route("/api/billing/subscription", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def upgrade_subscription_route():
     """
     Upgrade user's subscription tier.
@@ -177,6 +181,7 @@ def upgrade_subscription_route():
 @billing_bp.route("/api/billing/tiers", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_available_tiers():
     """
     Get available subscription tiers and their features.
@@ -206,6 +211,7 @@ def get_available_tiers():
 @billing_bp.route("/api/billing/history", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_billing_history():
     """
     Get user's billing history (usage records).

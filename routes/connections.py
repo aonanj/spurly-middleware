@@ -3,7 +3,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 from infrastructure.clients import get_firestore_db
 import time
-from infrastructure.token_validator import verify_token, handle_all_errors
+from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
 from infrastructure.adapters import extract_image_bytes_from_request
 from services.connection_service import (
@@ -145,6 +145,7 @@ def extract_image_bytes_from_request(field_name: str) -> List[bytes]:
 @connection_bp.route("/connections/save", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def save_connection():
     """Save a complete connection profile from JSON data."""
     try:
@@ -183,6 +184,7 @@ def save_connection():
 @connection_bp.route("/connections/create", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def create_connection():
     """Create a new connection profile with image processing."""
     try:
@@ -283,6 +285,7 @@ def create_connection():
 @connection_bp.route("/connections/update", methods=["PATCH"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def update_connection():
     """Update an existing connection profile."""
     try:
@@ -393,6 +396,7 @@ def update_connection():
 @connection_bp.route("/connections/fetch-all", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def fetch_user_connections():
     """Fetch all connections for the authenticated user."""
     try:
@@ -422,6 +426,7 @@ def fetch_user_connections():
 @connection_bp.route("/connections/set-active", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def set_active_connection():
     """Set the active connection for the user."""
     try:
@@ -449,6 +454,7 @@ def set_active_connection():
 @connection_bp.route("/connections/get-active", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_active_connection():
     """Get the active connection ID for the user."""
     try:
@@ -469,6 +475,7 @@ def get_active_connection():
 @connection_bp.route("/connections/clear-active", methods=["DELETE"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def clear_active_connection():
     """Clear the active connection for the user."""
     try:
@@ -491,6 +498,7 @@ def clear_active_connection():
 @connection_bp.route("/connections/fetch-single", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def fetch_single_connection():
     """Fetch a single connection profile by ID."""
     try:
@@ -523,6 +531,7 @@ def fetch_single_connection():
 @connection_bp.route("/connections/delete", methods=["DELETE"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def delete_connection():
     """Delete a connection profile."""
     try:
@@ -556,6 +565,7 @@ def delete_connection():
 @connection_bp.route("/connections/analyze-photos", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def analyze_connection_photos():
     """
     Analyze up to 4 photos of a connection for personality traits only.
@@ -714,6 +724,7 @@ def analyze_connection_photos():
 @connection_bp.route("/connections/upload-face-photo", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def upload_face_photo():
     """
     Upload a pre-cropped face photo from the frontend.
@@ -796,6 +807,7 @@ def upload_face_photo():
 @connection_bp.route("/connections/delete-profile-photo", methods=["DELETE"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def delete_profile_photo():
     """Delete the profile photo from a connection."""
     try:
@@ -863,6 +875,7 @@ def delete_profile_photo():
 @connection_bp.route("/connections/get-profile-photo", methods=["GET"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def get_profile_photo():
     """Get profile photo URL for a connection."""
     try:
@@ -895,6 +908,7 @@ def get_profile_photo():
 @connection_bp.route('/connections/create_multipart_form', methods=['POST'])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def create_connection_with_photos():
     """
     Create a new connection with multipart form data
@@ -987,6 +1001,7 @@ def create_connection_with_photos():
 @connection_bp.route("/connections/extract-profile-data", methods=["POST"])
 @handle_all_errors
 @verify_token
+@verify_app_check_token
 def extract_profile_data():
     """Extract profile data from the request."""
     
