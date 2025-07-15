@@ -7,9 +7,14 @@ from appstoreserverlibrary.signed_data_verifier import (
     VerificationException,
 )
 from appstoreserverlibrary.models import Environment
+from infrastructure.email_service import email_service 
+from infrastructure.logger import get_logger
+
+logger = get_logger(__name__)
+
 ROOT_CERT_PATH = os.environ.get("APPLE_ROOT_CA_PATH", "resources/AppleRootCA-G3.cer")
 BUNDLE_ID = os.getenv("APPLE_BUNDLE_ID", "com.phaeton-order.spurly")        # safety guard
-ENV_MODE  = os.getenv("ENV", "development")                # prod | staging | dev
+ENV_MODE  = os.getenv("ENV", "sandbox")                # prod | staging | dev
 
 # Convert string environment to Environment enum
 if ENV_MODE == "production":
@@ -29,6 +34,13 @@ verifier = SignedDataVerifier(root_certificates=[ROOT_CERT],
 fs       = firestore.Client()
 
 # Canonical status mapping for your Firestore docs
+PLAN_MAP = {
+    "free": {"tier": "free", "token_allowance": 0},
+    "com.phaeton.order.spurly.subscription.basic":   {"tier": "com.phaeton.order.spurly.subscription.basic",   "token_allowance": 25000},
+    "com.phaeton.order.spurly.subscription.premium": {"tier": "com.phaeton.order.spurly.subscription.premium", "token_allowance": 100000},
+}
+
+
 STATUS_MAP = {
     1: "active",
     2: "expired",
@@ -45,7 +57,10 @@ def apple_subscription_webhook():
     payload = request.get_json(silent=True) or {}
     signed  = payload.get("signedPayload")
     if not signed:
+        logger.error("Missing signedPayload in request")
         abort(400, "Missing signedPayload")
+        
+
 
     # -- Verify JWS signature & basic bundle‑id guardrail --------------------
     try:
@@ -60,9 +75,22 @@ def apple_subscription_webhook():
     renew = None
     notif_id = None
     tx = None
+    notification_type = None
+    plan = PLAN_MAP["free"]  # Initialize with default plan
     if decoded and decoded.data:
         env         = decoded.data.environment                      # Sandbox | Production
         notif_id    = decoded.notificationUUID
+        notification_type = decoded.rawNotificationType
+        subtype = decoded.rawSubtype
+        
+        message = f"Received Apple subscription notification:\n\n{decoded}"
+        subject = f"💰 Apple Subscription Notification: {notification_type} ({subtype})"
+
+        email_service.send_email(
+            to_email="admin@spurly.io",
+            subject=subject,
+            html_content=message
+        )
         
         if not decoded.data.signedTransactionInfo or not decoded.data.signedRenewalInfo:
             abort(400, "Missing signedTransactionInfo")
@@ -70,6 +98,21 @@ def apple_subscription_webhook():
         tx          = verifier.verify_and_decode_signed_transaction(decoded.data.signedTransactionInfo)
         renew       = verifier.verify_and_decode_renewal_info(decoded.data.signedRenewalInfo)
         uid         = tx.appAccountToken             # set on‑device at purchase
+        
+        logger.error(f"LOG.INFO: Apple subscription webhook received for user {uid} in {env} environment")
+        
+        tx_pid = tx.productId
+        next_pid = renew.autoRenewProductId or tx_pid
+        
+        if tx_pid:
+            plan = PLAN_MAP.get(tx_pid) or PLAN_MAP["free"]
+        else:
+            plan = PLAN_MAP["free"]
+        
+        if next_pid:
+            next_plan = PLAN_MAP.get(next_pid) or PLAN_MAP["free"]
+        else:
+            next_plan = PLAN_MAP["free"]
 
     if not uid:
         abort(422, "No appAccountToken; cannot map to user")
@@ -86,7 +129,8 @@ def apple_subscription_webhook():
     new_status = STATUS_MAP.get(status_key, "unknown") if status_key is not None else "unknown"
 
     # ----------------- Firestore idempotent update -------------------------
-    doc_ref = fs.collection("subscriptions").document(uid)
+    doc_ref = fs.collection("users").document(uid).collection("billing").document("profile")
+    logger.error(f"LOG.INFO: Updating subscription status for user {uid} to {new_status} with plan {plan['tier']}")
 
     @firestore.transactional
     def _update_if_new(txn):
@@ -98,13 +142,16 @@ def apple_subscription_webhook():
         txn.set(
             doc_ref,
             {
-                "status": new_status,
+                "subscription_status": new_status,
+                "subscription_tier": plan["tier"],
                 "expiresDateMs": tx.expiresDate if tx else None,
                 "lastNotifs": seen + [notif_id],
                 "updatedAt": firestore.SERVER_TIMESTAMP,
             },
             merge=True,
         )
+        
+        logger.error(f"LOG.INFO: Updated subscription status for user {uid} to {new_status} with plan {plan['tier']}")
 
     _update_if_new(fs.transaction())
     return jsonify(ok=True)

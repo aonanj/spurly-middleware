@@ -67,7 +67,7 @@ class BillingProfile:
     """User billing profile and subscription information"""
     user_id: str
     subscription_tier: str = "free"  # free, basic, premium
-    weekly_token_limit: int = 100000  # Default free tier limit (weekly)
+    weekly_token_limit: int = 0  # Default free tier limit (weekly)
     current_week_tokens: int = 0
     current_week_cost: float = 0.0
     billing_cycle_start: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -140,18 +140,18 @@ OPENAI_PRICING = {
 # Subscription tier definitions (weekly limits)
 SUBSCRIPTION_TIERS = {
     "free": {
-        "weekly_token_limit": 100000,  
+        "weekly_token_limit": 0,  
         "weekly_cost": 0.0,
         "features": ["basic_spur_generation", "limited_trait_inference"]
     },
-    "basic": {
-        "weekly_token_limit": 250000,  # 
-        "weekly_cost": 2.50,  # ~$10 monthly equivalent
-        "features": ["unlimited_spur_generation", "trait_inference", "conversation_analysis"]
+    "com.phaeton.order.spurly.subscription.basic": {
+        "weekly_token_limit": 25000,   
+        "weekly_cost": 4.99,  
+        "features": ["20_spurs_weekly", "trait_inference", "conversation_analysis"]
     },
-    "premium": {
-        "weekly_token_limit": 500000,  # 
-        "weekly_cost": 7.50,  # ~$30 monthly equivalent
-        "features": ["unlimited_spur_generation", "trait_inference", "conversation_analysis", "priority_support"]
+    "com.phaeton.order.spurly.subscription.premium": {
+        "weekly_token_limit": 100000,  # 
+        "weekly_cost": 7.99,  
+        "features": ["80_spurs_weekly", "trait_inference", "conversation_analysis", "priority_support"]
     }
 } 
