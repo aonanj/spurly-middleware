@@ -294,14 +294,15 @@ def receive_subscription_notification():
             html_content=message
         )
         
-        db = get_firestore_db()
-        doc_ref = db.collection("users").document(data["user_id"]).collection("apple_subscription_notifications").document()
-        doc_ref.set({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "notification_type": notification_type,
-            "subtype": subtype,
-            "raw_payload": data
-        })
+        ## TODO: data["user_id"] doesn't exist, this needs to be updated to map transaction ID to user ID
+        # db = get_firestore_db()
+        # doc_ref = db.collection("users").document(data["user_id"]).collection("apple_subscription_notifications").document()
+        # doc_ref.set({
+        #     "timestamp": datetime.now(timezone.utc).isoformat(),
+        #     "notification_type": notification_type,
+        #     "subtype": subtype,
+        #     "raw_payload": data
+        # })
 
         return jsonify({"status": "notification received"}), 200
 
