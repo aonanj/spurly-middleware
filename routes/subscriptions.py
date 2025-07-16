@@ -160,6 +160,7 @@ def apple_subscription_webhook():
                 "lastNotifs": seen + [notif_id],
                 "updated_at": firestore.SERVER_TIMESTAMP,
                 "apple_notification_type": decoded.notificationType.name if decoded and decoded.notificationType else None,
+                "weekly_token_limit": plan["token_allowance"],
             },
             merge=True,
         )
