@@ -2,6 +2,9 @@ import hashlib
 import uuid
 from google.cloud import firestore
 from .clients import get_firestore_db
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 _NAMESPACE = uuid.UUID("9e336bb4-6d07-4e5d-9d10-3da8e7460f42")
 
@@ -32,6 +35,9 @@ def ensure_token_mapping(firebase_uid: str):
 def uid_from_token(token: str) -> str | None:
     fs = get_firestore_db()
     snap = fs.collection("user_tokens").document(token).get()
+    ##DEBUG
+    logger.error(f"Looking up firebase_uid for appAccountToken {token}: found {snap.to_dict()}")
+    logger.error(f"FIREBASE UID: {snap.get('firebase_uid') if snap.exists else 'NOT FOUND'}")
     return snap.get("firebase_uid") if snap.exists else None
 
 
