@@ -83,7 +83,8 @@ def apple_subscription_webhook():
     token = None
     user_id = None
     plan = PLAN_MAP["free"]  # Initialize with default plan
-    if decoded and decoded.data:
+    if decoded and decoded.data and decoded.data.environment:
+        env_name = decoded.data.environment.name.lower()
         env         = decoded.data.environment                      # Sandbox | Production
         notif_id    = decoded.notificationUUID
         
@@ -140,7 +141,13 @@ def apple_subscription_webhook():
     @firestore.transactional
     def _update_if_new(txn):
         snap = doc_ref.get(transaction=txn)
-        seen = snap.get("lastNotifs", []) if snap.exists else []
+        if snap.exists:
+            data = snap.to_dict() or {}
+            seen = data.get("lastNotifs", [])
+        else:
+            seen = []
+        
+        logger.error(f"LOG.INFO: Updated subscription status for user {user_id} to {new_status} with plan {plan['tier']}")
         if notif_id in seen:                       # already processed
             return
 
@@ -152,11 +159,12 @@ def apple_subscription_webhook():
                 "expiresDateMs": tx.expiresDate if tx else None,
                 "lastNotifs": seen + [notif_id],
                 "updated_at": firestore.SERVER_TIMESTAMP,
+                "apple_notification_type": decoded.notificationType.name if decoded and decoded.notificationType else None,
             },
             merge=True,
         )
 
-        logger.error(f"LOG.INFO: Updated subscription status for user {user_id} to {new_status} with plan {plan['tier']}")
+        
 
     _update_if_new(fs.transaction())
     return jsonify(ok=True)
