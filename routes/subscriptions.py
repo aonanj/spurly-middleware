@@ -68,7 +68,9 @@ def apple_subscription_webhook():
         decoded = verifier.verify_and_decode_notification(
             signed_payload=signed
         )
+        logger.error(f"LOG.INFO: Decoded Apple subscription notification: {decoded}")
     except VerificationException as exc:
+        logger.error(f"Signature verification failed: {exc}")
         abort(400, f"Signature verification failed: {exc}")
         
     uid = None
@@ -96,6 +98,7 @@ def apple_subscription_webhook():
         )
         
         if not decoded.data.signedTransactionInfo or not decoded.data.signedRenewalInfo:
+            logger.error("Missing signedTransactionInfo or signedRenewalInfo in notification")
             abort(400, "Missing signedTransactionInfo")
             
         tx          = verifier.verify_and_decode_signed_transaction(decoded.data.signedTransactionInfo)
@@ -106,6 +109,7 @@ def apple_subscription_webhook():
             token = tx.appAccountToken
             firebase_uid = uid_from_token(token)
             if not firebase_uid:
+                logger.error(f"Cannot map appAccountToken {token} to firebase UID")
                 abort(422, "Cannot map appAccountToken to firebase UID")
 
         logger.error(f"LOG.INFO: Apple subscription webhook received for user {firebase_uid} in {env} environment")
@@ -124,6 +128,7 @@ def apple_subscription_webhook():
             next_plan = PLAN_MAP["free"]
 
     if not uid:
+        logger.error("No appAccountToken in transaction; cannot map to user")
         abort(422, "No appAccountToken; cannot map to user")
 
     # Ignore sandbox traffic when running in production (and vice‑versa)

@@ -32,10 +32,6 @@ FACEBOOK_USER_URL = "https://graph.facebook.com/v12.0/me"
 # Cache TTL for public keys (1 hour)
 KEYS_CACHE_TTL = 3600
 
-## TODO: If user deauthorizes app on Apple, Google, or Facebook, we should handle that gracefully
-
-
-
 logger = logging.getLogger(__name__)
 
 def _jwk_to_rsa_public_key(jwk: Dict[str, str]) -> RSAPublicKey:
