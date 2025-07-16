@@ -125,7 +125,7 @@ def generate():
     remaining_tokens = limit_status.get("remaining_tokens", 0)
     
     if remaining_tokens < estimated_tokens:
-        logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+        logger.error(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
         return jsonify({
             "error": "Insufficient tokens",
             "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",

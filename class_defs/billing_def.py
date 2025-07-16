@@ -142,7 +142,7 @@ SUBSCRIPTION_TIERS = {
     "free": {
         "weekly_token_limit": 0,  
         "weekly_cost": 0.0,
-        "features": ["basic_spur_generation", "limited_trait_inference"]
+        "features": ["personal_profile_info_extraction"]
     },
     "com.phaeton.order.spurly.subscription.basic": {
         "weekly_token_limit": 25000,   
@@ -152,6 +152,11 @@ SUBSCRIPTION_TIERS = {
     "com.phaeton.order.spurly.subscription.premium": {
         "weekly_token_limit": 100000,  # 
         "weekly_cost": 7.99,  
-        "features": ["80_spurs_weekly", "trait_inference", "conversation_analysis", "priority_support"]
+        "features": ["80_spurs_weekly", "trait_inference", "conversation_analysis", "any_profile_info_extraction"]
+    },
+    "com.phaeton.order.spurly.subscription.limitless": {
+        "weekly_token_limit": 1000000,
+        "weekly_cost": 19.99,
+        "features": ["spurly_limitless", "trait_inference", "conversation_analysis", "any_profile_info_extraction"]
     }
 } 

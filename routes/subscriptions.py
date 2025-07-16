@@ -39,6 +39,7 @@ PLAN_MAP = {
     "free": {"tier": "free", "token_allowance": 0},
     "com.phaeton.order.spurly.subscription.basic":   {"tier": "com.phaeton.order.spurly.subscription.basic",   "token_allowance": 25000},
     "com.phaeton.order.spurly.subscription.premium": {"tier": "com.phaeton.order.spurly.subscription.premium", "token_allowance": 100000},
+    "com.phaeton.order.spurly.subscription.limitless":     {"tier": "com.phaeton.order.spurly.subscription.limitless",     "token_allowance": 1000000},
 }
 
 
