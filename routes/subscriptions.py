@@ -81,22 +81,12 @@ def apple_subscription_webhook():
     tx = None
     notification_type = None
     token = None
-    firebase_uid = None
+    user_id = None
     plan = PLAN_MAP["free"]  # Initialize with default plan
     if decoded and decoded.data:
         env         = decoded.data.environment                      # Sandbox | Production
         notif_id    = decoded.notificationUUID
-        notification_type = decoded.rawNotificationType
-        subtype = decoded.rawSubtype
         
-        message = f"Received Apple subscription notification:\n\n{decoded}"
-        subject = f"💰 Apple Subscription Notification: {notification_type} ({subtype})"
-
-        email_service.send_email(
-            to_email="admin@spurly.io",
-            subject=subject,
-            html_content=message
-        )
         
         if not decoded.data.signedTransactionInfo or not decoded.data.signedRenewalInfo:
             logger.error("Missing signedTransactionInfo or signedRenewalInfo in notification")
@@ -108,12 +98,12 @@ def apple_subscription_webhook():
         
         if tx and tx.appAccountToken:
             token = tx.appAccountToken
-            firebase_uid = uid_from_token(token)
-            if not firebase_uid:
-                logger.error(f"Cannot map appAccountToken {token} to firebase UID")
-                abort(422, "Cannot map appAccountToken to firebase UID")
+            user_id = uid_from_token(token)
+            if not user_id:
+                logger.error(f"Cannot map appAccountToken {token} to user ID")
+                abort(422, "Cannot map appAccountToken to user ID")
 
-        logger.error(f"LOG.INFO: Apple subscription webhook received for user {firebase_uid} in {env} environment")
+        logger.error(f"LOG.INFO: Apple subscription webhook received for user {user_id} in {env} environment")
 
         tx_pid = tx.productId
         next_pid = renew.autoRenewProductId or tx_pid
@@ -144,8 +134,8 @@ def apple_subscription_webhook():
     new_status = STATUS_MAP.get(status_key, "unknown") if status_key is not None else "unknown"
 
     # ----------------- Firestore idempotent update -------------------------
-    doc_ref = fs.collection("users").document(firebase_uid).collection("billing").document("profile")
-    logger.error(f"LOG.INFO: Updating subscription status for user {firebase_uid} to {new_status} with plan {plan['tier']}")
+    doc_ref = fs.collection("users").document(user_id).collection("billing").document("profile")
+    logger.error(f"LOG.INFO: Updating subscription status for user {user_id} to {new_status} with plan {plan['tier']}")
 
     @firestore.transactional
     def _update_if_new(txn):
@@ -166,7 +156,7 @@ def apple_subscription_webhook():
             merge=True,
         )
 
-        logger.error(f"LOG.INFO: Updated subscription status for user {firebase_uid} to {new_status} with plan {plan['tier']}")
+        logger.error(f"LOG.INFO: Updated subscription status for user {user_id} to {new_status} with plan {plan['tier']}")
 
     _update_if_new(fs.transaction())
     return jsonify(ok=True)

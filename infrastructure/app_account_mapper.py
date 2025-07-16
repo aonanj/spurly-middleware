@@ -6,22 +6,36 @@ from .logger import get_logger
 
 logger = get_logger(__name__)
 
-_NAMESPACE = uuid.UUID("9e336bb4-6d07-4e5d-9d10-3da8e7460f42")   # same constant as in Swift
+import hashlib
+import uuid
 
-def make_app_account_token(firebase_uid: str) -> str:
-    """
-    Deterministic UUID generator – byte‑for‑byte identical to Swift.
-    """
-    ns_string = str(_NAMESPACE).upper()          # 1) "9E336BB4-6D07-4E5D-9D10-3DA8E7460F42"
-    name_bytes = (ns_string + firebase_uid.lower()).encode("utf‑8")
-
-    digest = hashlib.sha256(name_bytes).digest() # 2) SHA‑256
-    b = bytearray(digest[:16])                   # take first 16 bytes
-
-    b[6] = (b[6] & 0x0F) | 0x50                 # 3) set version 5 bits
-    b[8] = (b[8] & 0x3F) | 0x80                 #    set RFC variant bits
-
-    return str(uuid.UUID(bytes=bytes(b)))        # 4) RFC‑4122 UUID string
+def make_app_account_token(user_id: str) -> str:
+    # Use the same fixed namespace UUID
+    namespace = uuid.UUID('9e336bb4-6d07-4e5d-9d10-3da8e7460f42')
+    
+    # Get the namespace UUID bytes (16 bytes)
+    ns_bytes = namespace.bytes
+    
+    # Get the user ID as UTF-8 bytes
+    id_bytes = user_id.encode('utf-8')
+    
+    # Create SHA256 hash
+    hasher = hashlib.sha256()
+    hasher.update(ns_bytes)
+    hasher.update(id_bytes)
+    digest = hasher.digest()
+    
+    # Take first 16 bytes
+    bytes_list = list(digest[:16])
+    
+    # Set version 5 and variant bits (same as Swift)
+    bytes_list[6] = (bytes_list[6] & 0x0F) | 0x50  # version 5
+    bytes_list[8] = (bytes_list[8] & 0x3F) | 0x80  # variant bits
+    
+    # Create UUID from bytes
+    result_uuid = uuid.UUID(bytes=bytes(bytes_list))
+    
+    return str(result_uuid)
 
 
 
