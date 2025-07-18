@@ -36,10 +36,12 @@ steps:
       '--max-instances', '20',
       '--timeout', '900',
       '--concurrency', '100',
+      '--set-env-vars', 'ENVIRONMENT=production',
+      '--service-account', 'firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
     ]
 
 # Service account configuration
-serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:
