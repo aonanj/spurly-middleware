@@ -3,51 +3,57 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
-      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
+      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest',
+      '--cache-from', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest',
       '.'
     ]
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA'
+      'push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
     ]
 
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest'
+      'push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
     ]
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args: [
-      'run', 'deploy', 'spurly-middleware',
-      '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
-      '--region', 'us-west2',
+      'run', 'deploy', '${_SERVICE_NAME}',
+      '--image', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA',
+      '--region', '${_REGION}',
       '--platform', 'managed',
       '--allow-unauthenticated',
       '--port', '8080',
-      '--memory', '1Gi',
-      '--cpu', '1',
-      '--max-instances', '10',
-      '--timeout', '300',
-      '--concurrency', '80'
+      '--memory', '2Gi',
+      '--cpu', '2',
+      '--min-instances', '0',
+      '--max-instances', '20',
+      '--timeout', '900',
+      '--concurrency', '100',
+      '--set-env-vars', 'ENVIRONMENT=production',
+      '--service-account', 'firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
     ]
 
 # Service account configuration
-serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:
   logging: 'CLOUD_LOGGING_ONLY'
   substitutionOption: 'ALLOW_LOOSE'
+  machineType: 'E2_STANDARD_2'  # Faster builds
+  diskSizeGb: '100'
 
 # Timeout for the entire build
-timeout: '1200s'
+timeout: '1800s'
 
-# Substitute variables (optional)
+# Substitute variables
 substitutions:
   _SERVICE_NAME: 'spurly-middleware'
   _REGION: 'us-west2'

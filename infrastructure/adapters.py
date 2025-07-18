@@ -1,6 +1,6 @@
 import base64
 from typing import List
-from flask import request, g
+from flask import request
 
 from .logger import get_logger
 

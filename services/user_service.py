@@ -1,6 +1,5 @@
 from typing import Optional, Dict, List
 from datetime import datetime, timezone
-from dataclasses import dataclass, field, asdict
 from firebase_admin import auth
 from flask import current_app
 from infrastructure.logger import get_logger

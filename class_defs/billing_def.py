@@ -31,7 +31,6 @@ from dataclasses import dataclass, field, fields
 from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 from dataclasses import asdict
-import json
 
 @dataclass
 class UsageRecord:

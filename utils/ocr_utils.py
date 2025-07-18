@@ -1,5 +1,5 @@
 from infrastructure.logger import get_logger
-from typing import Any, Union, Dict, List, Tuple, Optional
+from typing import Any, Union, Dict, List, Optional
 import numpy as np
 import re
 from dataclasses import dataclass

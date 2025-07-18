@@ -17,8 +17,6 @@ from .logger import get_logger
 
 _vision_client = None
 _openai_client = None
-_algolia_client = None
-#_algolia_index = None 
 _firestore_db = None
 
 logger = get_logger(__name__)
@@ -75,24 +73,6 @@ def init_clients(app):
         logger.error("Failed to initialize Google Cloud Vision client: %s", e, exc_info=True)
         raise RuntimeError("Vision client has not been initialized.")
 
-    # --- Algolia Search Client ---
-    # try:
-    #     algolia_app_id = os.getenv("ALGOLIA_APP_ID")
-    #     algolia_search_api_key = os.getenv("ALGOLIA_SEARCH_API_KEY")
-    #     algolia_index_name = os.getenv("ALGOLIA_INDEX_NAME")
-
-    #     if not all([algolia_app_id, algolia_search_api_key, algolia_index_name]):
-    #         raise ValueError("Algolia configuration (APP_ID, SEARCH_API_KEY, INDEX_NAME) missing.")
-
-    #     _algolia_client = SearchClientSync(algolia_app_id, algolia_search_api_key)
-    #     logger.error(f"LOG.INFO: Algolia client initialized for index: {algolia_index_name}")
-    # except Exception as e:
-    #     logger.error("Failed to initialize Algolia client: %s", e, exc_info=True)
-    #     # Decide if this should be a fatal error (raise RuntimeError) or allow fallback
-    #     logger.error("Algolia client failed to initialize. Keyword search will be unavailable.")
-    #     _algolia_client = None
-    #     _algolia_index = None # Ensure index is None if client fails
-
     # --- OpenAI Client ---
     try:
         api_key = os.getenv("OPENAI_API_KEY")
@@ -139,37 +119,3 @@ def get_openai_client() -> openai.OpenAI:
         except Exception as e:
             raise RuntimeError("OpenAI client has not been initialized.")
     return _openai_client
-
-# def get_algolia_client():
-#     """ Safely returns the initialized Algolia index instance. """
-#     if _algolia_client is None:
-#            return None
-#     return _algolia_client
-
-
-def refresh_vision_client():
-    """
-    Force refresh the Vision client by creating a new instance.
-    This can help resolve stale connection issues.
-    
-    Returns:
-        vision.ImageAnnotatorClient: New Vision API client instance
-    """
-    global _vision_client
-    
-    try:
-        # Close existing client if any
-        if _vision_client:
-            try:
-                _vision_client.transport.close()
-            except Exception:
-                pass  # Ignore errors when closing
-        
-        # Create new client
-        _vision_client = vision.ImageAnnotatorClient()
-        logger.error("LOG.INFO: Vision client refreshed successfully")
-        return _vision_client
-        
-    except Exception as e:
-        logger.error(f"Failed to refresh Vision client: {str(e)}")
-        raise RuntimeError(f"Failed to refresh Vision client: {str(e)}")

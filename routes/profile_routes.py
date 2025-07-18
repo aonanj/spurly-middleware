@@ -1,8 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from functools import wraps
 from typing import Dict, Optional, Any
-import os
 from infrastructure.token_validator import verify_token, handle_all_errors, AuthError, verify_app_check_token
 from services.user_service import get_user  # Import your user service
 

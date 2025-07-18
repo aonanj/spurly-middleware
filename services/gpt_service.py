@@ -1,7 +1,6 @@
 import base64
 from datetime import datetime, timezone
 from flask import current_app
-import random
 import openai
 from typing import Optional, Dict, List
 from class_defs.profile_def import ConnectionProfile

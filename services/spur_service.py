@@ -2,7 +2,6 @@ from dataclasses import fields
 from datetime import datetime, timezone
 from class_defs.spur_def import Spur
 from class_defs.profile_def import ConnectionProfile
-from flask import g
 from infrastructure.clients import get_firestore_db
 from infrastructure.id_generator import extract_user_id_from_other_id
 from infrastructure.logger import get_logger

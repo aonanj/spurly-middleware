@@ -6,7 +6,7 @@ from services.connection_service import get_active_connection_firestore
 from services.gpt_service import get_spurs_for_output
 from class_defs.conversation_def import Conversation
 from services.storage_service import ConversationStorage
-from utils.usage_middleware import check_usage_limit_api, estimate_spur_generation_tokens
+from utils.usage_middleware import estimate_spur_generation_tokens
 import json
 
 generate_bp = Blueprint("generate", __name__)

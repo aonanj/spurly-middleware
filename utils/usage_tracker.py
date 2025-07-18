@@ -6,7 +6,7 @@ OpenAI API calls and their token usage for billing purposes.
 """
 
 import functools
-from typing import Optional, Callable, Any
+from typing import Callable
 from infrastructure.logger import get_logger
 from services.billing_service import record_openai_usage
 

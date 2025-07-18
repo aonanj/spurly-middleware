@@ -3,7 +3,6 @@ from flask import Blueprint, request, jsonify, g
 from gpt_training.training_data_collector import save_good_spur, save_bad_spur
 from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
 from infrastructure.logger import get_logger
-from services.spur_service import save_spur
 
 feedback_bp = Blueprint("feedback", __name__)
 

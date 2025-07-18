@@ -1,6 +1,5 @@
 # routes/onboarding.py
 from flask import Blueprint, request, jsonify, current_app, g
-from functools import wraps
 
 from infrastructure.logger import get_logger
 from infrastructure.token_validator import verify_token, handle_all_errors, verify_app_check_token
