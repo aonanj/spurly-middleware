@@ -13,7 +13,7 @@ from services.billing_service import check_user_usage_limit
 
 logger = get_logger(__name__)
 
-def check_usage_limit(required_tokens: int = 1000):
+def check_usage_limit(estimated_tokens: int = 1000):
     """
     Decorator to check if user has sufficient tokens before processing request.
     
@@ -55,24 +55,25 @@ def check_usage_limit(required_tokens: int = 1000):
                     return func(*args, **kwargs)  # Continue anyway
                 
                 remaining_tokens = limit_status.get("remaining_tokens", 0)
-                
-                if remaining_tokens < required_tokens:
-                    logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {required_tokens}")
+                token_margin = remaining_tokens * 0.1  # 10% margin
+        
+                if remaining_tokens < (estimated_tokens - token_margin):
+                    logger.error(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
                     
                     # Return error response for API endpoints
                     if hasattr(g, 'request'):
                         return jsonify({
                             "error": "Insufficient tokens",
-                            "message": f"You have {remaining_tokens} tokens remaining, but {required_tokens} are required for this operation.",
+                            "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
                             "remaining_tokens": remaining_tokens,
-                            "required_tokens": required_tokens,
+                            "estimated_tokens": estimated_tokens,
                             "subscription_tier": limit_status.get("subscription_tier", "unknown"),
                             "upgrade_required": True
                         }), 402  # Payment Required
                     
                     # For non-API calls, raise an exception
-                    raise ValueError(f"Insufficient tokens: {remaining_tokens} < {required_tokens}")
-                
+                    raise ValueError(f"Insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+
                 return func(*args, **kwargs)
                 
             except Exception as e:
@@ -83,12 +84,12 @@ def check_usage_limit(required_tokens: int = 1000):
         return wrapper
     return decorator
 
-def check_usage_limit_api(required_tokens: int = 1000):
+def check_usage_limit_api(estimated_tokens: int = 1000):
     """
     Decorator specifically for API endpoints to check usage limits.
     
     Args:
-        required_tokens: Estimated tokens needed for the operation
+        estimated_tokens: Estimated tokens needed for the operation
     """
     def decorator(func):
         @wraps(func)
@@ -106,15 +107,16 @@ def check_usage_limit_api(required_tokens: int = 1000):
                     return func(*args, **kwargs)  # Continue anyway
                 
                 remaining_tokens = limit_status.get("remaining_tokens", 0)
-                
-                if remaining_tokens < required_tokens:
-                    logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {required_tokens}")
-                    
+                token_margin = remaining_tokens * 0.1  # 10% margin
+        
+                if remaining_tokens < (estimated_tokens - token_margin):
+                    logger.error(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+
                     return jsonify({
                         "error": "Insufficient tokens",
-                        "message": f"You have {remaining_tokens} tokens remaining, but {required_tokens} are required for this operation.",
+                        "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
                         "remaining_tokens": remaining_tokens,
-                        "required_tokens": required_tokens,
+                        "estimated_tokens": estimated_tokens,
                         "subscription_tier": limit_status.get("subscription_tier", "unknown"),
                         "usage_percentage": limit_status.get("usage_percentage", 0),
                         "upgrade_required": True

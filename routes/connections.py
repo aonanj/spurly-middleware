@@ -611,12 +611,13 @@ def analyze_connection_photos():
             return jsonify({'error': "Failed to check usage limits"}), 500
         
         remaining_tokens = limit_status.get("remaining_tokens", 0)
+        token_margin = remaining_tokens * 0.1  # 10% margin
         
-        if remaining_tokens < estimated_tokens:
-            logger.warning(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
+        if remaining_tokens < (estimated_tokens - token_margin):
+            logger.error(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
             return jsonify({
                 "error": "Insufficient tokens",
-                "message": f"You have {remaining_tokens} tokens remaining, but {estimated_tokens} are required for this operation.",
+                "message": f"token balance: {remaining_tokens}. tokens required for analyzing connection photo: {estimated_tokens}.",
                 "remaining_tokens": remaining_tokens,
                 "required_tokens": estimated_tokens,
                 "subscription_tier": limit_status.get("subscription_tier", "unknown"),

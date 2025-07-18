@@ -123,8 +123,9 @@ def generate():
         return jsonify({'error': "Failed to check usage limits"}), 500
     
     remaining_tokens = limit_status.get("remaining_tokens", 0)
-    
-    if remaining_tokens < estimated_tokens:
+    token_margin = remaining_tokens * 0.1  # 10% margin
+        
+    if remaining_tokens < (estimated_tokens - token_margin):
         logger.error(f"User {user_id} has insufficient tokens: {remaining_tokens} < {estimated_tokens}")
         return jsonify({
             "error": "Insufficient tokens",
