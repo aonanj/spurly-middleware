@@ -5,7 +5,6 @@ steps:
       'build',
       '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
       '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
-      '--cache-from', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
       '.'
     ]
 
@@ -30,29 +29,25 @@ steps:
       '--platform', 'managed',
       '--allow-unauthenticated',
       '--port', '8080',
-      '--memory', '2Gi',
-      '--cpu', '2',
-      '--min-instances', '1',
-      '--max-instances', '20',
-      '--timeout', '900',
-      '--concurrency', '100',
-      '--set-env-vars', 'ENVIRONMENT=production',
-      '--service-account', 'firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+      '--memory', '1Gi',
+      '--cpu', '1',
+      '--max-instances', '10',
+      '--timeout', '300',
+      '--concurrency', '80'
     ]
 
 # Service account configuration
-serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:
   logging: 'CLOUD_LOGGING_ONLY'
   substitutionOption: 'ALLOW_LOOSE'
-  diskSizeGb: '100'
 
 # Timeout for the entire build
-timeout: '1800s'
+timeout: '1200s'
 
-# Optional substitutions (safe to leave)
+# Substitute variables (optional)
 substitutions:
   _SERVICE_NAME: 'spurly-middleware'
   _REGION: 'us-west2'
