@@ -47,7 +47,6 @@ serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@b
 options:
   logging: 'CLOUD_LOGGING_ONLY'
   substitutionOption: 'ALLOW_LOOSE'
-  machineType: 'E2_STANDARD_2'  # Faster builds
   diskSizeGb: '100'
 
 # Timeout for the entire build
