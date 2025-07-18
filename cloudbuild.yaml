@@ -32,13 +32,14 @@ steps:
       '--port', '8080',
       '--memory', '2Gi',
       '--cpu', '2',
-      '--min-instances', '0',
+      '--min-instances', '1',
       '--max-instances', '20',
       '--timeout', '900',
       '--concurrency', '100',
-      '--set-env-vars', 'ENVIRONMENT=production', 'GOOGLE_CLOUD_FIREBASE_CREDS=/secrets/firebase/boreal-sweep-455716-a5-8bd4e26f23', 'GOOGLE_CLOUD_FIRESTORE_CREDS=/secrets/firestore/boreal-sweep-455716-a5-a26b96a8291e', 'GOOGLE_CLOUD_VERTEX_CREDS=/secrets/vertex/boreal-sweep-455716-a5-411f5a3d6e3f', 'GOOGLE_CLOUD_VISION_CREDS=/secrets/vision/boreal-sweep-455716-a5-dcf73e821d5f',
-      '--service-account', 'firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+      '--set-env-vars',
+      'ENVIRONMENT=production,GOOGLE_CLOUD_FIREBASE_CREDS=/secrets/firebase/boreal-sweep-455716-a5-8bd4e26f23,GOOGLE_CLOUD_FIRESTORE_CREDS=/secrets/firestore/boreal-sweep-455716-a5-a26b96a8291e,GOOGLE_CLOUD_VERTEX_CREDS=/secrets/vertex/boreal-sweep-455716-a5-411f5a3d6e3f,GOOGLE_CLOUD_VISION_CREDS=/secrets/vision/boreal-sweep-455716-a5-dcf73e821d5f',
     ]
+    id: 'deploy-cloud-run'
 
 # Service account configuration
 serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@boreal-sweep-455716-a5.iam.gserviceaccount.com'
