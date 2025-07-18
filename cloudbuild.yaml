@@ -3,30 +3,30 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA',
-      '-t', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest',
-      '--cache-from', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest',
+      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
+      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
+      '--cache-from', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
       '.'
     ]
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA'
+      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA'
     ]
 
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:latest'
+      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest'
     ]
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args: [
-      'run', 'deploy', '${_SERVICE_NAME}',
-      '--image', 'gcr.io/$PROJECT_ID/${_SERVICE_NAME}:$COMMIT_SHA',
-      '--region', '${_REGION}',
+      'run', 'deploy', 'spurly-middleware',
+      '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
+      '--region', 'us-west2',
       '--platform', 'managed',
       '--allow-unauthenticated',
       '--port', '8080',
@@ -52,7 +52,7 @@ options:
 # Timeout for the entire build
 timeout: '1800s'
 
-# Substitute variables
+# Optional substitutions (safe to leave)
 substitutions:
   _SERVICE_NAME: 'spurly-middleware'
   _REGION: 'us-west2'
