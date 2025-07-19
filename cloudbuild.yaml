@@ -25,13 +25,9 @@ steps:
 
   # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'push'
     args: [
-      'push', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA'
-    ]
-
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'push', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:latest'
+      'push', '--all-tags', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware'
     ]
 
   # Deploy to Cloud Run
