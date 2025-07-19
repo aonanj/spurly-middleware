@@ -1,14 +1,21 @@
 steps:
-  # Create Artifact Registry repository if it doesn't exist
+  # Check for Artifact Registry repository and create if it doesn't exist
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args: [
-      'artifacts', 'repositories', 'create', 'spurly-middleware',
-      '--repository-format=docker',
-      '--location=us-west2',
-      '--description="Spurly Middleware repository"',
-      '--project=$PROJECT_ID'
-    ]
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        gcloud artifacts repositories describe spurly-middleware --location=us-west2 --project=$PROJECT_ID &> /dev/null
+        if [ $$? -ne 0 ]; then
+          echo "Repository 'spurly-middleware' does not exist. Creating..."
+          gcloud artifacts repositories create spurly-middleware \
+            --repository-format=docker \
+            --location=us-west2 \
+            --description="Spurly Middleware repository" \
+            --project=$$PROJECT_ID
+        else
+          echo "Repository 'spurly-middleware' already exists."
+        fi
     id: 'create-repo'
 
   # Build the container image
