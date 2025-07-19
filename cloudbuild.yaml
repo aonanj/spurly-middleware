@@ -45,6 +45,7 @@ steps:
       '--image', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA',
       '--region', 'us-west2',
       '--platform', 'managed',
+      '--service-account', 'firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com',
       '--port', '8080',
       '--memory', '2Gi',
       '--cpu', '2',
