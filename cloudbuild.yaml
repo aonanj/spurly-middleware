@@ -13,6 +13,9 @@ steps:
 
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'build'
+    waitFor:
+      - 'create-repo'
     args: [
       'build',
       '-t', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA',
@@ -49,7 +52,7 @@ steps:
     ]
     id: 'deploy-cloud-run'
     waitFor:
-      - 'create-repo'
+      - 'push'
 
 # Service account configuration
 serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
