@@ -1,4 +1,16 @@
 steps:
+  # Create Artifact Registry repository if it doesn't exist
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'artifacts', 'repositories', 'create', 'spurly-middleware',
+      '--repository-format=docker',
+      '--location=us-west2',
+      '--description="Spurly Middleware repository"',
+      '--project=$PROJECT_ID'
+    ]
+    id: 'create-repo'
+
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
@@ -36,6 +48,8 @@ steps:
       '--concurrency', '100',
     ]
     id: 'deploy-cloud-run'
+    waitFor:
+      - 'create-repo'
 
 # Service account configuration
 serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
