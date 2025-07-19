@@ -66,3 +66,9 @@ spurly-trigger.json
 .env
 .secrets/
 
+# =========================
+# Docker
+# =========================
+Dockerfile
+.dockerignore
+

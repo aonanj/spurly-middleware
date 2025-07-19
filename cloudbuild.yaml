@@ -3,21 +3,20 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
-      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
-      '-t', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
-      '--cache-from', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest',
+      '-t', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA',
+      '-t', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:latest',
       '.'
     ]
 
-  # Push the container image to Container Registry
+  # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA'
+      'push', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA'
     ]
 
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:latest'
+      'push', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:latest'
     ]
 
   # Deploy to Cloud Run
@@ -25,14 +24,13 @@ steps:
     entrypoint: 'gcloud'
     args: [
       'run', 'deploy', 'spurly-middleware',
-      '--image', 'gcr.io/boreal-sweep-455716-a5/spurly-middleware:$COMMIT_SHA',
+      '--image', 'us-west2-docker.pkg.dev/$PROJECT_ID/spurly-middleware/spurly-middleware:$COMMIT_SHA',
       '--region', 'us-west2',
       '--platform', 'managed',
-      '--allow-unauthenticated',
       '--port', '8080',
       '--memory', '2Gi',
       '--cpu', '2',
-      '--min-instances', '1',
+      '--min-instances', '0',
       '--max-instances', '20',
       '--timeout', '900',
       '--concurrency', '100',
@@ -40,7 +38,7 @@ steps:
     id: 'deploy-cloud-run'
 
 # Service account configuration
-serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/cloudbuild-sa@boreal-sweep-455716-a5.iam.gserviceaccount.com'
+serviceAccount: 'projects/boreal-sweep-455716-a5/serviceAccounts/firebase-adminsdk-fbsvc@boreal-sweep-455716-a5.iam.gserviceaccount.com'
 
 # Build options
 options:

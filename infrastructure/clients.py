@@ -36,9 +36,11 @@ def init_clients(app):
     # --- Firebase Admin ---
     try:
         if not firebase_admin._apps:
-            cred_path = os.getenv("GOOGLE_CLOUD_FIREBASE_CREDS")
+            cred_path = os.environ.get("GOOGLE_CLOUD_FIREBASE_CREDS")
             if not cred_path or not os.path.exists(cred_path):
-                 raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
+                ##DEBUG
+                cred_path = ""
+                 ##raise FileNotFoundError(f"Firebase Admin key file not found at: {cred_path}")
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred, {'storageBucket': 'boreal-sweep-455716.firebasestorage.app'})
             logger.error("LOG.INFO: Firebase Admin initialized.")
